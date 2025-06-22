@@ -1,21 +1,50 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { DashboardMetrics } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 
 interface FilterSectionProps {
   filters: {
+    scopeType: 'dataset' | 'timerange';
     datasetSize: string;
+    datasetOrder: 'first' | 'last';
+    customLimit: number;
     timeRange: { start: string; end: string };
     equipment: string;
     status: string;
+    caseIds: string[];
   };
   onFiltersChange: (filters: any) => void;
   metrics?: DashboardMetrics;
 }
 
 export default function FilterSection({ filters, onFiltersChange, metrics }: FilterSectionProps) {
+  const [availableCases, setAvailableCases] = useState<string[]>([]);
+  const [availableEquipment, setAvailableEquipment] = useState<string[]>([]);
+  
+  // Fetch available cases and equipment for dropdowns
+  useEffect(() => {
+    fetch('/api/process/cases')
+      .then(res => res.json())
+      .then(cases => setAvailableCases(cases.map((c: any) => c.caseId)))
+      .catch(() => setAvailableCases([]));
+    
+    // Extract equipment from process activities
+    fetch('/api/process/activities')
+      .then(res => res.json())
+      .then(activities => {
+        const equipment = Array.from(new Set(activities.map((a: any) => a.resource).filter(Boolean)));
+        setAvailableEquipment(equipment);
+      })
+      .catch(() => setAvailableEquipment([]));
+  }, []);
+
   const handleFilterChange = (key: string, value: any) => {
     onFiltersChange({
       ...filters,
@@ -32,7 +61,7 @@ export default function FilterSection({ filters, onFiltersChange, metrics }: Fil
         button.disabled = true;
       }
       
-      // Apply the filter changes
+      // Apply the filter changes - this will trigger anomaly detection and all analysis to re-run
       onFiltersChange({ ...filters });
       
       // Reset button after a delay
