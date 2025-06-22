@@ -31,7 +31,7 @@ export default function BottleneckAnalysisDetailed({ filteredData }: BottleneckA
   const { data: bottlenecks, isLoading } = useQuery({
     queryKey: ['/api/bottlenecks'],
     queryFn: () => api.getBottleneckAnalysis() as Promise<BottleneckData>,
-    enabled: !filteredData // Only fetch if no filtered data is provided
+    enabled: !filteredData?.activities || filteredData.activities.length === 0 // Only fetch if no filtered data is provided
   });
 
   // Calculate bottlenecks from filtered data if available
@@ -98,7 +98,11 @@ export default function BottleneckAnalysisDetailed({ filteredData }: BottleneckA
     };
   };
 
-  const displayData = filteredData ? calculateBottlenecksFromData(filteredData.activities) : bottlenecks;
+  // Debug filtered data
+  console.log('BottleneckAnalysis - filteredData:', filteredData);
+  console.log('BottleneckAnalysis - activities count:', filteredData?.activities?.length);
+  
+  const displayData = filteredData?.activities?.length > 0 ? calculateBottlenecksFromData(filteredData.activities) : bottlenecks;
 
   if (isLoading && !filteredData) {
     return (
