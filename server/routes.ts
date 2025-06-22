@@ -138,23 +138,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Apply ordering (first or last activities)
         if (filters.datasetOrder === 'last') {
           scopedActivities = scopedActivities
-            .sort((a, b) => new Date(b.startTime || b.createdAt).getTime() - new Date(a.startTime || a.createdAt).getTime())
+            .sort((a, b) => {
+              const dateA = a.startTime || a.createdAt || new Date(0);
+              const dateB = b.startTime || b.createdAt || new Date(0);
+              return new Date(dateB).getTime() - new Date(dateA).getTime();
+            })
             .slice(0, limit);
         } else {
           scopedActivities = scopedActivities
-            .sort((a, b) => new Date(a.startTime || a.createdAt).getTime() - new Date(b.startTime || b.createdAt).getTime())
+            .sort((a, b) => {
+              const dateA = a.startTime || a.createdAt || new Date(0);
+              const dateB = b.startTime || b.createdAt || new Date(0);
+              return new Date(dateA).getTime() - new Date(dateB).getTime();
+            })
             .slice(0, limit);
         }
       } else if (filters.scopeType === 'timerange') {
         // Time-based filtering
         if (filters.timeRange?.start || filters.timeRange?.end) {
           scopedActivities = scopedActivities.filter(activity => {
-            const activityDate = new Date(activity.startTime || activity.createdAt);
+            const activityDate = activity.startTime || activity.createdAt;
+            if (!activityDate) return true;
+            
             const startDate = filters.timeRange.start ? new Date(filters.timeRange.start) : null;
             const endDate = filters.timeRange.end ? new Date(filters.timeRange.end) : null;
             
-            if (startDate && activityDate < startDate) return false;
-            if (endDate && activityDate > endDate) return false;
+            if (startDate && new Date(activityDate) < startDate) return false;
+            if (endDate && new Date(activityDate) > endDate) return false;
             return true;
           });
         }
@@ -163,7 +173,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Secondary Filter Layer - applied to scoped data
       if (filters.equipment && filters.equipment !== 'all') {
         scopedActivities = scopedActivities.filter(activity => 
-          activity.resource === filters.equipment
+          activity.orgResource === filters.equipment
         );
       }
       
@@ -183,7 +193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get unique case IDs from scoped activities
-      const scopedCaseIds = [...new Set(scopedActivities.map(a => a.caseId))];
+      const scopedCaseIds = Array.from(new Set(scopedActivities.map(a => a.caseId)));
       
       // Get events and cases for the scoped data
       const allEvents = await storage.getProcessEvents();
@@ -215,10 +225,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             title: 'Processing Time Anomaly',
             description: `Unusual processing time detected for ${activity.activity}`,
             details: processingAnomaly.reason,
-            timestamp: new Date(activity.timestamp),
+            timestamp: new Date(activity.startTime || activity.createdAt || new Date()),
             severity: processingAnomaly.score > 0.8 ? 'high' : 'medium',
             caseId: activity.caseId,
-            equipment: activity.resource
+            equipment: activity.orgResource
           });
         }
       }
@@ -226,7 +236,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Calculate metrics for scoped data
       const scopedMetrics = {
         avgProcessingTime: scopedActivities.length > 0 
-          ? scopedActivities.reduce((sum, a) => sum + (a.duration || 0), 0) / scopedActivities.length 
+          ? scopedActivities.reduce((sum, a) => sum + (a.actualDurationS || 0), 0) / scopedActivities.length 
           : 0,
         anomaliesDetected: scopedAnomalies.length,
         bottlenecksFound: 0, // Will be calculated separately

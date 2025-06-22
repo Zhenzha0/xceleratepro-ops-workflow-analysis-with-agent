@@ -2,7 +2,7 @@ import { apiRequest } from "./queryClient";
 
 export interface DashboardFilters {
   scopeType: 'dataset' | 'timerange';
-  datasetSize?: 'full' | '1000' | '500' | 'custom';
+  datasetSize?: string;
   datasetOrder?: 'first' | 'last';
   customLimit?: number;
   timeRange?: {
@@ -10,7 +10,7 @@ export interface DashboardFilters {
     end?: string;
   };
   equipment?: string;
-  status?: 'all' | 'success' | 'failed' | 'inProgress';
+  status?: string;
   caseIds?: string[];
 }
 
