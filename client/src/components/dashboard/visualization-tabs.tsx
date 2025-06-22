@@ -7,7 +7,11 @@ import ProcessMap from "./process-map";
 import DetailedAnomalyView from "./detailed-anomaly-view";
 import BottleneckAnalysisDetailed from "./bottleneck-analysis-detailed";
 
-export default function VisualizationTabs() {
+interface VisualizationTabsProps {
+  filteredData?: any;
+}
+
+export default function VisualizationTabs({ filteredData }: VisualizationTabsProps) {
   const [activeTab, setActiveTab] = useState("process-map");
 
   // Fetch real manufacturing data for timeline analysis
@@ -151,7 +155,7 @@ export default function VisualizationTabs() {
         </TabsContent>
         
         <TabsContent value="bottlenecks" className="mt-0">
-          <BottleneckAnalysisDetailed />
+          <BottleneckAnalysisDetailed filteredData={filteredData} />
         </TabsContent>
 
         <TabsContent value="anomaly-details" className="mt-0">

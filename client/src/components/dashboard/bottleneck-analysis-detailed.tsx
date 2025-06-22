@@ -19,13 +19,88 @@ interface BottleneckData {
   }>;
 }
 
-export default function BottleneckAnalysisDetailed() {
+interface BottleneckAnalysisDetailedProps {
+  filteredData?: {
+    activities: any[];
+    events: any[];
+  };
+}
+
+export default function BottleneckAnalysisDetailed({ filteredData }: BottleneckAnalysisDetailedProps) {
+  // Use filtered data if available, otherwise fetch from API
   const { data: bottlenecks, isLoading } = useQuery({
     queryKey: ['/api/bottlenecks'],
-    queryFn: () => api.getBottleneckAnalysis() as Promise<BottleneckData>
+    queryFn: () => api.getBottleneckAnalysis() as Promise<BottleneckData>,
+    enabled: !filteredData // Only fetch if no filtered data is provided
   });
 
-  if (isLoading) {
+  // Calculate bottlenecks from filtered data if available
+  const calculateBottlenecksFromData = (activities: any[]) => {
+    if (!activities || activities.length === 0) return null;
+
+    // Group by station/activity and calculate averages
+    const stationStats = activities.reduce((acc: any, activity: any) => {
+      const station = activity.activity || activity.resource || 'Unknown Station';
+      if (!acc[station]) {
+        acc[station] = {
+          processingTimes: [],
+          waitTimes: []
+        };
+      }
+      
+      if (activity.actual_duration_s) {
+        acc[station].processingTimes.push(activity.actual_duration_s);
+      }
+      
+      // Calculate wait time as difference between start and scheduled time
+      if (activity.start_time && activity.scheduled_time) {
+        const waitTime = new Date(activity.start_time).getTime() - new Date(activity.scheduled_time).getTime();
+        if (waitTime > 0) {
+          acc[station].waitTimes.push(waitTime / 1000); // Convert to seconds
+        }
+      }
+      
+      return acc;
+    }, {});
+
+    // Calculate averages and determine impact
+    const processingBottlenecks = Object.entries(stationStats)
+      .map(([station, stats]: [string, any]) => {
+        if (stats.processingTimes.length === 0) return null;
+        const avgTime = stats.processingTimes.reduce((a: number, b: number) => a + b, 0) / stats.processingTimes.length;
+        return {
+          station,
+          avgProcessingTime: avgTime,
+          impact: avgTime > 300 ? 'high' : avgTime > 100 ? 'medium' : 'low'
+        };
+      })
+      .filter(Boolean)
+      .sort((a: any, b: any) => b.avgProcessingTime - a.avgProcessingTime)
+      .slice(0, 5);
+
+    const waitTimeBottlenecks = Object.entries(stationStats)
+      .map(([station, stats]: [string, any]) => {
+        if (stats.waitTimes.length === 0) return null;
+        const avgWait = stats.waitTimes.reduce((a: number, b: number) => a + b, 0) / stats.waitTimes.length;
+        return {
+          station,
+          avgWaitTime: avgWait,
+          impact: avgWait > 200 ? 'high' : avgWait > 50 ? 'medium' : 'low'
+        };
+      })
+      .filter(Boolean)
+      .sort((a: any, b: any) => b.avgWaitTime - a.avgWaitTime)
+      .slice(0, 5);
+
+    return {
+      processingBottlenecks,
+      waitTimeBottlenecks
+    };
+  };
+
+  const displayData = filteredData ? calculateBottlenecksFromData(filteredData.activities) : bottlenecks;
+
+  if (isLoading && !filteredData) {
     return (
       <Card>
         <CardHeader>
