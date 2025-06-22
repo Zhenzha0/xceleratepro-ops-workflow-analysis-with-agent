@@ -186,23 +186,38 @@ export default function FilterSection({ filters, onFiltersChange, metrics }: Fil
                 <div>
                   <Label htmlFor="endActivity">End Activity Position</Label>
                   <Input
-                    type="number"
+                    type="text"
                     value={filters.activityRange?.end || 100}
                     onChange={(e) => {
                       const value = e.target.value;
+                      // Allow empty string for deletion
                       if (value === "") {
                         handleFilterChange('activityRange', { 
                           ...filters.activityRange, 
-                          end: 100
+                          end: 1
                         });
-                      } else {
+                        return;
+                      }
+                      
+                      // Only allow numeric input
+                      if (/^\d+$/.test(value)) {
                         const numValue = parseInt(value);
-                        if (!isNaN(numValue)) {
+                        if (numValue >= 1 && numValue <= 3157) {
                           handleFilterChange('activityRange', { 
                             ...filters.activityRange, 
                             end: numValue
                           });
                         }
+                      }
+                    }}
+                    onBlur={(e) => {
+                      // Ensure we have a valid number on blur
+                      const value = e.target.value;
+                      if (value === "" || isNaN(parseInt(value))) {
+                        handleFilterChange('activityRange', { 
+                          ...filters.activityRange, 
+                          end: 100
+                        });
                       }
                     }}
                     placeholder="Activity #100"
