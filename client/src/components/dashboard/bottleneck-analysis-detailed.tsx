@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useDashboardData } from "@/hooks/use-dashboard-data";
 
 interface BottleneckData {
   processingBottlenecks: Array<{
@@ -24,11 +25,30 @@ interface BottleneckAnalysisDetailedProps {
     activities: any[];
     events: any[];
   };
+  filters?: any;
 }
 
-export default function BottleneckAnalysisDetailed({ filteredData }: BottleneckAnalysisDetailedProps) {
+export default function BottleneckAnalysisDetailed({ filteredData: propFilteredData }: BottleneckAnalysisDetailedProps) {
+  // Get filtered data directly from hook - this automatically responds to filter changes
+  const { filteredData: hookFilteredData } = useDashboardData({
+    scopeType: 'dataset',
+    datasetSize: 'full',
+    datasetOrder: 'first',
+    customLimit: 1000,
+    activityRange: { start: 1, end: 100 },
+    timeRange: { start: '', end: '' },
+    equipment: 'all',
+    status: 'all',
+    caseIds: []
+  });
+
+  // Use hook data as primary source, fallback to props
+  const filteredData = hookFilteredData || propFilteredData;
+
   // Debug filtered data in BottleneckAnalysis
-  console.log('BottleneckAnalysis - received filteredData:', filteredData);
+  console.log('BottleneckAnalysis - hook filteredData:', hookFilteredData);
+  console.log('BottleneckAnalysis - prop filteredData:', propFilteredData);
+  console.log('BottleneckAnalysis - final filteredData:', filteredData);
   console.log('BottleneckAnalysis - activities count:', filteredData?.activities?.length);
 
   // Use filtered data if available, otherwise fetch from API
