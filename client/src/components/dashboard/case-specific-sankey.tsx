@@ -215,14 +215,103 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
       return sourceIndex !== targetIndex;
     });
 
-    // Create sankey generator with regular links only
+    // Create a DAG (Directed Acyclic Graph) by using topological ordering
+    const createDAG = (nodes: SankeyNode[], links: SankeyLink[]) => {
+      // Build adjacency list
+      const adjList = new Map<number, number[]>();
+      const inDegree = new Map<number, number>();
+      
+      // Initialize
+      for (let i = 0; i < nodes.length; i++) {
+        adjList.set(i, []);
+        inDegree.set(i, 0);
+      }
+      
+      // Build graph from links
+      const validLinks: SankeyLink[] = [];
+      for (const link of regularLinks) {
+        const sourceIndex = typeof link.source === 'number' ? link.source : nodes.findIndex(n => n.id === (link.source as SankeyNode).id);
+        const targetIndex = typeof link.target === 'number' ? link.target : nodes.findIndex(n => n.id === (link.target as SankeyNode).id);
+        
+        if (sourceIndex >= 0 && targetIndex >= 0 && sourceIndex !== targetIndex) {
+          adjList.get(sourceIndex)!.push(targetIndex);
+          inDegree.set(targetIndex, inDegree.get(targetIndex)! + 1);
+          validLinks.push({
+            ...link,
+            source: sourceIndex,
+            target: targetIndex
+          });
+        }
+      }
+      
+      // Topological sort to detect cycles
+      const queue: number[] = [];
+      const result: number[] = [];
+      
+      // Add nodes with no incoming edges
+      for (const [node, degree] of inDegree.entries()) {
+        if (degree === 0) {
+          queue.push(node);
+        }
+      }
+      
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        result.push(current);
+        
+        for (const neighbor of adjList.get(current)!) {
+          inDegree.set(neighbor, inDegree.get(neighbor)! - 1);
+          if (inDegree.get(neighbor) === 0) {
+            queue.push(neighbor);
+          }
+        }
+      }
+      
+      // If result length < nodes length, there's a cycle
+      if (result.length < nodes.length) {
+        console.log('Cycle detected, creating simplified flow');
+        // Create a simple left-to-right flow based on activity order
+        const simpleLinks: SankeyLink[] = [];
+        for (let i = 0; i < nodes.length - 1; i++) {
+          simpleLinks.push({
+            source: i,
+            target: i + 1,
+            value: 1,
+            avgTransitionTime: 0,
+            occurrences: 1,
+            activities: []
+          });
+        }
+        return simpleLinks;
+      }
+      
+      return validLinks;
+    };
+
+    const dagLinks = createDAG(nodes, regularLinks);
+
+    // Create sankey generator
     const sankeyGenerator = d3Sankey.sankey<SankeyNode, SankeyLink>()
       .nodeWidth(15)
       .nodePadding(20)
       .extent([[margin.left, margin.top], [width - margin.right, height - margin.bottom]])
       .nodeAlign(d3Sankey.sankeyLeft);
 
-    const graph = sankeyGenerator({ nodes, links: regularLinks });
+    let graph;
+    try {
+      graph = sankeyGenerator({ nodes, links: dagLinks });
+    } catch (error) {
+      console.error('Sankey generation failed, using fallback layout:', error);
+      // Create manual layout
+      const fallbackNodes = nodes.map((node, i) => ({
+        ...node,
+        x0: margin.left + i * 100,
+        x1: margin.left + i * 100 + 15,
+        y0: margin.top + 50,
+        y1: margin.top + 100
+      }));
+      graph = { nodes: fallbackNodes, links: [] };
+    }
 
     const g = svg.append("g");
 
