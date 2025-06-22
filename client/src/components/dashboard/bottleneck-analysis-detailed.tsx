@@ -119,8 +119,8 @@ export default function BottleneckAnalysisDetailed({ filteredData: propFilteredD
 
     // Calculate wait time bottlenecks
     const waitTimeBottlenecks = Object.entries(stationStats)
+      .filter(([station, stats]: [string, any]) => stats.waitTimes.length > 0)
       .map(([station, stats]: [string, any]) => {
-        if (stats.waitTimes.length === 0) return null;
         const avgWait = stats.waitTimes.reduce((a: number, b: number) => a + b, 0) / stats.waitTimes.length;
         const maxWait = Math.max(...stats.waitTimes);
         
@@ -132,7 +132,6 @@ export default function BottleneckAnalysisDetailed({ filteredData: propFilteredD
           impact: (avgWait > 60 ? 'high' : avgWait > 20 ? 'medium' : 'low') as 'high' | 'medium' | 'low'
         };
       })
-      .filter((item): item is NonNullable<typeof item> => item !== null)
       .sort((a, b) => b.avgWaitTime - a.avgWaitTime)
       .slice(0, 8); // Show more bottlenecks
 
@@ -149,7 +148,7 @@ export default function BottleneckAnalysisDetailed({ filteredData: propFilteredD
   console.log('BottleneckAnalysis - filteredData:', filteredData);
   console.log('BottleneckAnalysis - activities count:', filteredData?.activities?.length);
   
-  const displayData = filteredData?.activities?.length > 0 ? calculateBottlenecksFromData(filteredData.activities) : bottlenecks;
+  const displayData = (filteredData && filteredData.activities && filteredData.activities.length > 0) ? calculateBottlenecksFromData(filteredData.activities) : bottlenecks;
 
   if (isLoading && !filteredData) {
     return (
