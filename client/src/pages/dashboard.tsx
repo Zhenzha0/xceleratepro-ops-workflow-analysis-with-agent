@@ -15,6 +15,7 @@ export default function Dashboard() {
     datasetSize: 'full',
     datasetOrder: 'first' as 'first' | 'last',
     customLimit: 1000,
+    activityRange: { start: 1, end: 100 },
     timeRange: { start: '', end: '' },
     equipment: 'all',
     status: 'all',

@@ -97,9 +97,9 @@ export class AnomalyDetector {
         score: score,
         reason: `Processing time ${actualProcessingTime.toFixed(1)}s vs planned ${plannedTime.toFixed(1)}s (deviation: ${currentDeviation > 0 ? '+' : ''}${currentDeviation.toFixed(1)}s) is outside normal range`,
         threshold: {
-          expected: mean,
-          actual: activity.actualDurationS,
-          deviation: deviationPercent
+          expected: plannedTime,
+          actual: actualProcessingTime,
+          deviation: Math.abs(currentDeviation)
         }
       };
     }
@@ -107,7 +107,7 @@ export class AnomalyDetector {
     return {
       isAnomaly: false,
       score: 0,
-      reason: 'Processing time within normal range'
+      reason: `Processing time deviation ${currentDeviation > 0 ? '+' : ''}${currentDeviation.toFixed(1)}s is within normal range`
     };
   }
 
