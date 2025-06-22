@@ -282,19 +282,20 @@ export class DatabaseStorage implements IStorage {
     const totalBottlenecks = significantProcessingBottlenecks + significantWaitBottlenecks;
 
     const totalCases = activeCases.count + completedCases.count + failedCases.count;
-    // Fix success rate calculation - should be completed cases / total cases
-    const successRate = totalCases > 0 ? (completedCases.count / totalCases) * 100 : 0;
+    // Fix success rate calculation - completed cases / (completed + failed cases)
+    const casesWithFinalStatus = completedCases.count + failedCases.count;
+    const successRate = casesWithFinalStatus > 0 ? (completedCases.count / casesWithFinalStatus) * 100 : 0;
 
     return {
       avgProcessingTime: avgProcessingByStation.length > 0 
         ? Math.round((avgProcessingByStation[0].avgTime || 0) * 100) / 100 
         : 0,
-      anomaliesDetected: anomalies.count,
+      anomaliesDetected: Number(anomalies.count || 0),
       bottlenecksFound: totalBottlenecks,
       successRate: Math.round(successRate * 100) / 100,
-      activeCases: activeCases.count,
-      completedCases: completedCases.count,
-      failedCases: failedCases.count,
+      activeCases: Number(activeCases.count || 0),
+      completedCases: Number(completedCases.count || 0),
+      failedCases: Number(failedCases.count || 0),
     };
   }
 
@@ -365,25 +366,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getBottleneckAnalysis(): Promise<any> {
-    // Get processing time bottlenecks
+    // Get processing time bottlenecks with full activity names
     const processingBottlenecks = await db.select({
-      station: processActivities.orgResource,
+      station: sql<string>`COALESCE(activity_name, org_resource, 'Unknown Station')`,
       avgProcessingTime: sql<number>`avg(actual_duration_s)`
     })
       .from(processActivities)
-      .where(sql`actual_duration_s IS NOT NULL AND org_resource IS NOT NULL`)
-      .groupBy(processActivities.orgResource)
+      .where(sql`actual_duration_s IS NOT NULL AND (activity_name IS NOT NULL OR org_resource IS NOT NULL)`)
+      .groupBy(sql`COALESCE(activity_name, org_resource, 'Unknown Station')`)
       .orderBy(sql`avg(actual_duration_s) desc`)
       .limit(5);
 
-    // Get wait time bottlenecks (start_time - scheduled_time)
+    // Get wait time bottlenecks with full activity names (start_time - scheduled_time)
     const waitTimeBottlenecks = await db.select({
-      station: processActivities.orgResource,
+      station: sql<string>`COALESCE(activity_name, org_resource, 'Unknown Station')`,
       avgWaitTime: sql<number>`avg(extract(epoch from start_time) - extract(epoch from scheduled_time))`
     })
       .from(processActivities)
-      .where(sql`start_time IS NOT NULL AND scheduled_time IS NOT NULL AND org_resource IS NOT NULL`)
-      .groupBy(processActivities.orgResource)
+      .where(sql`start_time IS NOT NULL AND scheduled_time IS NOT NULL AND (activity_name IS NOT NULL OR org_resource IS NOT NULL)`)
+      .groupBy(sql`COALESCE(activity_name, org_resource, 'Unknown Station')`)
       .orderBy(sql`avg(extract(epoch from start_time) - extract(epoch from scheduled_time)) desc`)
       .limit(5);
 
