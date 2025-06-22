@@ -173,7 +173,7 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
     const viewBoxWidth = Math.max(2400, uniqueActivities.length * 260); // Even larger width
     const viewBoxHeight = Math.max(600, Math.ceil(uniqueActivities.length / 4) * 200 + 400);
 
-    const processMapJSX = (
+    return (
       <div className="space-y-6">
         {/* Process Map Container */}
         <div className="bg-gray-50 rounded-lg border p-6">
@@ -207,8 +207,23 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
             </div>
           </div>
           
-          <div className="relative overflow-auto h-[600px]" style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'center top' }}>
-            <svg width="100%" height="600" viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`} className="mx-auto">
+          <div className="relative overflow-auto h-[600px] border rounded bg-white">
+            <div 
+              className="flex justify-center items-center min-h-full"
+              style={{ 
+                transform: `scale(${zoomLevel})`,
+                transformOrigin: 'center center',
+                padding: '20px'
+              }}
+            >
+              <svg 
+                width={viewBoxWidth * 0.8}
+                height="580" 
+                viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
+                style={{ 
+                  maxWidth: 'none'
+                }}
+              >
             {/* Render flow connections with better routing */}
             {uniqueConnections.map((connection, index) => {
               const fromPos = nodePositions[connection.from];
@@ -465,8 +480,9 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
                 />
               </marker>
             </defs>
-          </svg>
-        </div>
+              </svg>
+            </div>
+          </div>
         
         {/* Legend */}
         <div className="mt-4 flex justify-center space-x-6 text-xs">
@@ -569,8 +585,6 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
         </Card>
       </div>
     );
-
-    return processMapJSX;
   };
 
   return (
