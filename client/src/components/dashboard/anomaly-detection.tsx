@@ -99,7 +99,7 @@ export default function AnomalyDetection({ anomalies, isLoading }: AnomalyDetect
                         Investigate
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-2xl">
+                    <DialogContent className="max-w-2xl" aria-describedby="anomaly-description">
                       <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                           <AlertTriangle className="h-5 w-5 text-orange-500" />

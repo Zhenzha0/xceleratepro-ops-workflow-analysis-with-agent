@@ -120,6 +120,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/bottlenecks", async (req, res) => {
+    try {
+      const bottlenecks = await storage.getBottleneckAnalysis();
+      res.json(bottlenecks);
+    } catch (error) {
+      console.error('Error fetching bottleneck analysis:', error);
+      res.status(500).json({ message: 'Failed to fetch bottleneck analysis' });
+    }
+  });
+
   // Comprehensive Data Scoping API - applies to all analysis including anomaly detection
   app.post("/api/dashboard/filter", async (req, res) => {
     try {

@@ -232,11 +232,11 @@ export class DatabaseStorage implements IStorage {
 
     const [completedCases] = await db.select({ count: sql<number>`count(*)` })
       .from(processCases)
-      .where(eq(processCases.status, 'success'));
+      .where(or(eq(processCases.status, 'success'), eq(processCases.status, 'completed')));
 
     const [failedCases] = await db.select({ count: sql<number>`count(*)` })
       .from(processCases)
-      .where(eq(processCases.status, 'failed'));
+      .where(or(eq(processCases.status, 'failed'), eq(processCases.status, 'error')));
 
     // Calculate average processing time by station (2 decimal places)
     const avgProcessingByStation = await db.select({
@@ -275,7 +275,10 @@ export class DatabaseStorage implements IStorage {
       .orderBy(sql`avg(extract(epoch from start_time) - extract(epoch from scheduled_time)) desc`)
       .limit(5);
 
-    const totalBottlenecks = Math.min(processingBottlenecks.length + waitTimeBottlenecks.filter(w => w.avgWaitTime > 0).length, 10);
+    // Count actual bottlenecks (stations with significant delays)
+    const significantProcessingBottlenecks = processingBottlenecks.filter(b => b.avgProcessingTime > 60).length; // > 1 minute
+    const significantWaitBottlenecks = waitTimeBottlenecks.filter(w => w.avgWaitTime > 30).length; // > 30 seconds wait
+    const totalBottlenecks = significantProcessingBottlenecks + significantWaitBottlenecks;
 
     const totalCases = activeCases.count + completedCases.count + failedCases.count;
     // Fix success rate calculation - should be completed cases / total cases
