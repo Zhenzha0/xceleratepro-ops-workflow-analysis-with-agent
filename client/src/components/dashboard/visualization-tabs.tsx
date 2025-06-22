@@ -7,11 +7,7 @@ import ProcessMap from "./process-map";
 import DetailedAnomalyView from "./detailed-anomaly-view";
 import BottleneckAnalysisDetailed from "./bottleneck-analysis-detailed";
 
-interface VisualizationTabsProps {
-  filteredData?: any;
-}
-
-export default function VisualizationTabs({ filteredData }: VisualizationTabsProps) {
+export default function VisualizationTabs({ filteredData }: { filteredData?: any }) {
   const [activeTab, setActiveTab] = useState("process-map");
   
   // Debug filtered data in VisualizationTabs
