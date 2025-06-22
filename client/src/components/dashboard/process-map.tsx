@@ -101,27 +101,22 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
   const calculateNodePositions = (uniqueActivities: any[]) => {
     const positions: { [key: string]: { x: number; y: number } } = {};
     
-    // Left-to-right flow layout
-    const startX = 120;
-    const endX = 1000;
-    const availableWidth = endX - startX;
-    const stepX = availableWidth / Math.max(uniqueActivities.length - 1, 1);
-    
-    // Calculate layers for better vertical distribution
-    const layers = Math.ceil(uniqueActivities.length / 8); // Max 8 activities per row
-    const layerHeight = 120;
+    // Much more spread out horizontal layout
+    const startX = 150;
+    const nodeSpacing = 140; // Increased spacing between nodes
+    const rowHeight = 140; // Increased row height
+    const maxNodesPerRow = 6; // Fewer nodes per row for better spacing
     
     uniqueActivities.forEach((item, index) => {
-      const layer = Math.floor(index / 8);
-      const posInLayer = index % 8;
-      const activitiesInThisLayer = Math.min(8, uniqueActivities.length - layer * 8);
+      const row = Math.floor(index / maxNodesPerRow);
+      const col = index % maxNodesPerRow;
       
-      // Center activities in each layer
-      const layerStartX = startX + (8 - activitiesInThisLayer) * stepX / 2;
+      // Stagger rows for better visual flow
+      const offsetX = (row % 2) * 70; // Alternate row offset
       
       positions[item.activity.activity] = {
-        x: layerStartX + (posInLayer * stepX),
-        y: 100 + (layer * layerHeight)
+        x: startX + (col * nodeSpacing) + offsetX,
+        y: 120 + (row * rowHeight)
       };
     });
     
@@ -162,8 +157,8 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
       }
     }
     
-    const viewBoxWidth = 1200;
-    const viewBoxHeight = Math.max(300, Math.ceil(uniqueActivities.length / 8) * 120 + 200);
+    const viewBoxWidth = Math.max(1400, uniqueActivities.length * 140);
+    const viewBoxHeight = Math.max(400, Math.ceil(uniqueActivities.length / 6) * 140 + 200);
 
     return (
       <div className="h-96 bg-gray-50 rounded-lg border p-6 overflow-auto">
@@ -174,7 +169,7 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
         
         <div className="relative">
           <svg width="100%" height="350" viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}>
-            {/* Render flow connections */}
+            {/* Render flow connections with better routing */}
             {uniqueConnections.map((connection, index) => {
               const fromPos = nodePositions[connection.from];
               const toPos = nodePositions[connection.to];
@@ -182,46 +177,55 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
               if (!fromPos || !toPos) return null;
               
               const isDirectFlow = connection.timeDiff <= 5;
-              const isLoop = fromPos.x > toPos.x; // Backward flow indicates loop
+              const isLoop = fromPos.x > toPos.x;
               const strokeColor = isLoop ? "#ef4444" : (isDirectFlow ? "#10b981" : "#f59e0b");
-              const strokeWidth = isDirectFlow ? 3 : 2;
+              const strokeWidth = 2;
+              
+              // Calculate connection points to avoid overlapping with nodes
+              const dx = toPos.x - fromPos.x;
+              const dy = toPos.y - fromPos.y;
+              const distance = Math.sqrt(dx * dx + dy * dy);
+              const nodeRadius = 35;
+              
+              const fromX = fromPos.x + (dx / distance) * nodeRadius;
+              const fromY = fromPos.y + (dy / distance) * nodeRadius;
+              const toX = toPos.x - (dx / distance) * nodeRadius;
+              const toY = toPos.y - (dy / distance) * nodeRadius;
               
               return (
                 <g key={`connection-${index}`}>
                   {isLoop ? (
-                    // Curved line for loops
+                    // Curved path for loops to avoid overlaps
                     <path
-                      d={`M ${fromPos.x} ${fromPos.y} Q ${(fromPos.x + toPos.x) / 2} ${fromPos.y - 50} ${toPos.x} ${toPos.y}`}
+                      d={`M ${fromX} ${fromY} Q ${(fromX + toX) / 2} ${Math.min(fromY, toY) - 60} ${toX} ${toY}`}
                       stroke={strokeColor}
                       strokeWidth={strokeWidth}
                       fill="none"
                       markerEnd="url(#arrowhead)"
-                      opacity="0.7"
+                      opacity="0.8"
                     />
                   ) : (
-                    // Straight line for forward flow
-                    <line
-                      x1={fromPos.x + 25}
-                      y1={fromPos.y}
-                      x2={toPos.x - 25}
-                      y2={toPos.y}
+                    // Smooth curved path for better visual flow
+                    <path
+                      d={`M ${fromX} ${fromY} Q ${(fromX + toX) / 2} ${(fromY + toY) / 2} ${toX} ${toY}`}
                       stroke={strokeColor}
                       strokeWidth={strokeWidth}
+                      fill="none"
                       markerEnd="url(#arrowhead)"
-                      opacity="0.7"
+                      opacity="0.8"
                     />
                   )}
                   
-                  {/* Connection timing label */}
+                  {/* Connection timing label positioned better */}
                   <text
-                    x={(fromPos.x + toPos.x) / 2}
-                    y={(fromPos.y + toPos.y) / 2 - (isLoop ? 25 : 10)}
+                    x={(fromX + toX) / 2}
+                    y={(fromY + toY) / 2 - (isLoop ? 30 : 15)}
                     textAnchor="middle"
-                    fontSize="9"
+                    fontSize="8"
                     fill="#6b7280"
                     fontWeight="500"
                   >
-                    {connection.timeDiff > 0 ? `+${Math.round(connection.timeDiff)}s` : `${Math.round(connection.timeDiff)}s`}
+                    {Math.round(connection.timeDiff)}s
                   </text>
                 </g>
               );
@@ -264,46 +268,63 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
               if (isAnomaly) nodeColor = "#ef4444"; // Anomaly (red)
               else if (hasLoop) nodeColor = "#8b5cf6"; // Loop activity (purple)
               
+              // Extract activity parts for better display
+              const activityParts = activity.activity.split('/');
+              const prefix = activityParts[1] || activityParts[0]; // Get the station part (hbw, vgr, etc.)
+              const action = activityParts.slice(2).join('_') || activityParts.slice(1).join('_'); // Get the action part
+              
               return (
                 <g key={activity.activity}>
-                  {/* Activity node */}
+                  {/* Activity node - larger circle */}
                   <circle
                     cx={pos.x}
                     cy={pos.y}
-                    r="30"
+                    r="35"
                     fill={nodeColor}
                     stroke="#ffffff"
                     strokeWidth="3"
                   />
                   
-                  {/* Activity short name inside circle */}
+                  {/* Station prefix inside circle */}
                   <text
                     x={pos.x}
-                    y={pos.y + 3}
+                    y={pos.y - 5}
                     textAnchor="middle"
-                    fontSize="10"
+                    fontSize="12"
                     fill="white"
                     fontWeight="bold"
                   >
-                    {activity.activity.split('/').pop()?.substring(0, 8)}
+                    {prefix}
                   </text>
                   
-                  {/* Activity full name above */}
+                  {/* Action name below in circle */}
                   <text
                     x={pos.x}
-                    y={pos.y - 40}
+                    y={pos.y + 8}
+                    textAnchor="middle"
+                    fontSize="9"
+                    fill="white"
+                    fontWeight="500"
+                  >
+                    {action?.substring(0, 12)}
+                  </text>
+                  
+                  {/* Full activity name above node */}
+                  <text
+                    x={pos.x}
+                    y={pos.y - 50}
                     textAnchor="middle"
                     fontSize="11"
                     fontWeight="500"
                     fill="#374151"
                   >
-                    {activity.activity.split('/').pop()}
+                    {activity.activity.substring(1)} {/* Remove leading slash */}
                   </text>
                   
-                  {/* Duration and occurrences below */}
+                  {/* Duration below */}
                   <text
                     x={pos.x}
-                    y={pos.y + 50}
+                    y={pos.y + 55}
                     textAnchor="middle"
                     fontSize="10"
                     fill="#6b7280"
@@ -316,7 +337,7 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
                   {item.occurrences > 1 && (
                     <text
                       x={pos.x}
-                      y={pos.y + 65}
+                      y={pos.y + 70}
                       textAnchor="middle"
                       fontSize="9"
                       fill="#8b5cf6"
@@ -329,7 +350,7 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
                   {/* Resource */}
                   <text
                     x={pos.x}
-                    y={pos.y + (item.occurrences > 1 ? 80 : 65)}
+                    y={pos.y + (item.occurrences > 1 ? 85 : 70)}
                     textAnchor="middle"
                     fontSize="9"
                     fill="#9ca3af"
