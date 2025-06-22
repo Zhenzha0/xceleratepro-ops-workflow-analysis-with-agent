@@ -35,49 +35,67 @@ export class AnomalyDetector {
     activity: ProcessActivity,
     historicalActivities: ProcessActivity[]
   ): AnomalyResult {
-    if (!activity.actualDurationS || historicalActivities.length < 10) {
+    // Calculate actual processing time (complete time - start time)
+    const startTime = activity.startTime ? new Date(activity.startTime).getTime() : null;
+    const completeTime = activity.completeTime ? new Date(activity.completeTime).getTime() : null;
+    const plannedTime = activity.plannedDurationS || 0;
+    
+    if (!startTime || !completeTime || plannedTime <= 0) {
       return {
         isAnomaly: false,
         score: 0,
-        reason: 'Insufficient data for analysis'
+        reason: 'Missing timing data or planned duration'
       };
     }
 
-    // Filter similar activities
-    const similarActivities = historicalActivities.filter(
-      a => a.activity === activity.activity && 
-           a.orgResource === activity.orgResource && 
-           a.actualDurationS && 
-           a.actualDurationS > 0
-    );
-
-    if (similarActivities.length < 5) {
-      return {
-        isAnomaly: false,
-        score: 0,
-        reason: 'Insufficient similar activities for comparison'
-      };
-    }
-
-    const durations = similarActivities.map(a => a.actualDurationS!);
-    const stats = this.calculateIQR(durations);
+    const actualProcessingTime = (completeTime - startTime) / 1000; // Convert to seconds
     
-    const isOutlier = activity.actualDurationS < stats.lower || activity.actualDurationS > stats.upper;
-    
-    if (isOutlier) {
-      const mean = durations.reduce((sum, d) => sum + d, 0) / durations.length;
-      const variance = durations.reduce((sum, d) => sum + Math.pow(d - mean, 2), 0) / durations.length;
-      const stdDev = Math.sqrt(variance);
-      const zScore = this.calculateZScore(activity.actualDurationS, mean, stdDev);
+    // Get similar activities for comparison (same activity type)
+    const similarActivities = historicalActivities.filter(a => {
+      const aStartTime = a.startTime ? new Date(a.startTime).getTime() : null;
+      const aCompleteTime = a.completeTime ? new Date(a.completeTime).getTime() : null;
+      const aPlannedTime = a.plannedDurationS || 0;
       
-      const deviationPercent = ((activity.actualDurationS - mean) / mean) * 100;
+      return a.activity === activity.activity && 
+             aStartTime && aCompleteTime && 
+             aPlannedTime > 0 &&
+             a.id !== activity.id; // Exclude current activity
+    });
+
+    if (similarActivities.length < 3) {
+      return {
+        isAnomaly: false,
+        score: 0,
+        reason: 'Insufficient data for comparison (need at least 3 similar activities)'
+      };
+    }
+
+    // Calculate processing time deviations from planned time for all similar activities
+    const deviations = similarActivities.map(a => {
+      const aStartTime = new Date(a.startTime!).getTime();
+      const aCompleteTime = new Date(a.completeTime!).getTime();
+      const aActualTime = (aCompleteTime - aStartTime) / 1000;
+      const aPlannedTime = a.plannedDurationS!;
+      return aActualTime - aPlannedTime; // Deviation from planned
+    });
+
+    const currentDeviation = actualProcessingTime - plannedTime;
+    deviations.push(currentDeviation);
+
+    const { q1, q3, iqr, lower, upper } = this.calculateIQR(deviations);
+    
+    if (currentDeviation < lower || currentDeviation > upper) {
+      const deviationMagnitude = Math.min(
+        Math.abs(currentDeviation - lower),
+        Math.abs(currentDeviation - upper)
+      );
+      
+      const score = iqr > 0 ? Math.min(deviationMagnitude / iqr, 3.0) : 1.0;
       
       return {
         isAnomaly: true,
-        score: zScore,
-        reason: activity.actualDurationS > stats.upper ? 
-          `Processing time exceeded expected range by ${Math.abs(deviationPercent).toFixed(1)}%` :
-          `Processing time below expected range by ${Math.abs(deviationPercent).toFixed(1)}%`,
+        score: score,
+        reason: `Processing time ${actualProcessingTime.toFixed(1)}s vs planned ${plannedTime.toFixed(1)}s (deviation: ${currentDeviation > 0 ? '+' : ''}${currentDeviation.toFixed(1)}s) is outside normal range`,
         threshold: {
           expected: mean,
           actual: activity.actualDurationS,

@@ -130,28 +130,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Primary Data Scope Layer
       if (filters.scopeType === 'dataset' && filters.datasetSize !== 'full') {
-        let limit = 1000;
-        if (filters.datasetSize === '500') limit = 500;
-        else if (filters.datasetSize === 'custom') limit = filters.customLimit || 1000;
-        else if (filters.datasetSize === '1000') limit = 1000;
-        
-        // Apply ordering (first or last activities)
-        if (filters.datasetOrder === 'last') {
-          scopedActivities = scopedActivities
-            .sort((a, b) => {
-              const dateA = a.startTime || a.createdAt || new Date(0);
-              const dateB = b.startTime || b.createdAt || new Date(0);
-              return new Date(dateB).getTime() - new Date(dateA).getTime();
-            })
-            .slice(0, limit);
-        } else {
+        if (filters.datasetSize === 'range') {
+          // Activity range filtering
+          const start = Math.max(1, filters.activityRange?.start || 1);
+          const end = Math.min(scopedActivities.length, filters.activityRange?.end || 100);
+          
+          // Sort by timestamp to get activities in chronological order
           scopedActivities = scopedActivities
             .sort((a, b) => {
               const dateA = a.startTime || a.createdAt || new Date(0);
               const dateB = b.startTime || b.createdAt || new Date(0);
               return new Date(dateA).getTime() - new Date(dateB).getTime();
             })
-            .slice(0, limit);
+            .slice(start - 1, end); // Convert to 0-based indexing
+        } else {
+          // Fixed size filtering
+          let limit = 1000;
+          if (filters.datasetSize === '500') limit = 500;
+          else if (filters.datasetSize === '1000') limit = 1000;
+          
+          // Apply ordering (first or last activities)
+          if (filters.datasetOrder === 'last') {
+            scopedActivities = scopedActivities
+              .sort((a, b) => {
+                const dateA = a.startTime || a.createdAt || new Date(0);
+                const dateB = b.startTime || b.createdAt || new Date(0);
+                return new Date(dateB).getTime() - new Date(dateA).getTime();
+              })
+              .slice(0, limit);
+          } else {
+            scopedActivities = scopedActivities
+              .sort((a, b) => {
+                const dateA = a.startTime || a.createdAt || new Date(0);
+                const dateB = b.startTime || b.createdAt || new Date(0);
+                return new Date(dateA).getTime() - new Date(dateB).getTime();
+              })
+              .slice(0, limit);
+          }
         }
       } else if (filters.scopeType === 'timerange') {
         // Time-based filtering

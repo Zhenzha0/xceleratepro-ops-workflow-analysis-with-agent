@@ -7,6 +7,7 @@ interface DashboardFilters {
   datasetSize: string;
   datasetOrder: 'first' | 'last';
   customLimit: number;
+  activityRange: { start: number; end: number };
   timeRange: { start: string; end: string };
   equipment: string;
   status: string;

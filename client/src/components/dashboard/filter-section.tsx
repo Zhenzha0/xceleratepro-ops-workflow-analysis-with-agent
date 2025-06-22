@@ -116,7 +116,7 @@ export default function FilterSection({ filters, onFiltersChange, metrics }: Fil
                     <SelectItem value="full">Full Dataset (All {metrics?.activeCases || 0} cases)</SelectItem>
                     <SelectItem value="1000">First/Last 1000 Activities</SelectItem>
                     <SelectItem value="500">First/Last 500 Activities</SelectItem>
-                    <SelectItem value="custom">Custom Limit</SelectItem>
+                    <SelectItem value="range">Activity Range</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -137,17 +137,36 @@ export default function FilterSection({ filters, onFiltersChange, metrics }: Fil
               )}
             </div>
             
-            {filters.datasetSize === 'custom' && (
-              <div>
-                <Label htmlFor="customLimit">Custom Limit</Label>
-                <Input
-                  type="number"
-                  value={filters.customLimit}
-                  onChange={(e) => handleFilterChange('customLimit', parseInt(e.target.value) || 1000)}
-                  placeholder="Enter number of activities"
-                  min="1"
-                  max="10000"
-                />
+            {filters.datasetSize === 'range' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="startActivity">Start Activity Position</Label>
+                  <Input
+                    type="number"
+                    value={filters.activityRange?.start || 1}
+                    onChange={(e) => handleFilterChange('activityRange', { 
+                      ...filters.activityRange, 
+                      start: parseInt(e.target.value) || 1 
+                    })}
+                    placeholder="Activity #1"
+                    min="1"
+                    max="3157"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="endActivity">End Activity Position</Label>
+                  <Input
+                    type="number"
+                    value={filters.activityRange?.end || 100}
+                    onChange={(e) => handleFilterChange('activityRange', { 
+                      ...filters.activityRange, 
+                      end: parseInt(e.target.value) || 100 
+                    })}
+                    placeholder="Activity #100"
+                    min="1"
+                    max="3157"
+                  />
+                </div>
               </div>
             )}
           </TabsContent>
