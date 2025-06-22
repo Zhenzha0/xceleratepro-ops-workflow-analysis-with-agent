@@ -1,0 +1,128 @@
+Build a comprehensive process mining and workflow analytics web application with the following specifications:
+
+Core Application Requirements
+Primary Functionality:
+
+Interactive process mining dashboard for manufacturing workflow analysis
+Real-time anomaly detection and bottleneck identification
+Conversational AI analyst with natural language query processing
+Advanced data visualization including Sankey diagrams, process maps, and timeline analysis
+Case-by-case workflow comparison and analysis
+Semantic search across process failure descriptions
+Data filtering and scope configuration (time-based, count-based)
+Temporal pattern analysis for failures and anomalies
+Dataset Description (Critical - Please Read Carefully)
+You will be working with complex manufacturing process mining data from XES (eXtensible Event Stream) format. The dataset contains:
+
+Data Structure:
+
+Event-based logging: Each row represents a lifecycle event (scheduled → start → complete) for manufacturing activities
+Case-centric workflow: Each case_id (e.g., WF_101_0) represents a complete workpiece journey through the factory
+Activity hierarchy: Activities like /hbw/unload, /ov/burn, /vgr/transport represent different manufacturing stations
+Temporal relationships: Events have timestamp, T_scheduled, T_start, T_complete for precise timing analysis
+Key Data Columns:
+
+case_id: Unique identifier for each workpiece workflow
+activity: Manufacturing station/operation (e.g., High Bay Warehouse, Oven, VGR Robot)
+lifecycle:transition: Event type (scheduled/start/complete)
+lifecycle:state: Success/failure status
+timestamp: When the event was logged
+processing_time_s: Actual processing duration
+planned_operation_time: Expected processing duration
+unsatisfied_condition_description: Detailed failure descriptions (JSON-like format with URLs, sensor data)
+current_task: Contextual task information
+Data Complexity Challenges:
+
+Multi-level temporal data: One activity has 3 events (scheduled/start/complete)
+Failure analysis complexity: Failures contain nested JSON with equipment URLs, sensor states, and condition descriptions
+Process flow reconstruction: Must merge events to reconstruct complete case workflows
+Anomaly detection: Requires statistical analysis of processing time deviations
+Cross-case pattern analysis: Identifying common failure patterns across multiple cases
+Technical Stack Recommendations
+For optimal performance and scalability, consider:
+
+Backend Framework:
+
+FastAPI instead of Flask for better async support, automatic API documentation, and type safety
+Or Next.js with API routes for full-stack TypeScript development
+Implement proper async/await patterns for database operations
+Frontend Technology:
+
+React with TypeScript for component-based UI with type safety
+Material-UI or Tailwind CSS for professional styling
+Plotly.js or D3.js for interactive data visualizations
+React Query/TanStack Query for efficient data fetching and caching
+Data Processing:
+
+Python backend: pandas, scikit-learn for anomaly detection, sentence-transformers for NLP
+Database: PostgreSQL for structured data with proper indexing
+Vector database: Pinecone or Qdrant for semantic search capabilities
+Caching: Redis for query result caching
+AI/ML Components:
+
+OpenAI GPT-4 integration for conversational analysis
+Sentence transformers for semantic search
+FAISS for vector similarity search
+Custom anomaly detection using Isolation Forest and statistical methods
+Required Features Implementation
+1. Data Processing Pipeline:
+
+XES file parser that converts event streams to activity-level data
+Automatic merging of scheduled→start→complete events into single activity records
+Processing time calculation and anomaly detection using IQR method
+Failure pattern extraction from JSON-formatted error descriptions
+2. Interactive Dashboard:
+
+Real-time data filtering (full dataset, record count limits, time ranges)
+Multiple visualization types: Sankey diagrams, process maps, timeline charts
+Case comparison tools with side-by-side workflow analysis
+Bottleneck identification with average processing time analysis
+3. Conversational AI Analyst:
+
+Natural language query processing for complex questions like "compare case WF_101_0 and WF_102_0"
+Function calling architecture for structured data analysis
+Semantic search across failure descriptions and process data
+Intelligent query interpretation with fallback to comprehensive analysis
+4. Advanced Analytics:
+
+Temporal pattern analysis (hourly/daily failure distributions)
+Equipment-specific failure analysis (High Bay Warehouse, VGR Robot, Oven)
+Process flow visualization with anomaly highlighting
+Case clustering based on workflow patterns
+5. Performance Optimization:
+
+Lazy loading for large datasets
+Progressive data loading with configurable limits
+Efficient vector indexing for semantic search
+Proper database indexing and query optimization
+User Interface Requirements
+Create a modern, professional interface with:
+
+Clean dashboard layout with tabbed sections
+Interactive filters for data scope configuration
+Real-time query results with loading states
+Responsive design for different screen sizes
+Export capabilities for analysis results
+Error handling with user-friendly messages
+Important Implementation Notes
+Data Understanding Critical Points:
+
+Event Reconstruction: Must properly merge lifecycle events to create meaningful activity records
+Failure Analysis: JSON-formatted error descriptions contain URLs, sensor states, and equipment conditions
+Temporal Complexity: Handle timezone issues and event ordering correctly
+Process Flow Logic: Understand that activities flow sequentially through manufacturing stations
+Anomaly Context: Anomalies are based on processing time deviations from planned durations
+Scalability Considerations:
+
+Implement efficient data pagination for large datasets
+Use streaming for real-time data processing
+Consider microservices architecture for complex analytics
+Implement proper error handling and logging
+Add comprehensive API documentation
+Security & Deployment:
+
+Environment variable management for API keys
+Rate limiting for AI API calls
+Input validation for all user queries
+Prepare for Replit deployment with proper port configuration (use 0.0.0.0:5000)
+The application should handle the complexity of manufacturing process mining data while providing an intuitive interface for business users to gain insights into their production workflows, identify bottlenecks, and analyze failure patterns.
