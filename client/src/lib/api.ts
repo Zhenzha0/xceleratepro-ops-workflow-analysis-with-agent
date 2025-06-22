@@ -16,6 +16,7 @@ export interface DashboardFilters {
   equipment?: string;
   status?: string;
   caseIds?: string[];
+  _timestamp?: number;
 }
 
 export interface AIQueryRequest {

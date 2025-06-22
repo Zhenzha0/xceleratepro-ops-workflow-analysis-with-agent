@@ -19,6 +19,7 @@ interface FilterSectionProps {
     equipment: string;
     status: string;
     caseIds: string[];
+    _timestamp?: number;
   };
   onFiltersChange: (filters: any) => void;
   metrics?: DashboardMetrics;
@@ -54,18 +55,22 @@ export default function FilterSection({ filters, onFiltersChange, metrics }: Fil
   }, []);
 
   const handleFilterChange = (key: string, value: any) => {
-    // When dataset type changes, automatically apply filters to trigger bottleneck analysis update
     const newFilters = {
       ...filters,
       [key]: value
     };
     
-    // If changing dataset size or scope type, add timestamp to force refresh
+    // Auto-apply filters when dataset size or scope type changes to update bottleneck analysis
     if (key === 'datasetSize' || key === 'scopeType') {
-      newFilters._timestamp = Date.now();
+      // Add timestamp to force refresh
+      const refreshedFilters = { 
+        ...newFilters, 
+        _timestamp: Date.now()
+      };
+      onFiltersChange(refreshedFilters);
+    } else {
+      onFiltersChange(newFilters);
     }
-    
-    onFiltersChange(newFilters);
   };
 
   const handleApplyFilters = async () => {
@@ -184,11 +189,21 @@ export default function FilterSection({ filters, onFiltersChange, metrics }: Fil
                     type="number"
                     value={filters.activityRange?.end || 100}
                     onChange={(e) => {
-                      const newValue = e.target.value === "" ? 100 : parseInt(e.target.value) || 100;
-                      handleFilterChange('activityRange', { 
-                        ...filters.activityRange, 
-                        end: newValue
-                      });
+                      const value = e.target.value;
+                      if (value === "") {
+                        handleFilterChange('activityRange', { 
+                          ...filters.activityRange, 
+                          end: 100
+                        });
+                      } else {
+                        const numValue = parseInt(value);
+                        if (!isNaN(numValue)) {
+                          handleFilterChange('activityRange', { 
+                            ...filters.activityRange, 
+                            end: numValue
+                          });
+                        }
+                      }
                     }}
                     placeholder="Activity #100"
                     min="1"
