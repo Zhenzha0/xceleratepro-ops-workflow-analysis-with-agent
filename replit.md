@@ -120,6 +120,7 @@ The application has a sidebar navigation with different sections:
 - June 22, 2025. Fixed data import issues and implemented tab-based navigation
 - June 22, 2025. Successfully imported manufacturing data with 282 cases and 170 anomalies detected
 - June 22, 2025. Fixed Apply Filters button functionality and Timeline Analysis chart visualization
+- June 22, 2025. Corrected anomaly detection to use historical analysis with IQR method instead of real-time monitoring
 
 ## User Preferences
 
