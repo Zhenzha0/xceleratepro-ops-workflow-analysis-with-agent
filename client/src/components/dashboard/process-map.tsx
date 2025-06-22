@@ -70,6 +70,36 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
 
   const connections = buildFlowConnections(caseActivities);
   
+  const calculateNodePositions = (activities: ProcessActivity[]) => {
+    const positions: { [key: string]: { x: number; y: number } } = {};
+    const nodeSize = 40;
+    const minDistance = 120;
+    
+    // Create a grid-based layout for better positioning
+    const cols = Math.ceil(Math.sqrt(activities.length * 1.5));
+    const rows = Math.ceil(activities.length / cols);
+    
+    activities.forEach((activity, index) => {
+      const row = Math.floor(index / cols);
+      const col = index % cols;
+      
+      // Add some variation to avoid strict grid
+      const baseX = 80 + (col * 180);
+      const baseY = 80 + (row * 120);
+      
+      // Add some randomness for natural flow appearance
+      const offsetX = (Math.sin(index * 0.7) * 30);
+      const offsetY = (Math.cos(index * 0.5) * 25);
+      
+      positions[activity.id] = {
+        x: baseX + offsetX,
+        y: baseY + offsetY
+      };
+    });
+    
+    return positions;
+  };
+
   const renderProcessFlow = () => {
     if (caseActivities.length === 0) {
       return (
@@ -79,6 +109,10 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
       );
     }
 
+    const nodePositions = calculateNodePositions(caseActivities);
+    const viewBoxWidth = Math.max(1000, caseActivities.length * 100);
+    const viewBoxHeight = Math.max(400, Math.ceil(caseActivities.length / 5) * 120 + 100);
+
     return (
       <div className="h-96 bg-gray-50 rounded-lg border p-6 overflow-auto">
         <div className="text-center mb-6">
@@ -87,74 +121,172 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
         </div>
         
         <div className="relative">
-          <svg width="100%" height="300" viewBox="0 0 1200 300">
-            {/* Render activities as nodes */}
+          <svg width="100%" height="350" viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}>
+            {/* Render flow connections first (behind nodes) */}
+            {connections.map((connection, index) => {
+              const fromActivity = caseActivities.find(a => a.activity === connection.from);
+              const toActivity = caseActivities.find(a => a.activity === connection.to);
+              
+              if (!fromActivity || !toActivity) return null;
+              
+              const fromPos = nodePositions[fromActivity.id];
+              const toPos = nodePositions[toActivity.id];
+              
+              if (!fromPos || !toPos) return null;
+              
+              const isDirectFlow = connection.timeDiff <= 5;
+              const strokeColor = isDirectFlow ? "#10b981" : "#f59e0b";
+              const strokeWidth = isDirectFlow ? 3 : 2;
+              
+              return (
+                <g key={`connection-${index}`}>
+                  <line
+                    x1={fromPos.x}
+                    y1={fromPos.y}
+                    x2={toPos.x}
+                    y2={toPos.y}
+                    stroke={strokeColor}
+                    strokeWidth={strokeWidth}
+                    markerEnd="url(#arrowhead)"
+                    opacity="0.7"
+                  />
+                  {/* Connection timing label */}
+                  <text
+                    x={(fromPos.x + toPos.x) / 2}
+                    y={(fromPos.y + toPos.y) / 2 - 10}
+                    textAnchor="middle"
+                    fontSize="9"
+                    fill="#6b7280"
+                    fontWeight="500"
+                  >
+                    {connection.timeDiff > 0 ? `+${Math.round(connection.timeDiff)}s` : `${Math.round(connection.timeDiff)}s`}
+                  </text>
+                </g>
+              );
+            })}
+            
+            {/* START node */}
+            <g>
+              <rect
+                x="20"
+                y={viewBoxHeight / 2 - 15}
+                width="50"
+                height="30"
+                rx="15"
+                fill="#10b981"
+                stroke="#ffffff"
+                strokeWidth="2"
+              />
+              <text
+                x="45"
+                y={viewBoxHeight / 2 + 5}
+                textAnchor="middle"
+                fontSize="11"
+                fill="white"
+                fontWeight="bold"
+              >
+                START
+              </text>
+            </g>
+            
+            {/* Render activity nodes */}
             {caseActivities.map((activity, index) => {
-              const x = 100 + (index * 150);
-              const y = 150;
+              const pos = nodePositions[activity.id];
+              if (!pos) return null;
+              
               const isAnomaly = activity.status === 'failed' || activity.actualDurationS > 120;
+              const isStart = index === 0;
+              const isEnd = index === caseActivities.length - 1;
+              
+              let nodeColor = "#10b981"; // Normal activity (green)
+              if (isAnomaly) nodeColor = "#ef4444"; // Anomaly (red)
+              else if (activity.status === 'in_progress') nodeColor = "#f59e0b"; // In progress (yellow)
               
               return (
                 <g key={activity.id}>
                   {/* Activity node */}
                   <circle
-                    cx={x}
-                    cy={y}
+                    cx={pos.x}
+                    cy={pos.y}
                     r="25"
-                    fill={isAnomaly ? "#ef4444" : activity.status === 'success' ? "#10b981" : "#f59e0b"}
+                    fill={nodeColor}
                     stroke="#ffffff"
                     strokeWidth="3"
                   />
                   
-                  {/* Activity label */}
+                  {/* Activity short name inside circle */}
                   <text
-                    x={x}
-                    y={y - 35}
+                    x={pos.x}
+                    y={pos.y + 3}
                     textAnchor="middle"
-                    fontSize="11"
+                    fontSize="10"
+                    fill="white"
+                    fontWeight="bold"
+                  >
+                    {activity.activity.split('/').pop()?.substring(0, 6)}
+                  </text>
+                  
+                  {/* Activity full name above */}
+                  <text
+                    x={pos.x}
+                    y={pos.y - 35}
+                    textAnchor="middle"
+                    fontSize="10"
                     fontWeight="500"
                     fill="#374151"
                   >
                     {activity.activity.split('/').pop()}
                   </text>
                   
-                  {/* Duration */}
+                  {/* Duration below */}
                   <text
-                    x={x}
-                    y={y + 45}
+                    x={pos.x}
+                    y={pos.y + 45}
                     textAnchor="middle"
                     fontSize="10"
                     fill="#6b7280"
+                    fontWeight="500"
                   >
                     {Math.round(activity.actualDurationS)}s
                   </text>
                   
                   {/* Resource */}
                   <text
-                    x={x}
-                    y={y + 60}
+                    x={pos.x}
+                    y={pos.y + 58}
                     textAnchor="middle"
                     fontSize="9"
                     fill="#9ca3af"
                   >
                     {activity.orgResource}
                   </text>
-                  
-                  {/* Connection to next activity */}
-                  {index < caseActivities.length - 1 && (
-                    <line
-                      x1={x + 25}
-                      y1={y}
-                      x2={x + 125}
-                      y2={y}
-                      stroke="#6b7280"
-                      strokeWidth="2"
-                      markerEnd="url(#arrowhead)"
-                    />
-                  )}
                 </g>
               );
             })}
+            
+            {/* END node */}
+            <g>
+              <rect
+                x={viewBoxWidth - 70}
+                y={viewBoxHeight / 2 - 15}
+                width="50"
+                height="30"
+                rx="15"
+                fill="#ef4444"
+                stroke="#ffffff"
+                strokeWidth="2"
+              />
+              <text
+                x={viewBoxWidth - 45}
+                y={viewBoxHeight / 2 + 5}
+                textAnchor="middle"
+                fontSize="11"
+                fill="white"
+                fontWeight="bold"
+              >
+                END
+              </text>
+            </g>
             
             {/* Arrow marker definition */}
             <defs>
@@ -179,15 +311,27 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
         <div className="mt-4 flex justify-center space-x-6 text-xs">
           <div className="flex items-center">
             <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-            <span>Normal Activity</span>
-          </div>
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div>
-            <span>In Progress</span>
+            <span>Start Activity</span>
           </div>
           <div className="flex items-center">
             <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
-            <span>Anomaly/Failed</span>
+            <span>End Activity</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div>
+            <span>Anomalous Activity</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+            <span>Normal Activity</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-2 h-1 bg-green-500 mr-2"></div>
+            <span>Forward Flow</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-2 h-1 bg-yellow-500 mr-2"></div>
+            <span>Loop/Backward Flow</span>
           </div>
         </div>
       </div>
