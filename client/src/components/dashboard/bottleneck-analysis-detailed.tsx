@@ -77,9 +77,9 @@ export default function BottleneckAnalysisDetailed({ filteredData: propFilteredD
       
       acc[station].count++;
       
-      // Use processingTimeS which exists in your manufacturing data
-      if (activity.processingTimeS && activity.processingTimeS > 0) {
-        acc[station].processingTimes.push(activity.processingTimeS);
+      // Use actualDurationS which exists in your manufacturing data
+      if (activity.actualDurationS && activity.actualDurationS > 0) {
+        acc[station].processingTimes.push(activity.actualDurationS);
       }
       
       // For wait time, calculate difference between timestamps if available
