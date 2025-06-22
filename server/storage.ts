@@ -368,23 +368,23 @@ export class DatabaseStorage implements IStorage {
   async getBottleneckAnalysis(): Promise<any> {
     // Get processing time bottlenecks with full activity names
     const processingBottlenecks = await db.select({
-      station: sql<string>`COALESCE(activity_name, org_resource, 'Unknown Station')`,
+      station: sql<string>`COALESCE(activity, org_resource, 'Unknown Station')`,
       avgProcessingTime: sql<number>`avg(actual_duration_s)`
     })
       .from(processActivities)
-      .where(sql`actual_duration_s IS NOT NULL AND (activity_name IS NOT NULL OR org_resource IS NOT NULL)`)
-      .groupBy(sql`COALESCE(activity_name, org_resource, 'Unknown Station')`)
+      .where(sql`actual_duration_s IS NOT NULL AND (activity IS NOT NULL OR org_resource IS NOT NULL)`)
+      .groupBy(sql`COALESCE(activity, org_resource, 'Unknown Station')`)
       .orderBy(sql`avg(actual_duration_s) desc`)
       .limit(5);
 
     // Get wait time bottlenecks with full activity names (start_time - scheduled_time)
     const waitTimeBottlenecks = await db.select({
-      station: sql<string>`COALESCE(activity_name, org_resource, 'Unknown Station')`,
+      station: sql<string>`COALESCE(activity, org_resource, 'Unknown Station')`,
       avgWaitTime: sql<number>`avg(extract(epoch from start_time) - extract(epoch from scheduled_time))`
     })
       .from(processActivities)
-      .where(sql`start_time IS NOT NULL AND scheduled_time IS NOT NULL AND (activity_name IS NOT NULL OR org_resource IS NOT NULL)`)
-      .groupBy(sql`COALESCE(activity_name, org_resource, 'Unknown Station')`)
+      .where(sql`start_time IS NOT NULL AND scheduled_time IS NOT NULL AND (activity IS NOT NULL OR org_resource IS NOT NULL)`)
+      .groupBy(sql`COALESCE(activity, org_resource, 'Unknown Station')`)
       .orderBy(sql`avg(extract(epoch from start_time) - extract(epoch from scheduled_time)) desc`)
       .limit(5);
 

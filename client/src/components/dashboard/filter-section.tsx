@@ -27,13 +27,21 @@ interface FilterSectionProps {
 export default function FilterSection({ filters, onFiltersChange, metrics }: FilterSectionProps) {
   const [availableCases, setAvailableCases] = useState<string[]>([]);
   const [availableEquipment, setAvailableEquipment] = useState<string[]>([]);
+  const [totalCaseCount, setTotalCaseCount] = useState<number>(0);
   
   // Fetch available cases and equipment for dropdowns
   useEffect(() => {
-    fetch('/api/process/cases')
+    // Fetch all cases without limit to get the total count
+    fetch('/api/process/cases?limit=1000')
       .then(res => res.json())
-      .then(cases => setAvailableCases(cases.map((c: any) => c.caseId)))
-      .catch(() => setAvailableCases([]));
+      .then(cases => {
+        setAvailableCases(cases.map((c: any) => c.caseId));
+        setTotalCaseCount(cases.length);
+      })
+      .catch(() => {
+        setAvailableCases([]);
+        setTotalCaseCount(0);
+      });
     
     // Extract equipment from process activities
     fetch('/api/process/activities')
@@ -114,7 +122,7 @@ export default function FilterSection({ filters, onFiltersChange, metrics }: Fil
                     <SelectValue placeholder="Select dataset size" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="full">Full Dataset (All {metrics?.activeCases || 0} cases)</SelectItem>
+                    <SelectItem value="full">Full Dataset (All {totalCaseCount || 301} cases)</SelectItem>
                     <SelectItem value="1000">First/Last 1000 Activities</SelectItem>
                     <SelectItem value="500">First/Last 500 Activities</SelectItem>
                     <SelectItem value="range">Activity Range</SelectItem>
