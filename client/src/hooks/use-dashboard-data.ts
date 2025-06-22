@@ -44,15 +44,11 @@ export function useDashboardData(filters: DashboardFilters) {
     refetchInterval: 30000,
   });
 
-  // Filtered data query - only runs when filters change
+  // Comprehensive filtered data query - applies to ALL analysis including anomaly detection
   const filteredDataQuery = useQuery({
     queryKey: ['/api/dashboard/filter', filters],
     queryFn: () => api.filterDashboardData(filters),
-    enabled: filters.datasetSize !== 'full' || 
-             filters.equipment !== 'all' || 
-             filters.status !== 'all' ||
-             filters.timeRange.start !== '' ||
-             filters.timeRange.end !== '',
+    enabled: true, // Always enabled to get scoped data
   });
 
   // Auto-import sample data if no data exists
@@ -84,11 +80,17 @@ export function useDashboardData(filters: DashboardFilters) {
 
   const hasError = metricsQuery.isError || 
                   anomaliesQuery.isError || 
-                  casesQuery.isError;
+                  casesQuery.isError ||
+                  filteredDataQuery.isError;
 
-  const metrics: DashboardMetrics | undefined = metricsQuery.data;
-  const anomalies: AnomalyAlert[] = anomaliesQuery.data || [];
-  const cases: ProcessCase[] = casesQuery.data || [];
+  // Use filtered data when available, fallback to individual queries
+  const data = filteredDataQuery.data || {};
+  
+  const metrics: DashboardMetrics | undefined = data.metrics || metricsQuery.data;
+  const anomalies: AnomalyAlert[] = data.anomalies || anomaliesQuery.data || [];
+  const cases: ProcessCase[] = data.cases || casesQuery.data || [];
+  const activities = data.activities || [];
+  const scopeInfo = data.scopeInfo;
   const filteredData = filteredDataQuery.data;
   const healthStatus = healthQuery.data;
 
@@ -109,6 +111,8 @@ export function useDashboardData(filters: DashboardFilters) {
     metrics,
     anomalies,
     cases,
+    activities,
+    scopeInfo,
     filteredData,
     healthStatus,
     
