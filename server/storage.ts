@@ -68,6 +68,7 @@ export interface IStorage {
   getDashboardMetrics(): Promise<DashboardMetrics>;
   getAnomalyAlerts(limit?: number): Promise<AnomalyAlert[]>;
   getCaseComparison(caseAId: string, caseBId: string): Promise<CaseComparison | null>;
+  getBottleneckAnalysis(): Promise<any>;
   
   // Data import methods
   bulkInsertProcessEvents(events: InsertProcessEvent[]): Promise<void>;
@@ -361,6 +362,43 @@ export class DatabaseStorage implements IStorage {
       const batch = cases.slice(i, i + batchSize);
       await db.insert(processCases).values(batch);
     }
+  }
+
+  async getBottleneckAnalysis(): Promise<any> {
+    // Get processing time bottlenecks
+    const processingBottlenecks = await db.select({
+      station: processActivities.orgResource,
+      avgProcessingTime: sql<number>`avg(actual_duration_s)`
+    })
+      .from(processActivities)
+      .where(sql`actual_duration_s IS NOT NULL AND org_resource IS NOT NULL`)
+      .groupBy(processActivities.orgResource)
+      .orderBy(sql`avg(actual_duration_s) desc`)
+      .limit(5);
+
+    // Get wait time bottlenecks (start_time - scheduled_time)
+    const waitTimeBottlenecks = await db.select({
+      station: processActivities.orgResource,
+      avgWaitTime: sql<number>`avg(extract(epoch from start_time) - extract(epoch from scheduled_time))`
+    })
+      .from(processActivities)
+      .where(sql`start_time IS NOT NULL AND scheduled_time IS NOT NULL AND org_resource IS NOT NULL`)
+      .groupBy(processActivities.orgResource)
+      .orderBy(sql`avg(extract(epoch from start_time) - extract(epoch from scheduled_time)) desc`)
+      .limit(5);
+
+    return {
+      processingBottlenecks: processingBottlenecks.map(b => ({
+        station: b.station,
+        avgProcessingTime: b.avgProcessingTime || 0,
+        impact: b.avgProcessingTime > 300 ? 'high' : b.avgProcessingTime > 120 ? 'medium' : 'low'
+      })),
+      waitTimeBottlenecks: waitTimeBottlenecks.filter(w => w.avgWaitTime > 0).map(w => ({
+        station: w.station,
+        avgWaitTime: w.avgWaitTime || 0,
+        impact: w.avgWaitTime > 180 ? 'high' : w.avgWaitTime > 60 ? 'medium' : 'low'
+      }))
+    };
   }
 }
 

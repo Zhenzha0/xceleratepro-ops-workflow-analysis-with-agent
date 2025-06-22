@@ -131,5 +131,11 @@ export const api = {
   async getHealthStatus() {
     const response = await apiRequest('GET', '/api/health');
     return response.json();
+  },
+
+  // Bottleneck Analysis
+  async getBottleneckAnalysis() {
+    const response = await apiRequest('GET', '/api/bottlenecks');
+    return response.json();
   }
 };
