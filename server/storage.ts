@@ -238,22 +238,59 @@ export class DatabaseStorage implements IStorage {
       .from(processCases)
       .where(eq(processCases.status, 'failed'));
 
-    const [avgTime] = await db.select({ avg: sql<number>`avg(total_duration_s)` })
-      .from(processCases)
-      .where(eq(processCases.status, 'success'));
+    // Calculate average processing time by station (2 decimal places)
+    const avgProcessingByStation = await db.select({
+      station: processActivities.orgResource,
+      avgTime: sql<number>`avg(process_duration_s)`
+    })
+      .from(processActivities)
+      .where(isNotNull(processActivities.processDurationS))
+      .groupBy(processActivities.orgResource)
+      .orderBy(sql`avg(process_duration_s) desc`)
+      .limit(1);
 
     const [anomalies] = await db.select({ count: sql<number>`count(*)` })
       .from(processActivities)
       .where(eq(processActivities.isAnomaly, true));
 
+    // Calculate bottlenecks - processing time and wait time
+    const processingBottlenecks = await db.select({
+      station: processActivities.orgResource,
+      avgProcessingTime: sql<number>`avg(process_duration_s)`
+    })
+      .from(processActivities)
+      .where(isNotNull(processActivities.processDurationS))
+      .groupBy(processActivities.orgResource)
+      .orderBy(sql`avg(process_duration_s) desc`)
+      .limit(5);
+
+    // Calculate wait time bottlenecks (start_time - scheduled_time)
+    const waitTimeBottlenecks = await db.select({
+      station: processActivities.orgResource,
+      avgWaitTime: sql<number>`avg(extract(epoch from start_time) - extract(epoch from scheduled_time))`
+    })
+      .from(processActivities)
+      .where(and(
+        isNotNull(processActivities.startTime),
+        isNotNull(processActivities.scheduledTime)
+      ))
+      .groupBy(processActivities.orgResource)
+      .orderBy(sql`avg(extract(epoch from start_time) - extract(epoch from scheduled_time)) desc`)
+      .limit(5);
+
+    const totalBottlenecks = processingBottlenecks.length + waitTimeBottlenecks.length;
+
     const totalCases = activeCases.count + completedCases.count + failedCases.count;
+    // Fix success rate calculation - should be completed cases / total cases
     const successRate = totalCases > 0 ? (completedCases.count / totalCases) * 100 : 0;
 
     return {
-      avgProcessingTime: avgTime.avg ? Math.round(avgTime.avg / 60) : 0, // Convert to minutes
+      avgProcessingTime: avgProcessingByStation.length > 0 
+        ? Math.round((avgProcessingByStation[0].avgTime || 0) * 100) / 100 
+        : 0,
       anomaliesDetected: anomalies.count,
-      bottlenecksFound: 5, // This would be calculated based on analysis
-      successRate: Math.round(successRate * 10) / 10,
+      bottlenecksFound: totalBottlenecks,
+      successRate: Math.round(successRate * 100) / 100,
       activeCases: activeCases.count,
       completedCases: completedCases.count,
       failedCases: failedCases.count,
