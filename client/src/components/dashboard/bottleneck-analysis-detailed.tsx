@@ -64,13 +64,53 @@ export default function BottleneckAnalysisDetailed({ filteredData: propFilteredD
     console.log('Calculating bottlenecks from activities:', activities.length);
     console.log('Sample activity:', activities[0]);
 
-    // Group by station/activity and calculate averages using the correct field names
+    // Group activities by case ID first to calculate wait times between activities
+    const activitiesByCase = activities.reduce((acc: any, activity: any) => {
+      if (!acc[activity.caseId]) {
+        acc[activity.caseId] = [];
+      }
+      acc[activity.caseId].push(activity);
+      return acc;
+    }, {});
+
+    // Sort activities within each case by start time
+    Object.keys(activitiesByCase).forEach(caseId => {
+      activitiesByCase[caseId].sort((a: any, b: any) => 
+        new Date(a.startTime || a.scheduledTime).getTime() - new Date(b.startTime || b.scheduledTime).getTime()
+      );
+    });
+
+    // Calculate wait times between consecutive activities in the same case
+    const waitTimesByStation: any = {};
+    Object.keys(activitiesByCase).forEach(caseId => {
+      const caseActivities = activitiesByCase[caseId];
+      for (let i = 1; i < caseActivities.length; i++) {
+        const prevActivity = caseActivities[i - 1];
+        const currentActivity = caseActivities[i];
+        
+        if (prevActivity.completeTime && currentActivity.startTime) {
+          const prevEndTime = new Date(prevActivity.completeTime).getTime();
+          const currentStartTime = new Date(currentActivity.startTime).getTime();
+          const waitTime = (currentStartTime - prevEndTime) / 1000; // Convert to seconds
+          
+          if (waitTime > 0) {
+            const station = currentActivity.activity || currentActivity.resource || 'Unknown Station';
+            if (!waitTimesByStation[station]) {
+              waitTimesByStation[station] = [];
+            }
+            waitTimesByStation[station].push(waitTime);
+          }
+        }
+      }
+    });
+
+    // Group by station/activity and calculate processing time averages
     const stationStats = activities.reduce((acc: any, activity: any) => {
       const station = activity.activity || activity.resource || 'Unknown Station';
       if (!acc[station]) {
         acc[station] = {
           processingTimes: [],
-          waitTimes: [],
+          waitTimes: waitTimesByStation[station] || [],
           count: 0
         };
       }
@@ -80,16 +120,6 @@ export default function BottleneckAnalysisDetailed({ filteredData: propFilteredD
       // Use actualDurationS which exists in your manufacturing data
       if (activity.actualDurationS && activity.actualDurationS > 0) {
         acc[station].processingTimes.push(activity.actualDurationS);
-      }
-      
-      // For wait time, calculate difference between timestamps if available
-      if (activity.timestamp && activity.operationEndTime) {
-        const startTime = new Date(activity.timestamp).getTime();
-        const endTime = new Date(activity.operationEndTime).getTime();
-        const duration = (endTime - startTime) / 1000; // Convert to seconds
-        if (duration > 0) {
-          acc[station].waitTimes.push(duration);
-        }
       }
       
       return acc;
