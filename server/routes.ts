@@ -120,41 +120,137 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Comprehensive Data Scoping API - applies to all analysis including anomaly detection
   app.post("/api/dashboard/filter", async (req, res) => {
     try {
-      const filters = dashboardFiltersSchema.parse(req.body);
+      const filters = req.body;
       
-      const processEventsFilters: any = {};
+      // Build filter criteria for data scoping
+      let scopedActivities = await storage.getProcessActivities();
       
-      if (filters.timeRange?.start) {
-        processEventsFilters.startDate = new Date(filters.timeRange.start);
+      // Primary Data Scope Layer
+      if (filters.scopeType === 'dataset' && filters.datasetSize !== 'full') {
+        let limit = 1000;
+        if (filters.datasetSize === '500') limit = 500;
+        else if (filters.datasetSize === 'custom') limit = filters.customLimit || 1000;
+        else if (filters.datasetSize === '1000') limit = 1000;
+        
+        // Apply ordering (first or last activities)
+        if (filters.datasetOrder === 'last') {
+          scopedActivities = scopedActivities
+            .sort((a, b) => new Date(b.startTime || b.createdAt).getTime() - new Date(a.startTime || a.createdAt).getTime())
+            .slice(0, limit);
+        } else {
+          scopedActivities = scopedActivities
+            .sort((a, b) => new Date(a.startTime || a.createdAt).getTime() - new Date(b.startTime || b.createdAt).getTime())
+            .slice(0, limit);
+        }
+      } else if (filters.scopeType === 'timerange') {
+        // Time-based filtering
+        if (filters.timeRange?.start || filters.timeRange?.end) {
+          scopedActivities = scopedActivities.filter(activity => {
+            const activityDate = new Date(activity.startTime || activity.createdAt);
+            const startDate = filters.timeRange.start ? new Date(filters.timeRange.start) : null;
+            const endDate = filters.timeRange.end ? new Date(filters.timeRange.end) : null;
+            
+            if (startDate && activityDate < startDate) return false;
+            if (endDate && activityDate > endDate) return false;
+            return true;
+          });
+        }
       }
-      if (filters.timeRange?.end) {
-        processEventsFilters.endDate = new Date(filters.timeRange.end);
-      }
+      
+      // Secondary Filter Layer - applied to scoped data
       if (filters.equipment && filters.equipment !== 'all') {
-        processEventsFilters.resource = filters.equipment;
-      }
-      if (filters.status && filters.status !== 'all') {
-        processEventsFilters.status = filters.status;
+        scopedActivities = scopedActivities.filter(activity => 
+          activity.resource === filters.equipment
+        );
       }
       
-      // Set limit based on dataset size
-      if (filters.datasetSize === 'last_1000') {
-        processEventsFilters.limit = 1000;
-      } else if (filters.datasetSize === 'last_500') {
-        processEventsFilters.limit = 500;
-      } else if (filters.limit) {
-        processEventsFilters.limit = filters.limit;
+      if (filters.caseIds && filters.caseIds.length > 0) {
+        scopedActivities = scopedActivities.filter(activity => 
+          filters.caseIds.includes(activity.caseId)
+        );
+      }
+      
+      if (filters.status && filters.status !== 'all') {
+        scopedActivities = scopedActivities.filter(activity => {
+          if (filters.status === 'success') return activity.status === 'completed';
+          if (filters.status === 'failed') return activity.status === 'failed';
+          if (filters.status === 'inProgress') return activity.status === 'in_progress';
+          return true;
+        });
       }
 
-      const events = await storage.getProcessEvents(processEventsFilters);
-      const cases = await storage.getProcessCases(processEventsFilters);
+      // Get unique case IDs from scoped activities
+      const scopedCaseIds = [...new Set(scopedActivities.map(a => a.caseId))];
+      
+      // Get events and cases for the scoped data
+      const allEvents = await storage.getProcessEvents();
+      const allCases = await storage.getProcessCases();
+      
+      const scopedEvents = allEvents.filter(event => 
+        scopedCaseIds.includes(event.caseId)
+      );
+      const scopedCases = allCases.filter(processCase => 
+        scopedCaseIds.includes(processCase.caseId)
+      );
+
+      // Run anomaly detection on scoped data only
+      const AnomalyDetector = (await import('./services/anomaly-detector.js')).AnomalyDetector;
+      const scopedAnomalies = [];
+      
+      // Detect anomalies in the scoped activities
+      for (const activity of scopedActivities) {
+        // Processing time anomalies
+        const processingAnomaly = AnomalyDetector.analyzeProcessingTimeAnomaly(
+          activity,
+          scopedActivities
+        );
+        
+        if (processingAnomaly.isAnomaly) {
+          scopedAnomalies.push({
+            id: `${activity.id}_processing`,
+            type: 'processing_time',
+            title: 'Processing Time Anomaly',
+            description: `Unusual processing time detected for ${activity.activity}`,
+            details: processingAnomaly.reason,
+            timestamp: new Date(activity.timestamp),
+            severity: processingAnomaly.score > 0.8 ? 'high' : 'medium',
+            caseId: activity.caseId,
+            equipment: activity.resource
+          });
+        }
+      }
+      
+      // Calculate metrics for scoped data
+      const scopedMetrics = {
+        avgProcessingTime: scopedActivities.length > 0 
+          ? scopedActivities.reduce((sum, a) => sum + (a.duration || 0), 0) / scopedActivities.length 
+          : 0,
+        anomaliesDetected: scopedAnomalies.length,
+        bottlenecksFound: 0, // Will be calculated separately
+        successRate: scopedActivities.length > 0 
+          ? (scopedActivities.filter(a => a.status === 'completed').length / scopedActivities.length) * 100 
+          : 0,
+        activeCases: scopedCases.filter(c => c.status === 'active').length,
+        completedCases: scopedCases.filter(c => c.status === 'completed').length,
+        failedCases: scopedCases.filter(c => c.status === 'failed').length
+      };
       
       res.json({
-        events,
-        cases,
-        totalCount: events.length
+        events: scopedEvents,
+        activities: scopedActivities,
+        cases: scopedCases,
+        anomalies: scopedAnomalies,
+        metrics: scopedMetrics,
+        totalCount: scopedActivities.length,
+        scopeInfo: {
+          originalCount: (await storage.getProcessActivities()).length,
+          scopedCount: scopedActivities.length,
+          filterType: filters.scopeType,
+          appliedFilters: filters
+        }
       });
     } catch (error) {
       console.error('Error filtering dashboard data:', error);

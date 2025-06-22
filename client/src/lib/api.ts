@@ -1,14 +1,17 @@
 import { apiRequest } from "./queryClient";
 
 export interface DashboardFilters {
-  datasetSize?: 'full' | 'last_1000' | 'last_500' | 'custom';
+  scopeType: 'dataset' | 'timerange';
+  datasetSize?: 'full' | '1000' | '500' | 'custom';
+  datasetOrder?: 'first' | 'last';
+  customLimit?: number;
   timeRange?: {
     start?: string;
     end?: string;
   };
   equipment?: string;
   status?: 'all' | 'success' | 'failed' | 'inProgress';
-  limit?: number;
+  caseIds?: string[];
 }
 
 export interface AIQueryRequest {

@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { DashboardMetrics } from "@shared/schema";
-import { apiRequest } from "@/lib/queryClient";
 
 interface FilterSectionProps {
   filters: {
@@ -39,7 +38,7 @@ export default function FilterSection({ filters, onFiltersChange, metrics }: Fil
     fetch('/api/process/activities')
       .then(res => res.json())
       .then(activities => {
-        const equipment = Array.from(new Set(activities.map((a: any) => a.resource).filter(Boolean)));
+        const equipment = Array.from(new Set(activities.map((a: any) => a.resource).filter(Boolean))) as string[];
         setAvailableEquipment(equipment);
       })
       .catch(() => setAvailableEquipment([]));
@@ -77,99 +76,177 @@ export default function FilterSection({ filters, onFiltersChange, metrics }: Fil
     }
   };
 
+  const addCaseId = (caseId: string) => {
+    if (caseId && !filters.caseIds.includes(caseId)) {
+      handleFilterChange('caseIds', [...filters.caseIds, caseId]);
+    }
+  };
+
+  const removeCaseId = (caseId: string) => {
+    handleFilterChange('caseIds', filters.caseIds.filter(id => id !== caseId));
+  };
+
   return (
     <Card className="mb-6">
       <CardHeader>
-        <CardTitle>Data Scope Configuration</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          Data Scope Configuration
+          <Badge variant="outline" className="text-xs">
+            Two-Layer Filtering
+          </Badge>
+        </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Dataset Size</label>
-            <Select 
-              value={filters.datasetSize} 
-              onValueChange={(value) => handleFilterChange('datasetSize', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select dataset size" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="full">Full Dataset (9,473 records)</SelectItem>
-                <SelectItem value="last_1000">Last 1,000 records</SelectItem>
-                <SelectItem value="last_500">Last 500 records</SelectItem>
-                <SelectItem value="custom">Custom range</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <Tabs value={filters.scopeType} onValueChange={(value) => handleFilterChange('scopeType', value)}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="dataset">Dataset Size</TabsTrigger>
+            <TabsTrigger value="timerange">Time Range</TabsTrigger>
+          </TabsList>
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Time Range</label>
-            <Select>
-              <SelectTrigger>
-                <SelectValue placeholder="Select time range" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Time</SelectItem>
-                <SelectItem value="24h">Last 24 Hours</SelectItem>
-                <SelectItem value="7d">Last 7 Days</SelectItem>
-                <SelectItem value="30d">Last 30 Days</SelectItem>
-                <SelectItem value="custom">Custom range</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Primary Data Scope - Dataset Size */}
+          <TabsContent value="dataset" className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="datasetSize">Dataset Size</Label>
+                <Select value={filters.datasetSize} onValueChange={(value) => handleFilterChange('datasetSize', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select dataset size" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="full">Full Dataset (All {metrics?.activeCases || 0} cases)</SelectItem>
+                    <SelectItem value="1000">First/Last 1000 Activities</SelectItem>
+                    <SelectItem value="500">First/Last 500 Activities</SelectItem>
+                    <SelectItem value="custom">Custom Limit</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {filters.datasetSize !== 'full' && (
+                <div>
+                  <Label htmlFor="datasetOrder">Order</Label>
+                  <Select value={filters.datasetOrder} onValueChange={(value) => handleFilterChange('datasetOrder', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select order" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="first">First Activities</SelectItem>
+                      <SelectItem value="last">Last Activities</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+            
+            {filters.datasetSize === 'custom' && (
+              <div>
+                <Label htmlFor="customLimit">Custom Limit</Label>
+                <Input
+                  type="number"
+                  value={filters.customLimit}
+                  onChange={(e) => handleFilterChange('customLimit', parseInt(e.target.value) || 1000)}
+                  placeholder="Enter number of activities"
+                  min="1"
+                  max="10000"
+                />
+              </div>
+            )}
+          </TabsContent>
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Equipment Filter</label>
-            <Select 
-              value={filters.equipment} 
-              onValueChange={(value) => handleFilterChange('equipment', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select equipment" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Equipment</SelectItem>
-                <SelectItem value="hbw">High Bay Warehouse (HBW)</SelectItem>
-                <SelectItem value="vgr">VGR Robot</SelectItem>
-                <SelectItem value="ov">Oven (OV)</SelectItem>
-                <SelectItem value="mm">Milling Machine (MM)</SelectItem>
-                <SelectItem value="sm">Sorting Machine (SM)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Primary Data Scope - Time Range */}
+          <TabsContent value="timerange" className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="startDate">Start Date</Label>
+                <Input
+                  type="date"
+                  value={filters.timeRange.start}
+                  onChange={(e) => handleFilterChange('timeRange', { ...filters.timeRange, start: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="endDate">End Date</Label>
+                <Input
+                  type="date"
+                  value={filters.timeRange.end}
+                  onChange={(e) => handleFilterChange('timeRange', { ...filters.timeRange, end: e.target.value })}
+                />
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+
+        {/* Secondary Filters */}
+        <div className="mt-6 pt-6 border-t">
+          <h4 className="text-sm font-medium mb-4 flex items-center gap-2">
+            Secondary Filters
+            <Badge variant="secondary" className="text-xs">
+              Applied to Scoped Data
+            </Badge>
+          </h4>
           
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <Label htmlFor="equipment">Equipment/Station</Label>
+              <Select value={filters.equipment} onValueChange={(value) => handleFilterChange('equipment', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select equipment" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Equipment</SelectItem>
+                  {availableEquipment.map(equipment => (
+                    <SelectItem key={equipment} value={equipment}>{equipment}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="status">Status</Label>
+              <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="success">Success</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                  <SelectItem value="inProgress">In Progress</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Case Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Status Filter</label>
-            <Select 
-              value={filters.status} 
-              onValueChange={(value) => handleFilterChange('status', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="success">Success Only</SelectItem>
-                <SelectItem value="failed">Failures Only</SelectItem>
-                <SelectItem value="inProgress">In Progress</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="caseFilter">Case Filter</Label>
+            <div className="flex gap-2 mb-2">
+              <Select onValueChange={addCaseId}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Select cases to filter" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableCases.filter(caseId => !filters.caseIds.includes(caseId)).map(caseId => (
+                    <SelectItem key={caseId} value={caseId}>{caseId}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {filters.caseIds.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {filters.caseIds.map(caseId => (
+                  <Badge key={caseId} variant="outline" className="cursor-pointer" onClick={() => removeCaseId(caseId)}>
+                    {caseId} ×
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-        
-        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
-          <div className="flex items-center space-x-4 text-sm text-gray-600">
-            <span>Active Cases: <strong>{metrics?.activeCases || 0}</strong></span>
-            <span>Completed: <strong>{metrics?.completedCases || 0}</strong></span>
-            <span>Failed: <strong>{metrics?.failedCases || 0}</strong></span>
-          </div>
-          <Button 
-            className="bg-primary hover:bg-primary/90"
-            onClick={handleApplyFilters}
-          >
-            Apply Filters
-          </Button>
-        </div>
+
+        <Button onClick={handleApplyFilters} className="w-full mt-6">
+          Apply Filters & Regenerate Analysis
+        </Button>
       </CardContent>
     </Card>
   );

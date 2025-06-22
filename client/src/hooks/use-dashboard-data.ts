@@ -3,10 +3,14 @@ import { api } from "@/lib/api";
 import { DashboardMetrics, AnomalyAlert, ProcessCase } from "@shared/schema";
 
 interface DashboardFilters {
+  scopeType: 'dataset' | 'timerange';
   datasetSize: string;
+  datasetOrder: 'first' | 'last';
+  customLimit: number;
   timeRange: { start: string; end: string };
   equipment: string;
   status: string;
+  caseIds: string[];
 }
 
 export function useDashboardData(filters: DashboardFilters) {

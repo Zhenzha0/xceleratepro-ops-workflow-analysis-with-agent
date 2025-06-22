@@ -11,10 +11,14 @@ import { useDashboardData } from "@/hooks/use-dashboard-data";
 
 export default function Dashboard() {
   const [filters, setFilters] = useState({
-    datasetSize: 'full' as const,
+    scopeType: 'dataset' as 'dataset' | 'timerange',
+    datasetSize: 'full',
+    datasetOrder: 'first' as 'first' | 'last',
+    customLimit: 1000,
     timeRange: { start: '', end: '' },
     equipment: 'all',
-    status: 'all' as const
+    status: 'all',
+    caseIds: [] as string[]
   });
 
   const [activeTab, setActiveTab] = useState('dashboard');
