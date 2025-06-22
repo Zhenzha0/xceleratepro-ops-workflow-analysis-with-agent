@@ -569,6 +569,8 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
         </Card>
       </div>
     );
+
+    return processMapJSX;
   };
 
   return (
