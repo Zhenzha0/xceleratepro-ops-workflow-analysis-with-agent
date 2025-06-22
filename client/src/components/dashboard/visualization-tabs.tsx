@@ -13,6 +13,10 @@ interface VisualizationTabsProps {
 
 export default function VisualizationTabs({ filteredData }: VisualizationTabsProps) {
   const [activeTab, setActiveTab] = useState("process-map");
+  
+  // Debug filtered data in VisualizationTabs
+  console.log('VisualizationTabs - filteredData:', filteredData);
+  console.log('VisualizationTabs - activities count:', filteredData?.activities?.length);
 
   // Fetch real manufacturing data for timeline analysis
   const { data: metrics } = useQuery({

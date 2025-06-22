@@ -25,6 +25,10 @@ export default function Dashboard() {
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const { metrics, anomalies, cases, activities, filteredData, isLoading } = useDashboardData(filters);
+  
+  // Debug filtered data in dashboard
+  console.log('Dashboard - filteredData:', filteredData);
+  console.log('Dashboard - filters:', filters);
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
