@@ -28,7 +28,7 @@ export const processEvents = pgTable("process_events", {
   subProcessId: varchar("sub_process_id", { length: 100 }),
   currentTask: text("current_task"),
   responseStatusCode: integer("response_status_code"),
-  completeServiceTime: varchar("complete_service_time", { length: 20 }),
+  completeServiceTime: varchar("complete_service_time", { length: 100 }),
   humanWorkstationGreenButtonPressed: boolean("human_workstation_green_button_pressed"),
   unsatisfiedConditionDescription: text("unsatisfied_condition_description"),
   processingTimeS: real("processing_time_s"),
