@@ -6,7 +6,7 @@ import { api } from "@/lib/api";
 import ProcessMap from "./process-map";
 import DetailedAnomalyView from "./detailed-anomaly-view";
 import BottleneckAnalysisDetailed from "./bottleneck-analysis-detailed";
-import SankeyDiagram from "./sankey-diagram";
+import InteractiveSankey from "./interactive-sankey";
 
 export default function VisualizationTabs({ filteredData }: { filteredData?: any }) {
   const [activeTab, setActiveTab] = useState("process-map");
@@ -45,7 +45,19 @@ export default function VisualizationTabs({ filteredData }: { filteredData?: any
         </TabsContent>
         
         <TabsContent value="sankey" className="mt-0">
-          <SankeyDiagram filteredData={filteredData} />
+          <CardContent className="p-6">
+            {filteredData?.activities && filteredData.activities.length > 0 ? (
+              <InteractiveSankey 
+                activities={filteredData.activities} 
+                caseId={filteredData.activities[0]?.caseId || "All Cases"}
+              />
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No activity data available for Sankey visualization</p>
+                <p className="text-sm text-gray-400 mt-2">Apply filters to load manufacturing data</p>
+              </div>
+            )}
+          </CardContent>
         </TabsContent>
         
         <TabsContent value="timeline" className="mt-0">
