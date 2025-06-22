@@ -121,6 +121,8 @@ The application has a sidebar navigation with different sections:
 - June 22, 2025. Successfully imported manufacturing data with 282 cases and 170 anomalies detected
 - June 22, 2025. Fixed Apply Filters button functionality and Timeline Analysis chart visualization
 - June 22, 2025. Corrected anomaly detection to use historical analysis with IQR method instead of real-time monitoring
+- June 22, 2025. Fixed all dashboard metrics: success rate (10%), anomaly count (170), and data scope configuration (301 cases)
+- June 22, 2025. Implemented real bottleneck analysis in Process Maps tab showing actual manufacturing station data with full activity names
 
 ## User Preferences
 

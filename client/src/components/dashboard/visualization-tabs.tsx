@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import ProcessMap from "./process-map";
 import DetailedAnomalyView from "./detailed-anomaly-view";
+import BottleneckAnalysisDetailed from "./bottleneck-analysis-detailed";
 
 export default function VisualizationTabs() {
   const [activeTab, setActiveTab] = useState("process-map");
@@ -150,81 +151,7 @@ export default function VisualizationTabs() {
         </TabsContent>
         
         <TabsContent value="bottlenecks" className="mt-0">
-          <CardContent className="p-6">
-            <div className="bg-white rounded-lg border p-4">
-              <h3 className="text-lg font-semibold mb-4">Bottleneck Analysis - Critical Issues</h3>
-              <div className="space-y-4">
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-medium text-red-800">Oven Processing Station</h4>
-                      <p className="text-sm text-red-600">High Priority Bottleneck</p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-red-600">3.7min</div>
-                      <div className="text-sm text-red-600">Avg Delay</div>
-                    </div>
-                  </div>
-                  <div className="mt-2 text-sm text-red-700">
-                    <strong>Impact:</strong> Blocks 45% of workflow completion
-                  </div>
-                  <div className="mt-1 text-sm text-red-700">
-                    <strong>Recommendation:</strong> Add parallel oven capacity or optimize heating cycles
-                  </div>
-                </div>
-                
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-medium text-yellow-800">High Bay Warehouse</h4>
-                      <p className="text-sm text-yellow-600">Medium Priority</p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-yellow-600">52s</div>
-                      <div className="text-sm text-yellow-600">Avg Delay</div>
-                    </div>
-                  </div>
-                  <div className="mt-2 text-sm text-yellow-700">
-                    <strong>Impact:</strong> Affects material flow efficiency
-                  </div>
-                  <div className="mt-1 text-sm text-yellow-700">
-                    <strong>Recommendation:</strong> Improve inventory positioning and retrieval logic
-                  </div>
-                </div>
-                
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-medium text-green-800">VGR Robot & Others</h4>
-                      <p className="text-sm text-green-600">Normal Operation</p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-green-600">95%</div>
-                      <div className="text-sm text-green-600">Efficiency</div>
-                    </div>
-                  </div>
-                  <div className="mt-2 text-sm text-green-700">
-                    Milling, Sorting, and VGR stations operating within normal parameters
-                  </div>
-                </div>
-              </div>
-              
-              <div className="mt-6 grid grid-cols-3 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-red-600">1</div>
-                  <div className="text-sm text-gray-600">Critical Bottleneck</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">35%</div>
-                  <div className="text-sm text-gray-600">Optimization Potential</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">$2.5K</div>
-                  <div className="text-sm text-gray-600">Monthly Savings</div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
+          <BottleneckAnalysisDetailed />
         </TabsContent>
 
         <TabsContent value="anomaly-details" className="mt-0">
