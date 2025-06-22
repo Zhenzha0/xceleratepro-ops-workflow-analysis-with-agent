@@ -102,34 +102,84 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
         new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
       );
 
-      // Create nodes from the activities in this case (each activity instance becomes a node)
-      const nodes: SankeyNode[] = sortedActivities.map((activity, index) => ({
-        id: `${activity.activity}_${index}`,
-        name: activity.activity.replace(/^\//, ''),
-        category: activity.activity.split('/')[1] || 'unknown',
-        activities: [activity],
-        avgDuration: activity.actualDurationS,
-        totalOccurrences: 1,
-        value: 1
-      }));
+      // Group activities by unique activity name to create consolidated nodes
+      const activityGroups = new Map<string, ProcessActivity[]>();
+      
+      sortedActivities.forEach(activity => {
+        const key = activity.activity;
+        if (!activityGroups.has(key)) {
+          activityGroups.set(key, []);
+        }
+        activityGroups.get(key)!.push(activity);
+      });
 
-      // Create links between consecutive activities
+      // Create nodes from unique activities
+      const nodes: SankeyNode[] = [];
+      const nodeMap = new Map<string, number>();
+      
+      Array.from(activityGroups.entries()).forEach(([activityName, activities], index) => {
+        const totalDuration = activities.reduce((sum, a) => sum + a.actualDurationS, 0);
+        const avgDuration = totalDuration / activities.length;
+        
+        nodes.push({
+          id: activityName,
+          name: activityName.replace(/^\//, ''),
+          category: activityName.split('/')[1] || 'unknown',
+          activities: activities,
+          avgDuration: avgDuration,
+          totalOccurrences: activities.length,
+          value: activities.length
+        });
+        
+        nodeMap.set(activityName, index);
+      });
+
+      // Create links based on sequential flow in the sorted activities
       const links: SankeyLink[] = [];
+      const linkMap = new Map<string, {
+        sourceIndex: number;
+        targetIndex: number;
+        transitions: number[];
+        activities: ProcessActivity[];
+      }>();
+
       for (let i = 0; i < sortedActivities.length - 1; i++) {
         const current = sortedActivities[i];
         const next = sortedActivities[i + 1];
         
+        const sourceIndex = nodeMap.get(current.activity)!;
+        const targetIndex = nodeMap.get(next.activity)!;
+        const linkKey = `${sourceIndex}-${targetIndex}`;
+        
         const transitionTime = new Date(next.startTime).getTime() - new Date(current.completeTime).getTime();
         
-        links.push({
-          source: i,
-          target: i + 1,
-          value: 1,
-          avgTransitionTime: Math.max(0, transitionTime / 1000),
-          occurrences: 1,
-          activities: [current]
-        });
+        if (!linkMap.has(linkKey)) {
+          linkMap.set(linkKey, {
+            sourceIndex,
+            targetIndex,
+            transitions: [],
+            activities: []
+          });
+        }
+        
+        const linkData = linkMap.get(linkKey)!;
+        linkData.transitions.push(Math.max(0, transitionTime / 1000));
+        linkData.activities.push(current);
       }
+
+      // Convert link map to links array
+      Array.from(linkMap.values()).forEach(linkData => {
+        const avgTransitionTime = linkData.transitions.reduce((sum, t) => sum + t, 0) / linkData.transitions.length;
+        
+        links.push({
+          source: linkData.sourceIndex,
+          target: linkData.targetIndex,
+          value: linkData.transitions.length, // Number of times this transition occurred
+          avgTransitionTime,
+          occurrences: linkData.transitions.length,
+          activities: linkData.activities
+        });
+      });
 
       return { nodes, links };
     } catch (error) {
@@ -144,18 +194,19 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
 
-    const margin = { top: 20, right: 20, bottom: 40, left: 20 };
+    const margin = { top: 40, right: 40, bottom: 40, left: 40 };
     const width = 1200 - margin.left - margin.right;
     const height = 400 - margin.top - margin.bottom;
 
     const { nodes, links } = buildCaseSankeyData(caseActivities);
     if (!nodes.length) return;
 
-    // Create sankey generator
+    // Create sankey generator with proper layout
     const sankeyGenerator = d3Sankey.sankey<SankeyNode, SankeyLink>()
-      .nodeWidth(120)
-      .nodePadding(15)
-      .extent([[margin.left, margin.top], [width - margin.right, height - margin.bottom]]);
+      .nodeWidth(15)
+      .nodePadding(10)
+      .extent([[margin.left, margin.top], [width - margin.right, height - margin.bottom]])
+      .nodeAlign(d3Sankey.sankeyLeft);
 
     const graph = sankeyGenerator({ nodes, links });
 
@@ -166,7 +217,7 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
       .domain(['hbw', 'vgr', 'ov', 'wt', 'pm', 'dm', 'mm', 'unknown'])
       .range(['#06b6d4', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#6366f1', '#ec4899', '#6b7280']);
 
-    // Draw links
+    // Draw links (flows between activities)
     const links_g = g.selectAll(".link")
       .data(graph.links)
       .enter().append("g")
@@ -174,24 +225,27 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
       .style("cursor", "pointer");
 
     links_g.append("path")
-      .attr("d", (d: any) => {
-        return `M${d.source.x1},${d.y0}C${(d.source.x1 + d.target.x0) / 2},${d.y0} ${(d.source.x1 + d.target.x0) / 2},${d.y1} ${d.target.x0},${d.y1}`;
-      })
+      .attr("d", d3Sankey.sankeyLinkHorizontal())
       .attr("stroke", "#94a3b8")
-      .attr("stroke-opacity", 0.6)
-      .attr("stroke-width", (d: any) => Math.max(3, d.width))
+      .attr("stroke-opacity", 0.4)
+      .attr("stroke-width", (d: any) => Math.max(1, d.width))
       .attr("fill", "none")
       .on("mouseover", function(event: any, d: any) {
-        d3.select(this as any).attr("stroke-opacity", 0.8);
+        d3.select(this as any)
+          .attr("stroke-opacity", 0.7)
+          .attr("stroke", "#4f46e5");
+        
         const content = `
           <div class="font-semibold">${(d.source as SankeyNode).name} → ${(d.target as SankeyNode).name}</div>
           <div class="text-sm">Transition Time: ${d.avgTransitionTime.toFixed(2)}s</div>
-          <div class="text-sm">Sequential Flow</div>
+          <div class="text-sm">Flow Connection</div>
         `;
         setTooltip({ x: event.pageX, y: event.pageY, content });
       })
       .on("mouseout", function(event: any, d: any) {
-        d3.select(this as any).attr("stroke-opacity", 0.6);
+        d3.select(this as any)
+          .attr("stroke-opacity", 0.4)
+          .attr("stroke", "#94a3b8");
         setTooltip(null);
       })
       .on("click", function(event: any, d: any) {
@@ -199,7 +253,7 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
         setSelectedNode(null);
       });
 
-    // Draw nodes
+    // Draw nodes (activity stations)
     const nodes_g = g.selectAll(".node")
       .data(graph.nodes)
       .enter().append("g")
@@ -209,14 +263,14 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
 
     // Node rectangles
     nodes_g.append("rect")
-      .attr("height", (d: any) => Math.max(20, d.y1 - d.y0))
+      .attr("height", (d: any) => Math.max(10, d.y1 - d.y0))
       .attr("width", sankeyGenerator.nodeWidth())
       .attr("fill", (d: any) => colorScale(d.category))
       .attr("stroke", "#fff")
-      .attr("stroke-width", 2)
-      .attr("rx", 4)
+      .attr("stroke-width", 1)
+      .attr("rx", 2)
       .on("mouseover", function(event: any, d: any) {
-        d3.select(this as any).attr("stroke-width", 3);
+        d3.select(this as any).attr("stroke-width", 2).attr("stroke", "#1f2937");
         const activity = d.activities[0];
         const content = `
           <div class="font-semibold">${d.name}</div>
@@ -227,7 +281,7 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
         setTooltip({ x: event.pageX, y: event.pageY, content });
       })
       .on("mouseout", function(event: any, d: any) {
-        d3.select(this as any).attr("stroke-width", 2);
+        d3.select(this as any).attr("stroke-width", 1).attr("stroke", "#fff");
         setTooltip(null);
       })
       .on("click", function(event: any, d: any) {
@@ -235,31 +289,34 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
         setSelectedLink(null);
       });
 
-    // Node labels
+    // Activity labels above nodes
     nodes_g.append("text")
       .attr("x", sankeyGenerator.nodeWidth() / 2)
-      .attr("y", (d: any) => Math.max(10, (d.y1 - d.y0) / 2))
-      .attr("dy", "0.35em")
+      .attr("y", -8)
       .attr("text-anchor", "middle")
-      .style("font-size", "10px")
+      .style("font-size", "11px")
       .style("font-weight", "500")
-      .style("fill", "white")
-      .style("pointer-events", "none")
-      .text((d: any) => {
-        const shortName = d.name.length > 12 ? d.name.substring(0, 12) + '...' : d.name;
-        return shortName;
-      });
-
-    // Add sequence numbers
-    nodes_g.append("text")
-      .attr("x", sankeyGenerator.nodeWidth() / 2)
-      .attr("y", -5)
-      .attr("text-anchor", "middle")
-      .style("font-size", "10px")
-      .style("font-weight", "bold")
       .style("fill", "#374151")
       .style("pointer-events", "none")
-      .text((d: any, i: number) => i + 1);
+      .text((d: any) => {
+        // Clean up activity name for display
+        const cleanName = d.name.replace(/^\//, '').replace(/_/g, ' ');
+        return cleanName.length > 12 ? cleanName.substring(0, 12) + '...' : cleanName;
+      });
+
+    // Duration labels below nodes
+    nodes_g.append("text")
+      .attr("x", sankeyGenerator.nodeWidth() / 2)
+      .attr("y", (d: any) => Math.max(10, d.y1 - d.y0) + 12)
+      .attr("text-anchor", "middle")
+      .style("font-size", "9px")
+      .style("font-weight", "400")
+      .style("fill", "#6b7280")
+      .style("pointer-events", "none")
+      .text((d: any) => {
+        const duration = d.activities[0].actualDurationS;
+        return duration < 60 ? `${duration.toFixed(1)}s` : `${(duration/60).toFixed(1)}m`;
+      });
 
   }, [caseActivities]);
 
