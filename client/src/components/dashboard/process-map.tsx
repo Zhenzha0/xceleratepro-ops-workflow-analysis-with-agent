@@ -101,22 +101,23 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
   const calculateNodePositions = (uniqueActivities: any[]) => {
     const positions: { [key: string]: { x: number; y: number } } = {};
     
-    // Much more spread out horizontal layout
-    const startX = 150;
-    const nodeSpacing = 140; // Increased spacing between nodes
-    const rowHeight = 140; // Increased row height
-    const maxNodesPerRow = 6; // Fewer nodes per row for better spacing
+    // Use full page width with much more spacing
+    const startX = 200;
+    const nodeSpacing = 200; // Much larger spacing between nodes
+    const rowHeight = 180; // Increased row height for better vertical spacing
+    const maxNodesPerRow = 5; // Even fewer nodes per row for maximum clarity
     
     uniqueActivities.forEach((item, index) => {
       const row = Math.floor(index / maxNodesPerRow);
       const col = index % maxNodesPerRow;
       
-      // Stagger rows for better visual flow
-      const offsetX = (row % 2) * 70; // Alternate row offset
+      // Center nodes in each row
+      const nodesInThisRow = Math.min(maxNodesPerRow, uniqueActivities.length - row * maxNodesPerRow);
+      const rowStartX = startX + (maxNodesPerRow - nodesInThisRow) * nodeSpacing / 2;
       
       positions[item.activity.activity] = {
-        x: startX + (col * nodeSpacing) + offsetX,
-        y: 120 + (row * rowHeight)
+        x: rowStartX + (col * nodeSpacing),
+        y: 150 + (row * rowHeight)
       };
     });
     
@@ -157,18 +158,29 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
       }
     }
     
-    const viewBoxWidth = Math.max(1400, uniqueActivities.length * 140);
-    const viewBoxHeight = Math.max(400, Math.ceil(uniqueActivities.length / 6) * 140 + 200);
+    // Find first and last activities by time for START/END positioning
+    const firstActivity = caseActivities.reduce((earliest, current) => 
+      new Date(current.startTime) < new Date(earliest.startTime) ? current : earliest
+    );
+    const lastActivity = caseActivities.reduce((latest, current) => 
+      new Date(current.completeTime || current.startTime) > new Date(latest.completeTime || latest.startTime) ? current : latest
+    );
+    
+    const firstActivityPos = nodePositions[firstActivity.activity];
+    const lastActivityPos = nodePositions[lastActivity.activity];
+
+    const viewBoxWidth = Math.max(1800, uniqueActivities.length * 200); // Much larger width
+    const viewBoxHeight = Math.max(500, Math.ceil(uniqueActivities.length / 5) * 180 + 300);
 
     return (
-      <div className="h-96 bg-gray-50 rounded-lg border p-6 overflow-auto">
+      <div className="h-[500px] bg-gray-50 rounded-lg border p-6 overflow-auto"> {/* Increased height */}
         <div className="text-center mb-6">
           <h3 className="text-lg font-semibold">Process Flow Map for Case: {selectedCaseId}</h3>
           <p className="text-sm text-gray-600">{uniqueActivities.length} unique activities ({caseActivities.length} total)</p>
         </div>
         
         <div className="relative">
-          <svg width="100%" height="350" viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}>
+          <svg width="100%" height="450" viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}>
             {/* Render flow connections with better routing */}
             {uniqueConnections.map((connection, index) => {
               const fromPos = nodePositions[connection.from];
@@ -231,29 +243,41 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
               );
             })}
             
-            {/* START node */}
-            <g>
-              <rect
-                x="20"
-                y={viewBoxHeight / 2 - 15}
-                width="60"
-                height="30"
-                rx="15"
-                fill="#10b981"
-                stroke="#ffffff"
-                strokeWidth="2"
-              />
-              <text
-                x="50"
-                y={viewBoxHeight / 2 + 5}
-                textAnchor="middle"
-                fontSize="12"
-                fill="white"
-                fontWeight="bold"
-              >
-                START
-              </text>
-            </g>
+            {/* START node - positioned next to first activity */}
+            {firstActivityPos && (
+              <g>
+                <rect
+                  x={firstActivityPos.x - 120}
+                  y={firstActivityPos.y - 15}
+                  width="70"
+                  height="30"
+                  rx="15"
+                  fill="#10b981"
+                  stroke="#ffffff"
+                  strokeWidth="2"
+                />
+                <text
+                  x={firstActivityPos.x - 85}
+                  y={firstActivityPos.y + 5}
+                  textAnchor="middle"
+                  fontSize="12"
+                  fill="white"
+                  fontWeight="bold"
+                >
+                  START
+                </text>
+                {/* Connection from START to first activity */}
+                <line
+                  x1={firstActivityPos.x - 50}
+                  y1={firstActivityPos.y}
+                  x2={firstActivityPos.x - 35}
+                  y2={firstActivityPos.y}
+                  stroke="#10b981"
+                  strokeWidth="3"
+                  markerEnd="url(#arrowhead)"
+                />
+              </g>
+            )}
             
             {/* Render unique activity nodes */}
             {uniqueActivities.map((item, index) => {
@@ -361,29 +385,41 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
               );
             })}
             
-            {/* END node */}
-            <g>
-              <rect
-                x={viewBoxWidth - 80}
-                y={viewBoxHeight / 2 - 15}
-                width="60"
-                height="30"
-                rx="15"
-                fill="#ef4444"
-                stroke="#ffffff"
-                strokeWidth="2"
-              />
-              <text
-                x={viewBoxWidth - 50}
-                y={viewBoxHeight / 2 + 5}
-                textAnchor="middle"
-                fontSize="12"
-                fill="white"
-                fontWeight="bold"
-              >
-                END
-              </text>
-            </g>
+            {/* END node - positioned next to last activity */}
+            {lastActivityPos && (
+              <g>
+                <rect
+                  x={lastActivityPos.x + 50}
+                  y={lastActivityPos.y - 15}
+                  width="60"
+                  height="30"
+                  rx="15"
+                  fill="#ef4444"
+                  stroke="#ffffff"
+                  strokeWidth="2"
+                />
+                <text
+                  x={lastActivityPos.x + 80}
+                  y={lastActivityPos.y + 5}
+                  textAnchor="middle"
+                  fontSize="12"
+                  fill="white"
+                  fontWeight="bold"
+                >
+                  END
+                </text>
+                {/* Connection from last activity to END */}
+                <line
+                  x1={lastActivityPos.x + 35}
+                  y1={lastActivityPos.y}
+                  x2={lastActivityPos.x + 50}
+                  y2={lastActivityPos.y}
+                  stroke="#ef4444"
+                  strokeWidth="3"
+                  markerEnd="url(#arrowhead)"
+                />
+              </g>
+            )}
             
             {/* Arrow marker definition */}
             <defs>
