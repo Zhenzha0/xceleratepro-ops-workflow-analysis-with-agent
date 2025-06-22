@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -29,6 +29,12 @@ export default function FilterSection({ filters, onFiltersChange, metrics }: Fil
   const [availableCases, setAvailableCases] = useState<string[]>([]);
   const [availableEquipment, setAvailableEquipment] = useState<string[]>([]);
   const [totalCaseCount, setTotalCaseCount] = useState<number>(0);
+  const [endActivityValue, setEndActivityValue] = useState<string>((filters.activityRange?.end || 100).toString());
+  
+  // Keep local state in sync with prop changes
+  useEffect(() => {
+    setEndActivityValue((filters.activityRange?.end || 100).toString());
+  }, [filters.activityRange?.end]);
   
   // Fetch available cases and equipment for dropdowns
   useEffect(() => {
@@ -187,37 +193,44 @@ export default function FilterSection({ filters, onFiltersChange, metrics }: Fil
                   <Label htmlFor="endActivity">End Activity Position</Label>
                   <Input
                     type="text"
-                    value={filters.activityRange?.end || 100}
+                    value={endActivityValue}
                     onChange={(e) => {
                       const value = e.target.value;
-                      // Allow empty string for deletion
-                      if (value === "") {
+                      setEndActivityValue(value); // Update local state immediately for typing
+                    }}
+                    onBlur={(e) => {
+                      const value = e.target.value;
+                      if (value === "" || isNaN(parseInt(value))) {
+                        // Reset to default if invalid
+                        const defaultValue = 100;
+                        setEndActivityValue(defaultValue.toString());
                         handleFilterChange('activityRange', { 
                           ...filters.activityRange, 
-                          end: 1
+                          end: defaultValue
                         });
-                        return;
-                      }
-                      
-                      // Only allow numeric input
-                      if (/^\d+$/.test(value)) {
+                      } else {
+                        // Update filter with valid number
                         const numValue = parseInt(value);
                         if (numValue >= 1 && numValue <= 3157) {
                           handleFilterChange('activityRange', { 
                             ...filters.activityRange, 
                             end: numValue
                           });
+                        } else {
+                          // Reset to valid range
+                          const validValue = Math.max(1, Math.min(3157, numValue));
+                          setEndActivityValue(validValue.toString());
+                          handleFilterChange('activityRange', { 
+                            ...filters.activityRange, 
+                            end: validValue
+                          });
                         }
                       }
                     }}
-                    onBlur={(e) => {
-                      // Ensure we have a valid number on blur
-                      const value = e.target.value;
-                      if (value === "" || isNaN(parseInt(value))) {
-                        handleFilterChange('activityRange', { 
-                          ...filters.activityRange, 
-                          end: 100
-                        });
+                    onKeyDown={(e) => {
+                      // Allow backspace, delete, arrows, tab, etc.
+                      if (e.key === 'Enter') {
+                        e.currentTarget.blur(); // Trigger onBlur validation
                       }
                     }}
                     placeholder="Activity #100"
