@@ -52,10 +52,10 @@ export default function Dashboard() {
                   <KeyMetrics metrics={metrics} isLoading={isLoading} />
                   
                   <div className="mb-6">
-                    <BottleneckAnalysisDetailed />
+                    <BottleneckAnalysisDetailed filteredData={filteredData} filters={filters} />
                   </div>
                   
-                  <VisualizationTabs />
+                  <VisualizationTabs filteredData={filteredData} />
                 </>
               )}
               
