@@ -31,25 +31,103 @@ export default function Dashboard() {
           <div className="flex h-full">
             {/* Main Content */}
             <div className="flex-1 p-6">
-              <FilterSection 
-                filters={filters} 
-                onFiltersChange={setFilters}
-                metrics={metrics}
-              />
+              {activeTab === 'dashboard' && (
+                <>
+                  <FilterSection 
+                    filters={filters} 
+                    onFiltersChange={setFilters}
+                    metrics={metrics}
+                  />
+                  
+                  <KeyMetrics metrics={metrics} isLoading={isLoading} />
+                  
+                  <VisualizationTabs />
+                </>
+              )}
               
-              <KeyMetrics metrics={metrics} isLoading={isLoading} />
+              {activeTab === 'anomaly-detection' && (
+                <AnomalyDetection anomalies={anomalies} isLoading={isLoading} />
+              )}
               
-              <VisualizationTabs />
+              {activeTab === 'case-comparison' && (
+                <CaseComparison cases={cases} />
+              )}
               
-              <AnomalyDetection anomalies={anomalies} isLoading={isLoading} />
+              {activeTab === 'process-maps' && (
+                <div className="bg-white rounded-lg shadow p-6">
+                  <h2 className="text-2xl font-bold mb-4">Process Maps</h2>
+                  <VisualizationTabs />
+                </div>
+              )}
               
-              <CaseComparison cases={cases} />
+              {activeTab === 'semantic-search' && (
+                <div className="bg-white rounded-lg shadow p-6">
+                  <h2 className="text-2xl font-bold mb-4">Semantic Search</h2>
+                  <p className="text-gray-600 mb-4">Search through process failure descriptions and activities using natural language.</p>
+                  <div className="space-y-4">
+                    <input 
+                      type="text" 
+                      placeholder="Search for process issues, equipment failures, or activities..."
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <button className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
+                      Search Processes
+                    </button>
+                  </div>
+                </div>
+              )}
+              
+              {activeTab === 'timeline-analysis' && (
+                <div className="bg-white rounded-lg shadow p-6">
+                  <h2 className="text-2xl font-bold mb-4">Timeline Analysis</h2>
+                  <p className="text-gray-600 mb-4">Analyze process execution patterns over time.</p>
+                  <div className="h-64 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <p className="text-gray-500">Timeline visualization will appear here</p>
+                  </div>
+                </div>
+              )}
+              
+              {activeTab === 'data-filters' && (
+                <div className="bg-white rounded-lg shadow p-6">
+                  <h2 className="text-2xl font-bold mb-4">Data Filters</h2>
+                  <FilterSection 
+                    filters={filters} 
+                    onFiltersChange={setFilters}
+                    metrics={metrics}
+                  />
+                </div>
+              )}
+              
+              {activeTab === 'export-data' && (
+                <div className="bg-white rounded-lg shadow p-6">
+                  <h2 className="text-2xl font-bold mb-4">Export Data</h2>
+                  <p className="text-gray-600 mb-4">Export your process mining results and analysis.</p>
+                  <div className="space-y-4">
+                    <button className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors">
+                      Export to CSV
+                    </button>
+                    <button className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors ml-4">
+                      Export Report (PDF)
+                    </button>
+                  </div>
+                </div>
+              )}
+              
+              {activeTab === 'ai-assistant' && (
+                <div className="bg-white rounded-lg shadow p-6">
+                  <h2 className="text-2xl font-bold mb-4">AI Process Analyst</h2>
+                  <p className="text-gray-600 mb-4">Ask questions about your manufacturing processes in plain English.</p>
+                  <AIAssistant />
+                </div>
+              )}
             </div>
             
-            {/* AI Assistant Panel */}
-            <div className="w-96">
-              <AIAssistant />
-            </div>
+            {/* AI Assistant Panel - only show when on dashboard */}
+            {activeTab === 'dashboard' && (
+              <div className="w-96">
+                <AIAssistant />
+              </div>
+            )}
           </div>
         </main>
       </div>

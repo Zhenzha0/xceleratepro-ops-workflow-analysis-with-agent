@@ -88,9 +88,37 @@ The application uses a pull-based data fetching strategy where components reques
 - OpenAI API key configured for AI services
 - Production builds optimize for performance and bundle size
 
+## How the Application Works
+
+### Main Interface
+The application has a sidebar navigation with different sections:
+- **Dashboard**: Overview with key metrics, filters, and visualizations
+- **Process Maps**: Visual process flow diagrams
+- **Anomaly Detection**: Alerts and analysis of unusual process behavior
+- **AI Assistant**: Chat interface for asking questions about your data
+- **Semantic Search**: Search through process descriptions and failures
+- **Timeline Analysis**: Time-based process execution patterns
+- **Case Comparison**: Compare different manufacturing workflow runs
+- **Data Filters**: Advanced filtering options
+- **Export Data**: Export analysis results
+
+### Key Features
+1. **Real-time Analytics**: Live metrics showing process performance
+2. **Anomaly Detection**: Automatic identification of process deviations
+3. **AI-Powered Analysis**: Natural language queries about manufacturing data
+4. **Interactive Visualizations**: Charts and process maps
+5. **Case Comparison**: Side-by-side analysis of different workflow instances
+
+### Data Sources
+- Manufacturing process events from XES format CSV files
+- Real-time metrics calculation and anomaly scoring
+- AI-generated insights using OpenAI integration
+
 ## Changelog
 
 - June 22, 2025. Initial setup
+- June 22, 2025. Fixed data import issues and implemented tab-based navigation
+- June 22, 2025. Successfully imported manufacturing data with 282 cases and 170 anomalies detected
 
 ## User Preferences
 
