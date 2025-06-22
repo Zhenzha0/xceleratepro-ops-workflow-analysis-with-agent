@@ -27,6 +27,10 @@ interface BottleneckAnalysisDetailedProps {
 }
 
 export default function BottleneckAnalysisDetailed({ filteredData }: BottleneckAnalysisDetailedProps) {
+  // Debug filtered data in BottleneckAnalysis
+  console.log('BottleneckAnalysis - received filteredData:', filteredData);
+  console.log('BottleneckAnalysis - activities count:', filteredData?.activities?.length);
+
   // Use filtered data if available, otherwise fetch from API
   const { data: bottlenecks, isLoading } = useQuery({
     queryKey: ['/api/bottlenecks'],

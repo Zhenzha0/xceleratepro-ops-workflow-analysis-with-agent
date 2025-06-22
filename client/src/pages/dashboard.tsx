@@ -70,7 +70,12 @@ export default function Dashboard() {
               {activeTab === 'process-maps' && (
                 <div className="bg-white rounded-lg shadow p-6">
                   <h2 className="text-2xl font-bold mb-4">Process Maps</h2>
-                  <VisualizationTabs filteredData={filteredData || null} />
+                  <div className="space-y-6">
+                    <div className="bg-white p-4 rounded-lg border">
+                      <h3 className="text-lg font-semibold mb-4">Bottleneck Analysis</h3>
+                      <BottleneckAnalysisDetailed filteredData={filteredData} />
+                    </div>
+                  </div>
                 </div>
               )}
               
