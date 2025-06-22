@@ -57,73 +57,127 @@ export default function InteractiveSankey({ activities, caseId }: InteractiveSan
   const buildSankeyData = (activities: ProcessActivity[]) => {
     if (!activities || activities.length === 0) return { nodes: [], links: [] };
 
-    // Sort activities by start time
-    const sortedActivities = [...activities].sort((a, b) => 
-      new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
-    );
+    try {
+      // Group activities by case to build proper flows
+      const caseGroups = new Map<string, ProcessActivity[]>();
+      activities.forEach(activity => {
+        const caseId = activity.caseId || 'unknown';
+        if (!caseGroups.has(caseId)) {
+          caseGroups.set(caseId, []);
+        }
+        caseGroups.get(caseId)!.push(activity);
+      });
 
-    // Create nodes from unique activities
-    const activityGroups = new Map<string, ProcessActivity[]>();
-    sortedActivities.forEach(activity => {
-      const key = activity.activity;
-      if (!activityGroups.has(key)) {
-        activityGroups.set(key, []);
-      }
-      activityGroups.get(key)!.push(activity);
-    });
+      // Create nodes from unique activities
+      const activityGroups = new Map<string, ProcessActivity[]>();
+      activities.forEach(activity => {
+        const key = activity.activity;
+        if (!activityGroups.has(key)) {
+          activityGroups.set(key, []);
+        }
+        activityGroups.get(key)!.push(activity);
+      });
 
-    const nodes: SankeyNode[] = Array.from(activityGroups.entries()).map(([activityName, activityList]) => {
-      const avgDuration = activityList.reduce((sum, a) => sum + a.actualDurationS, 0) / activityList.length;
-      return {
-        id: activityName,
-        name: activityName.replace(/^\//, ''), // Remove leading slash
-        category: activityName.split('/')[1] || 'unknown',
-        activities: activityList,
-        avgDuration,
-        totalOccurrences: activityList.length,
-        value: activityList.length
-      };
-    });
+      const nodes: SankeyNode[] = Array.from(activityGroups.entries()).map(([activityName, activityList], index) => {
+        const avgDuration = activityList.reduce((sum, a) => sum + a.actualDurationS, 0) / activityList.length;
+        return {
+          id: activityName,
+          name: activityName.replace(/^\//, ''), // Remove leading slash
+          category: activityName.split('/')[1] || 'unknown',
+          activities: activityList,
+          avgDuration,
+          totalOccurrences: activityList.length,
+          value: activityList.length
+        };
+      });
 
-    // Create links based on temporal sequence
-    const links: SankeyLink[] = [];
-    const linkMap = new Map<string, { activities: ProcessActivity[], times: number[] }>();
+      // Build links by analyzing case flows to prevent cycles
+      const linkMap = new Map<string, { activities: ProcessActivity[], times: number[] }>();
+      const nodeIndices = new Map<string, number>();
+      nodes.forEach((node, index) => nodeIndices.set(node.id, index));
 
-    for (let i = 0; i < sortedActivities.length - 1; i++) {
-      const current = sortedActivities[i];
-      const next = sortedActivities[i + 1];
-      
-      const linkKey = `${current.activity}->${next.activity}`;
-      const transitionTime = new Date(next.startTime).getTime() - new Date(current.completeTime).getTime();
-      
-      if (!linkMap.has(linkKey)) {
-        linkMap.set(linkKey, { activities: [], times: [] });
-      }
-      
-      linkMap.get(linkKey)!.activities.push(current);
-      linkMap.get(linkKey)!.times.push(transitionTime / 1000); // Convert to seconds
-    }
+      // Process each case separately to maintain temporal order
+      caseGroups.forEach(caseActivities => {
+        const sortedCaseActivities = [...caseActivities].sort((a, b) => 
+          new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+        );
 
-    linkMap.forEach((data, key) => {
-      const [sourceName, targetName] = key.split('->');
-      const sourceIndex = nodes.findIndex(n => n.id === sourceName);
-      const targetIndex = nodes.findIndex(n => n.id === targetName);
-      
-      if (sourceIndex !== -1 && targetIndex !== -1) {
-        const avgTransitionTime = data.times.reduce((sum, t) => sum + t, 0) / data.times.length;
+        for (let i = 0; i < sortedCaseActivities.length - 1; i++) {
+          const current = sortedCaseActivities[i];
+          const next = sortedCaseActivities[i + 1];
+          
+          // Skip self-loops
+          if (current.activity === next.activity) continue;
+          
+          const linkKey = `${current.activity}->${next.activity}`;
+          const transitionTime = new Date(next.startTime).getTime() - new Date(current.completeTime).getTime();
+          
+          if (!linkMap.has(linkKey)) {
+            linkMap.set(linkKey, { activities: [], times: [] });
+          }
+          
+          linkMap.get(linkKey)!.activities.push(current);
+          linkMap.get(linkKey)!.times.push(Math.max(0, transitionTime / 1000)); // Ensure non-negative
+        }
+      });
+
+      // Create final links with cycle detection
+      const links: SankeyLink[] = [];
+      const adjMatrix = new Array(nodes.length).fill(null).map(() => new Array(nodes.length).fill(false));
+
+      linkMap.forEach((data, key) => {
+        const [sourceName, targetName] = key.split('->');
+        const sourceIndex = nodeIndices.get(sourceName);
+        const targetIndex = nodeIndices.get(targetName);
         
-        links.push({
-          source: sourceIndex,
-          target: targetIndex,
-          value: data.activities.length,
-          avgTransitionTime,
-          occurrences: data.activities.length,
-          activities: data.activities
-        });
-      }
-    });
+        if (sourceIndex !== undefined && targetIndex !== undefined && sourceIndex !== targetIndex) {
+          // Check if adding this edge would create a cycle
+          if (!wouldCreateCycle(adjMatrix, sourceIndex, targetIndex)) {
+            adjMatrix[sourceIndex][targetIndex] = true;
+            
+            const avgTransitionTime = data.times.reduce((sum, t) => sum + t, 0) / data.times.length;
+            
+            links.push({
+              source: sourceIndex,
+              target: targetIndex,
+              value: data.activities.length,
+              avgTransitionTime: isNaN(avgTransitionTime) ? 0 : avgTransitionTime,
+              occurrences: data.activities.length,
+              activities: data.activities
+            });
+          }
+        }
+      });
 
-    return { nodes, links };
+      return { nodes, links };
+    } catch (error) {
+      console.error('Error building Sankey data:', error);
+      return { nodes: [], links: [] };
+    }
+  };
+
+  // Helper function to detect if adding an edge would create a cycle
+  const wouldCreateCycle = (adjMatrix: boolean[][], from: number, to: number): boolean => {
+    if (from === to) return true;
+    
+    const visited = new Array(adjMatrix.length).fill(false);
+    const stack = [to];
+    
+    while (stack.length > 0) {
+      const current = stack.pop()!;
+      if (current === from) return true;
+      
+      if (!visited[current]) {
+        visited[current] = true;
+        for (let i = 0; i < adjMatrix.length; i++) {
+          if (adjMatrix[current][i] && !visited[i]) {
+            stack.push(i);
+          }
+        }
+      }
+    }
+    
+    return false;
   };
 
   useEffect(() => {
