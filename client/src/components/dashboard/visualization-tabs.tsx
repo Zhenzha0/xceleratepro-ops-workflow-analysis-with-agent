@@ -4,6 +4,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import ProcessMap from "./process-map";
+import DetailedAnomalyView from "./detailed-anomaly-view";
 
 export default function VisualizationTabs() {
   const [activeTab, setActiveTab] = useState("process-map");
@@ -23,11 +24,12 @@ export default function VisualizationTabs() {
     <Card className="mb-6">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <div className="border-b border-gray-200">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="process-map">Process Map</TabsTrigger>
             <TabsTrigger value="sankey">Sankey Diagram</TabsTrigger>
             <TabsTrigger value="timeline">Timeline Analysis</TabsTrigger>
             <TabsTrigger value="bottlenecks">Bottleneck Analysis</TabsTrigger>
+            <TabsTrigger value="anomaly-details">Anomaly Details</TabsTrigger>
           </TabsList>
         </div>
         
@@ -222,6 +224,12 @@ export default function VisualizationTabs() {
                 </div>
               </div>
             </div>
+          </CardContent>
+        </TabsContent>
+
+        <TabsContent value="anomaly-details" className="mt-0">
+          <CardContent className="p-6">
+            <DetailedAnomalyView anomalies={[]} isLoading={false} />
           </CardContent>
         </TabsContent>
       </Tabs>
