@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Expand, Download, Search } from "lucide-react";
+import { Expand, Download, Search, ZoomIn, ZoomOut } from "lucide-react";
 
 interface ProcessActivity {
   id: string;
@@ -19,6 +19,7 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
   const [selectedCaseId, setSelectedCaseId] = useState<string>("");
   const [caseActivities, setCaseActivities] = useState<ProcessActivity[]>([]);
   const [availableCases, setAvailableCases] = useState<string[]>([]);
+  const [zoomLevel, setZoomLevel] = useState<number>(1);
 
   useEffect(() => {
     if (filteredData?.activities) {
@@ -101,11 +102,11 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
   const calculateNodePositions = (uniqueActivities: any[]) => {
     const positions: { [key: string]: { x: number; y: number } } = {};
     
-    // Use full page width with much more spacing
-    const startX = 200;
-    const nodeSpacing = 200; // Much larger spacing between nodes
-    const rowHeight = 180; // Increased row height for better vertical spacing
-    const maxNodesPerRow = 5; // Even fewer nodes per row for maximum clarity
+    // Even more spacing for maximum clarity
+    const startX = 300;
+    const nodeSpacing = 260; // Even larger spacing between nodes
+    const rowHeight = 200; // Increased row height for better vertical spacing
+    const maxNodesPerRow = 4; // Fewer nodes per row for maximum clarity
     
     uniqueActivities.forEach((item, index) => {
       const row = Math.floor(index / maxNodesPerRow);
@@ -169,18 +170,45 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
     const firstActivityPos = nodePositions[firstActivity.activity];
     const lastActivityPos = nodePositions[lastActivity.activity];
 
-    const viewBoxWidth = Math.max(1800, uniqueActivities.length * 200); // Much larger width
-    const viewBoxHeight = Math.max(500, Math.ceil(uniqueActivities.length / 5) * 180 + 300);
+    const viewBoxWidth = Math.max(2400, uniqueActivities.length * 260); // Even larger width
+    const viewBoxHeight = Math.max(600, Math.ceil(uniqueActivities.length / 4) * 200 + 400);
 
-    return (
-      <div className="h-[500px] bg-gray-50 rounded-lg border p-6 overflow-auto"> {/* Increased height */}
-        <div className="text-center mb-6">
-          <h3 className="text-lg font-semibold">Process Flow Map for Case: {selectedCaseId}</h3>
-          <p className="text-sm text-gray-600">{uniqueActivities.length} unique activities ({caseActivities.length} total)</p>
-        </div>
-        
-        <div className="relative">
-          <svg width="100%" height="450" viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}>
+    const processMapJSX = (
+      <div className="space-y-6">
+        {/* Process Map Container */}
+        <div className="bg-gray-50 rounded-lg border p-6">
+          <div className="flex justify-between items-center mb-6">
+            <div className="text-center flex-1">
+              <h3 className="text-lg font-semibold">Process Flow Map for Case: {selectedCaseId}</h3>
+              <p className="text-sm text-gray-600">{uniqueActivities.length} unique activities ({caseActivities.length} total)</p>
+            </div>
+            
+            {/* Zoom Controls */}
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setZoomLevel(Math.min(2, zoomLevel + 0.2))}
+                disabled={zoomLevel >= 2}
+              >
+                <ZoomIn className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setZoomLevel(Math.max(0.5, zoomLevel - 0.2))}
+                disabled={zoomLevel <= 0.5}
+              >
+                <ZoomOut className="h-4 w-4" />
+              </Button>
+              <span className="text-sm text-gray-600 px-2 py-1">
+                {Math.round(zoomLevel * 100)}%
+              </span>
+            </div>
+          </div>
+          
+          <div className="relative overflow-auto h-[600px]" style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'center top' }}>
+            <svg width="100%" height="600" viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`} className="mx-auto">
             {/* Render flow connections with better routing */}
             {uniqueConnections.map((connection, index) => {
               const fromPos = nodePositions[connection.from];
@@ -463,6 +491,82 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
             <span>Loop/Backward Flow</span>
           </div>
         </div>
+        </div>
+        
+        {/* Process Summary Analysis Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">📊 Process Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <div className="text-sm font-medium text-blue-700">Total Activities</div>
+                <div className="text-lg font-bold text-blue-900">{caseActivities.length}</div>
+              </div>
+              <div className="bg-green-50 p-3 rounded-lg">
+                <div className="text-sm font-medium text-green-700">Processing Time</div>
+                <div className="text-lg font-bold text-green-900">
+                  {Math.round(caseActivities.reduce((sum, a) => sum + a.actualDurationS, 0))}s
+                </div>
+              </div>
+              <div className="bg-purple-50 p-3 rounded-lg">
+                <div className="text-sm font-medium text-purple-700">Lead Time</div>
+                <div className="text-lg font-bold text-purple-900">
+                  {caseActivities.length > 0 ? Math.round(
+                    (new Date(caseActivities[caseActivities.length - 1]?.completeTime).getTime() - 
+                     new Date(caseActivities[0]?.startTime).getTime()) / 1000
+                  ) : 0}s
+                </div>
+              </div>
+              <div className="bg-red-50 p-3 rounded-lg">
+                <div className="text-sm font-medium text-red-700">Anomalous Activities</div>
+                <div className="text-lg font-bold text-red-900">
+                  {caseActivities.filter(a => a.status === 'failed' || a.actualDurationS > 120).length}
+                </div>
+              </div>
+              <div className="bg-orange-50 p-3 rounded-lg">
+                <div className="text-sm font-medium text-orange-700">Loops Detected</div>
+                <div className="text-lg font-bold text-orange-900">
+                  {uniqueActivities.filter(a => a.occurrences > 1).length}
+                </div>
+              </div>
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <div className="text-sm font-medium text-gray-700">Valid Transitions</div>
+                <div className="text-lg font-bold text-gray-900">{uniqueConnections.length}</div>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="bg-green-50 p-3 rounded-lg">
+                <div className="text-sm font-medium text-green-700 mb-1">Start</div>
+                <div className="text-sm text-green-900">
+                  {firstActivity ? `${firstActivity.activity.substring(1)} (${new Date(firstActivity.startTime).toLocaleTimeString()})` : 'N/A'}
+                </div>
+              </div>
+              <div className="bg-red-50 p-3 rounded-lg">
+                <div className="text-sm font-medium text-red-700 mb-1">End</div>
+                <div className="text-sm text-red-900">
+                  {lastActivity ? `${lastActivity.activity.substring(1)} (${new Date(lastActivity.completeTime || lastActivity.startTime).toLocaleTimeString()})` : 'N/A'}
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-4">
+              <div className="text-sm font-medium text-gray-700 mb-2">Activities in Process Flow:</div>
+              <div className="flex flex-wrap gap-2">
+                {uniqueActivities.map((item, index) => (
+                  <span
+                    key={index}
+                    className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                  >
+                    {item.activity.activity.substring(1)}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   };
