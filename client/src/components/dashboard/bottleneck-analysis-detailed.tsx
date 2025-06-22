@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Clock, Timer, AlertTriangle, Hourglass } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,34 +30,27 @@ interface BottleneckAnalysisDetailedProps {
 }
 
 export default function BottleneckAnalysisDetailed({ filteredData: propFilteredData, filters }: BottleneckAnalysisDetailedProps) {
-  // Get filtered data directly from hook using passed filters - this automatically responds to filter changes
-  const { filteredData: hookFilteredData } = useDashboardData(filters || {
-    scopeType: 'dataset',
-    datasetSize: 'full',
-    datasetOrder: 'first',
-    customLimit: 1000,
-    activityRange: { start: 1, end: 100 },
-    timeRange: { start: '', end: '' },
-    equipment: 'all',
-    status: 'all',
-    caseIds: []
-  });
-
-  // Use hook data as primary source, fallback to props
-  const filteredData = hookFilteredData || propFilteredData;
+  // Use the filtered data passed as prop directly - this comes from the Dashboard's useDashboardData hook
+  const filteredData = propFilteredData;
 
   // Debug filtered data in BottleneckAnalysis
-  console.log('BottleneckAnalysis - hook filteredData:', hookFilteredData);
   console.log('BottleneckAnalysis - prop filteredData:', propFilteredData);
   console.log('BottleneckAnalysis - final filteredData:', filteredData);
   console.log('BottleneckAnalysis - activities count:', filteredData?.activities?.length);
 
-  // Use filtered data if available, otherwise fetch from API
-  const { data: bottlenecks, isLoading } = useQuery({
-    queryKey: ['/api/bottlenecks'],
-    queryFn: () => api.getBottleneckAnalysis() as Promise<BottleneckData>,
-    enabled: !filteredData?.activities || filteredData.activities.length === 0 // Only fetch if no filtered data is provided
-  });
+  // Calculate bottlenecks from filtered data directly instead of using API
+  const [bottlenecks, setBottlenecks] = useState<BottleneckData | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Calculate bottlenecks when filtered data changes
+  useEffect(() => {
+    if (filteredData?.activities && filteredData.activities.length > 0) {
+      setIsLoading(true);
+      const calculatedBottlenecks = calculateBottlenecksFromData(filteredData.activities);
+      setBottlenecks(calculatedBottlenecks);
+      setIsLoading(false);
+    }
+  }, [filteredData]);
 
   // Calculate bottlenecks from filtered data if available
   const calculateBottlenecksFromData = (activities: any[]) => {
