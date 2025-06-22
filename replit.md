@@ -125,6 +125,7 @@ The application has a sidebar navigation with different sections:
 - June 22, 2025. Implemented real bottleneck analysis in Process Maps tab showing actual manufacturing station data with full activity names
 - June 22, 2025. Created case-specific process visualizations with proper network flow maps and Sankey diagrams using activity timing logic for connections
 - June 22, 2025. Built interactive Sankey diagram with D3.js featuring clickable nodes/links, hover tooltips, detailed activity information panels, and color-coded station categories matching reference design quality
+- June 22, 2025. Created case-specific Sankey diagram component with individual case selection, sequential activity flow visualization, and comprehensive activity analysis for single manufacturing cases
 
 ## User Preferences
 
