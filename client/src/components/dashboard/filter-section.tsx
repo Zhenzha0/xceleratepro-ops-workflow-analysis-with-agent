@@ -25,15 +25,17 @@ export default function FilterSection({ filters, onFiltersChange, metrics }: Fil
 
   const handleApplyFilters = async () => {
     try {
-      await apiRequest('/api/dashboard/filter', {
+      const response = await fetch('/api/dashboard/filter', {
         method: 'POST',
         body: JSON.stringify(filters),
         headers: {
           'Content-Type': 'application/json'
         }
       });
-      // Trigger a data refresh by calling onFiltersChange again
-      onFiltersChange(filters);
+      if (response.ok) {
+        // Trigger a data refresh by calling onFiltersChange again
+        onFiltersChange(filters);
+      }
     } catch (error) {
       console.error('Failed to apply filters:', error);
     }
