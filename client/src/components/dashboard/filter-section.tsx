@@ -69,8 +69,16 @@ export default function FilterSection({ filters, onFiltersChange, metrics }: Fil
         button.disabled = true;
       }
       
+      // Force a refresh by creating a new filter object with a timestamp to ensure React Query detects the change
+      const refreshedFilters = { 
+        ...filters, 
+        _timestamp: Date.now() // Add timestamp to force query refresh
+      };
+      
+      console.log('Applying filters:', refreshedFilters);
+      
       // Apply the filter changes - this will trigger anomaly detection and all analysis to re-run
-      onFiltersChange({ ...filters });
+      onFiltersChange(refreshedFilters);
       
       // Reset button after a delay
       setTimeout(() => {
