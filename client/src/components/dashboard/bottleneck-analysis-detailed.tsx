@@ -28,9 +28,9 @@ interface BottleneckAnalysisDetailedProps {
   filters?: any;
 }
 
-export default function BottleneckAnalysisDetailed({ filteredData: propFilteredData }: BottleneckAnalysisDetailedProps) {
-  // Get filtered data directly from hook - this automatically responds to filter changes
-  const { filteredData: hookFilteredData } = useDashboardData({
+export default function BottleneckAnalysisDetailed({ filteredData: propFilteredData, filters }: BottleneckAnalysisDetailedProps) {
+  // Get filtered data directly from hook using passed filters - this automatically responds to filter changes
+  const { filteredData: hookFilteredData } = useDashboardData(filters || {
     scopeType: 'dataset',
     datasetSize: 'full',
     datasetOrder: 'first',
