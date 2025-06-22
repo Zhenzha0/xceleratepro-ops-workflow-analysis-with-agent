@@ -7,12 +7,19 @@ import ProcessMap from "./process-map";
 import DetailedAnomalyView from "./detailed-anomaly-view";
 import BottleneckAnalysisDetailed from "./bottleneck-analysis-detailed";
 
-export default function VisualizationTabs({ filteredData }: { filteredData?: any }) {
+interface VisualizationTabsProps {
+  filteredData?: any;
+}
+
+export default function VisualizationTabs(props: VisualizationTabsProps) {
+  const { filteredData } = props;
   const [activeTab, setActiveTab] = useState("process-map");
   
   // Debug filtered data in VisualizationTabs
-  console.log('VisualizationTabs - filteredData:', filteredData);
-  console.log('VisualizationTabs - activities count:', filteredData?.activities?.length);
+  console.log('VisualizationTabs - received props:', props);
+  console.log('VisualizationTabs - filteredData from props:', filteredData);
+  console.log('VisualizationTabs - has activities:', !!filteredData?.activities);
+  console.log('VisualizationTabs - activities length:', filteredData?.activities?.length);
 
   // Fetch real manufacturing data for timeline analysis
   const { data: metrics } = useQuery({
