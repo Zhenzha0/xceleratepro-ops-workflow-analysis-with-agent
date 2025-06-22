@@ -2,6 +2,9 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ProcessMap from "./process-map";
+import SankeyDiagram from "./sankey-diagram";
+import TimelineAnalysis from "./timeline-analysis";
+import BottleneckAnalysis from "./bottleneck-analysis";
 
 export default function VisualizationTabs() {
   const [activeTab, setActiveTab] = useState("process-map");

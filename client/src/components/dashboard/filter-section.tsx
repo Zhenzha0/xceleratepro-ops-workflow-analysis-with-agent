@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DashboardMetrics } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
 
 interface FilterSectionProps {
   filters: {
@@ -20,6 +21,22 @@ export default function FilterSection({ filters, onFiltersChange, metrics }: Fil
       ...filters,
       [key]: value
     });
+  };
+
+  const handleApplyFilters = async () => {
+    try {
+      await apiRequest('/api/dashboard/filter', {
+        method: 'POST',
+        body: JSON.stringify(filters),
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      // Trigger a data refresh by calling onFiltersChange again
+      onFiltersChange(filters);
+    } catch (error) {
+      console.error('Failed to apply filters:', error);
+    }
   };
 
   return (
@@ -108,7 +125,10 @@ export default function FilterSection({ filters, onFiltersChange, metrics }: Fil
             <span>Completed: <strong>{metrics?.completedCases || 0}</strong></span>
             <span>Failed: <strong>{metrics?.failedCases || 0}</strong></span>
           </div>
-          <Button className="bg-primary hover:bg-primary/90">
+          <Button 
+            className="bg-primary hover:bg-primary/90"
+            onClick={handleApplyFilters}
+          >
             Apply Filters
           </Button>
         </div>
