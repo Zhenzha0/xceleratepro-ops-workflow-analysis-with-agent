@@ -25,17 +25,24 @@ export default function FilterSection({ filters, onFiltersChange, metrics }: Fil
 
   const handleApplyFilters = async () => {
     try {
-      const response = await fetch('/api/dashboard/filter', {
-        method: 'POST',
-        body: JSON.stringify(filters),
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      if (response.ok) {
-        // Trigger a data refresh by calling onFiltersChange again
-        onFiltersChange(filters);
+      // Show visual feedback
+      const button = document.querySelector('button[type="button"]:last-child') as HTMLButtonElement;
+      if (button) {
+        button.textContent = 'Applying...';
+        button.disabled = true;
       }
+      
+      // Apply the filter changes
+      onFiltersChange({ ...filters });
+      
+      // Reset button after a delay
+      setTimeout(() => {
+        if (button) {
+          button.textContent = 'Apply Filters';
+          button.disabled = false;
+        }
+      }, 1500);
+      
     } catch (error) {
       console.error('Failed to apply filters:', error);
     }

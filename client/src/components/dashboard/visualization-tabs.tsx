@@ -93,26 +93,28 @@ export default function VisualizationTabs() {
           <CardContent className="p-6">
             <div className="bg-white rounded-lg border p-4">
               <h3 className="text-lg font-semibold mb-4">Timeline Analysis - Process Performance</h3>
-              <div className="h-80 flex items-end justify-around bg-gray-50 rounded p-4">
-                {[
-                  {time: '00:00', height: '60%', processing: 12, throughput: 45, color: '#3b82f6'},
-                  {time: '04:00', height: '75%', processing: 15, throughput: 38, color: '#8b5cf6'},
-                  {time: '08:00', height: '90%', processing: 18, throughput: 42, color: '#ef4444'},
-                  {time: '12:00', height: '100%', processing: 22, throughput: 35, color: '#f59e0b'},
-                  {time: '16:00', height: '85%', processing: 19, throughput: 40, color: '#10b981'},
-                  {time: '20:00', height: '70%', processing: 14, throughput: 44, color: '#06b6d4'}
-                ].map((item, i) => (
-                  <div key={i} className="flex flex-col items-center">
-                    <div 
-                      className="w-8 rounded-t" 
-                      style={{height: item.height, backgroundColor: item.color}}
-                    ></div>
-                    <div className="text-xs mt-2 text-center">
-                      <div className="font-medium">{item.time}</div>
-                      <div className="text-gray-600">{item.processing}s</div>
+              <div className="h-80 bg-gray-50 rounded p-4 relative">
+                <div className="flex items-end justify-around h-full">
+                  {[
+                    {time: '00:00', height: 60, processing: 12, throughput: 45, color: 'bg-blue-500'},
+                    {time: '04:00', height: 75, processing: 15, throughput: 38, color: 'bg-purple-500'},
+                    {time: '08:00', height: 90, processing: 18, throughput: 42, color: 'bg-red-500'},
+                    {time: '12:00', height: 100, processing: 22, throughput: 35, color: 'bg-yellow-500'},
+                    {time: '16:00', height: 85, processing: 19, throughput: 40, color: 'bg-green-500'},
+                    {time: '20:00', height: 70, processing: 14, throughput: 44, color: 'bg-cyan-500'}
+                  ].map((item, i) => (
+                    <div key={i} className="flex flex-col items-center h-full justify-end">
+                      <div 
+                        className={`w-12 rounded-t ${item.color} border border-white shadow-sm`}
+                        style={{height: `${item.height}%`}}
+                      ></div>
+                      <div className="text-xs mt-2 text-center">
+                        <div className="font-medium">{item.time}</div>
+                        <div className="text-gray-600">{item.processing}s</div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
               <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
                 <div className="text-center">
