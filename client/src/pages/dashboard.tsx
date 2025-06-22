@@ -7,6 +7,7 @@ import VisualizationTabs from "@/components/dashboard/visualization-tabs";
 import AnomalyDetection from "@/components/dashboard/anomaly-detection";
 import CaseComparison from "@/components/dashboard/case-comparison";
 import AIAssistant from "@/components/dashboard/ai-assistant";
+import BottleneckAnalysisDetailed from "@/components/dashboard/bottleneck-analysis-detailed";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 
 export default function Dashboard() {
@@ -45,6 +46,10 @@ export default function Dashboard() {
                   />
                   
                   <KeyMetrics metrics={metrics} isLoading={isLoading} />
+                  
+                  <div className="mb-6">
+                    <BottleneckAnalysisDetailed />
+                  </div>
                   
                   <VisualizationTabs />
                 </>

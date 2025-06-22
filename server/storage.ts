@@ -390,13 +390,13 @@ export class DatabaseStorage implements IStorage {
     return {
       processingBottlenecks: processingBottlenecks.map(b => ({
         station: b.station,
-        avgProcessingTime: b.avgProcessingTime || 0,
-        impact: b.avgProcessingTime > 300 ? 'high' : b.avgProcessingTime > 120 ? 'medium' : 'low'
+        avgProcessingTime: Number(b.avgProcessingTime || 0),
+        impact: (b.avgProcessingTime || 0) > 300 ? 'high' : (b.avgProcessingTime || 0) > 120 ? 'medium' : 'low'
       })),
-      waitTimeBottlenecks: waitTimeBottlenecks.filter(w => w.avgWaitTime > 0).map(w => ({
+      waitTimeBottlenecks: waitTimeBottlenecks.filter(w => Number(w.avgWaitTime || 0) > 0).map(w => ({
         station: w.station,
-        avgWaitTime: w.avgWaitTime || 0,
-        impact: w.avgWaitTime > 180 ? 'high' : w.avgWaitTime > 60 ? 'medium' : 'low'
+        avgWaitTime: Number(w.avgWaitTime || 0),
+        impact: Number(w.avgWaitTime || 0) > 180 ? 'high' : Number(w.avgWaitTime || 0) > 60 ? 'medium' : 'low'
       }))
     };
   }

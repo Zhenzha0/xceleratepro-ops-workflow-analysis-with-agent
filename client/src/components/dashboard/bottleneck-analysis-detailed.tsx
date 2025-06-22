@@ -77,7 +77,7 @@ export default function BottleneckAnalysisDetailed() {
                 </span>
               </div>
               
-              {bottlenecks?.processingBottlenecks?.length > 0 ? (
+              {bottlenecks?.processingBottlenecks && bottlenecks.processingBottlenecks.length > 0 ? (
                 bottlenecks.processingBottlenecks.map((bottleneck, index) => (
                   <div
                     key={index}
@@ -102,7 +102,7 @@ export default function BottleneckAnalysisDetailed() {
                     <div className="flex items-center gap-3">
                       <div className="text-right">
                         <p className="text-lg font-bold text-gray-900">
-                          {bottleneck.avgProcessingTime.toFixed(1)}s
+                          {Number(bottleneck.avgProcessingTime || 0).toFixed(1)}s
                         </p>
                         <p className="text-xs text-gray-500">Avg Processing</p>
                       </div>
@@ -131,7 +131,7 @@ export default function BottleneckAnalysisDetailed() {
                 </span>
               </div>
               
-              {bottlenecks?.waitTimeBottlenecks?.length > 0 ? (
+              {bottlenecks?.waitTimeBottlenecks && bottlenecks.waitTimeBottlenecks.length > 0 ? (
                 bottlenecks.waitTimeBottlenecks.map((bottleneck, index) => (
                   <div
                     key={index}
@@ -156,7 +156,7 @@ export default function BottleneckAnalysisDetailed() {
                     <div className="flex items-center gap-3">
                       <div className="text-right">
                         <p className="text-lg font-bold text-gray-900">
-                          {bottleneck.avgWaitTime.toFixed(1)}s
+                          {Number(bottleneck.avgWaitTime || 0).toFixed(1)}s
                         </p>
                         <p className="text-xs text-gray-500">Avg Wait Time</p>
                       </div>
