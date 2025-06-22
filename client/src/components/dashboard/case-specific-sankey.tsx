@@ -167,19 +167,95 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
         linkData.activities.push(current);
       }
 
-      // Convert link map to links array
+      // Convert link map to links array and validate for circular dependencies
       Array.from(linkMap.values()).forEach(linkData => {
-        const avgTransitionTime = linkData.transitions.reduce((sum, t) => sum + t, 0) / linkData.transitions.length;
-        
-        links.push({
-          source: linkData.sourceIndex,
-          target: linkData.targetIndex,
-          value: linkData.transitions.length, // Number of times this transition occurred
-          avgTransitionTime,
-          occurrences: linkData.transitions.length,
-          activities: linkData.activities
-        });
+        // Prevent self-loops and circular dependencies
+        if (linkData.sourceIndex !== linkData.targetIndex) {
+          const avgTransitionTime = linkData.transitions.reduce((sum, t) => sum + t, 0) / linkData.transitions.length;
+          
+          links.push({
+            source: linkData.sourceIndex,
+            target: linkData.targetIndex,
+            value: linkData.transitions.length, // Number of times this transition occurred
+            avgTransitionTime,
+            occurrences: linkData.transitions.length,
+            activities: linkData.activities
+          });
+        }
       });
+
+      // Validate the graph structure to prevent circular dependencies
+      const validateGraph = (nodes: SankeyNode[], links: SankeyLink[]) => {
+        const adjacencyList = new Map<number, number[]>();
+        
+        // Build adjacency list
+        for (let i = 0; i < nodes.length; i++) {
+          adjacencyList.set(i, []);
+        }
+        
+        links.forEach(link => {
+          const sourceIndex = typeof link.source === 'number' ? link.source : 0;
+          const targetIndex = typeof link.target === 'number' ? link.target : 0;
+          adjacencyList.get(sourceIndex)?.push(targetIndex);
+        });
+        
+        // Check for cycles using DFS
+        const visited = new Set<number>();
+        const recursionStack = new Set<number>();
+        
+        const hasCycle = (node: number): boolean => {
+          visited.add(node);
+          recursionStack.add(node);
+          
+          const neighbors = adjacencyList.get(node) || [];
+          for (const neighbor of neighbors) {
+            if (!visited.has(neighbor)) {
+              if (hasCycle(neighbor)) return true;
+            } else if (recursionStack.has(neighbor)) {
+              return true;
+            }
+          }
+          
+          recursionStack.delete(node);
+          return false;
+        };
+        
+        // Check each unvisited node
+        for (let i = 0; i < nodes.length; i++) {
+          if (!visited.has(i) && hasCycle(i)) {
+            console.warn('Circular dependency detected, removing problematic links');
+            return false;
+          }
+        }
+        
+        return true;
+      };
+
+      // If validation fails, create a simplified linear flow
+      if (!validateGraph(nodes, links)) {
+        console.log('Creating simplified linear flow to avoid circular dependencies');
+        const simplifiedLinks: SankeyLink[] = [];
+        
+        // Create simple sequential links based on the sorted activities
+        const uniqueActivities = Array.from(new Set(sortedActivities.map(a => a.activity)));
+        for (let i = 0; i < uniqueActivities.length - 1; i++) {
+          const sourceIndex = nodeMap.get(uniqueActivities[i]);
+          const targetIndex = nodeMap.get(uniqueActivities[i + 1]);
+          
+          if (sourceIndex !== undefined && targetIndex !== undefined && sourceIndex !== targetIndex) {
+            simplifiedLinks.push({
+              source: sourceIndex,
+              target: targetIndex,
+              value: 1,
+              avgTransitionTime: 0,
+              occurrences: 1,
+              activities: []
+            });
+          }
+        }
+        
+        return { nodes, links: simplifiedLinks };
+      }
 
       return { nodes, links };
     } catch (error) {
