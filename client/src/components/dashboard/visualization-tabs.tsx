@@ -1,10 +1,23 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import ProcessMap from "./process-map";
 
 export default function VisualizationTabs() {
   const [activeTab, setActiveTab] = useState("process-map");
+
+  // Fetch real manufacturing data for timeline analysis
+  const { data: metrics } = useQuery({
+    queryKey: ['/api/dashboard/metrics'],
+    queryFn: () => api.getDashboardMetrics(),
+  });
+
+  const { data: processEvents } = useQuery({
+    queryKey: ['/api/process/events'],
+    queryFn: () => api.getProcessEvents({ limit: 1000 }),
+  });
 
   return (
     <Card className="mb-6">

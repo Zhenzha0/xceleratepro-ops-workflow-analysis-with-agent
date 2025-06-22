@@ -264,7 +264,7 @@ export class DatabaseStorage implements IStorage {
     const anomalies = await db.select()
       .from(processActivities)
       .where(eq(processActivities.isAnomaly, true))
-      .orderBy(desc(processActivities.createdAt))
+      .orderBy(desc(processActivities.startTime))
       .limit(limit);
 
     return anomalies.map(anomaly => ({
@@ -272,8 +272,8 @@ export class DatabaseStorage implements IStorage {
       type: 'processing_time',
       title: 'Processing Time Anomaly Detected',
       description: `${anomaly.activity} operation exceeded expected time`,
-      details: `Case ${anomaly.caseId} - Equipment: ${anomaly.orgResource}`,
-      timestamp: anomaly.createdAt || new Date(),
+      details: `Case ${anomaly.caseId} - Equipment: ${anomaly.orgResource}${anomaly.failureDescription ? ` - ${anomaly.failureDescription}` : ''}`,
+      timestamp: anomaly.startTime || anomaly.completeTime || new Date(),
       severity: anomaly.anomalyScore && anomaly.anomalyScore > 2 ? 'high' : 'medium',
       caseId: anomaly.caseId,
       equipment: anomaly.orgResource || undefined,

@@ -34,9 +34,9 @@ export default function AnomalyDetection({ anomalies, isLoading }: AnomalyDetect
       <Card className="mb-6">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Real-time Anomaly Detection</CardTitle>
+            <CardTitle>Historical Anomaly Analysis</CardTitle>
             <div className="flex items-center space-x-2">
-              <Badge variant="destructive">Live</Badge>
+              <Badge variant="secondary">IQR Method</Badge>
               <Button variant="ghost" size="sm">
                 <Settings size={16} className="mr-1" />
                 Configure
@@ -59,9 +59,9 @@ export default function AnomalyDetection({ anomalies, isLoading }: AnomalyDetect
     <Card className="mb-6">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>Real-time Anomaly Detection</CardTitle>
+          <CardTitle>Historical Anomaly Analysis</CardTitle>
           <div className="flex items-center space-x-2">
-            <Badge variant="destructive">Live</Badge>
+            <Badge variant="secondary">IQR Method</Badge>
             <Button variant="ghost" size="sm">
               <Settings size={16} className="mr-1" />
               Configure
@@ -87,7 +87,7 @@ export default function AnomalyDetection({ anomalies, isLoading }: AnomalyDetect
                 </div>
                 <div className="flex items-center space-x-2">
                   <span className="text-xs text-gray-500">
-                    {anomaly.timestamp ? new Date(anomaly.timestamp).toLocaleTimeString() : 'Just now'}
+                    {anomaly.timestamp ? new Date(anomaly.timestamp).toLocaleDateString() + ' ' + new Date(anomaly.timestamp).toLocaleTimeString() : 'Unknown'}
                   </span>
                   <Button variant="link" size="sm" className="text-primary hover:text-primary/80">
                     Investigate
