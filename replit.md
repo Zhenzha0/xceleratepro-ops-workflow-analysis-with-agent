@@ -124,6 +124,7 @@ The application has a sidebar navigation with different sections:
 - June 22, 2025. Fixed all dashboard metrics: success rate (10%), anomaly count (170), and data scope configuration (301 cases)
 - June 22, 2025. Implemented real bottleneck analysis in Process Maps tab showing actual manufacturing station data with full activity names
 - June 22, 2025. Created case-specific process visualizations with proper network flow maps and Sankey diagrams using activity timing logic for connections
+- June 22, 2025. Built interactive Sankey diagram with D3.js featuring clickable nodes/links, hover tooltips, detailed activity information panels, and color-coded station categories matching reference design quality
 
 ## User Preferences
 

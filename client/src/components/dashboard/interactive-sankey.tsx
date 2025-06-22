@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
-import { sankey, sankeyLinkHorizontal } from 'd3-sankey';
+import * as d3Sankey from 'd3-sankey';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -140,7 +140,7 @@ export default function InteractiveSankey({ activities, caseId }: InteractiveSan
     if (!nodes.length) return;
 
     // Create sankey generator
-    const sankeyGenerator = sankey<SankeyNode, SankeyLink>()
+    const sankeyGenerator = d3Sankey.sankey<SankeyNode, SankeyLink>()
       .nodeWidth(180)
       .nodePadding(20)
       .extent([[margin.left, margin.top], [width - margin.right, height - margin.bottom]]);
@@ -162,12 +162,14 @@ export default function InteractiveSankey({ activities, caseId }: InteractiveSan
       .style("cursor", "pointer");
 
     links_g.append("path")
-      .attr("d", sankeyLinkHorizontal())
+      .attr("d", (d: any) => {
+        return `M${d.source.x1},${d.y0}C${(d.source.x1 + d.target.x0) / 2},${d.y0} ${(d.source.x1 + d.target.x0) / 2},${d.y1} ${d.target.x0},${d.y1}`;
+      })
       .attr("stroke", "#94a3b8")
       .attr("stroke-opacity", 0.4)
       .attr("stroke-width", (d: any) => Math.max(1, d.width))
       .attr("fill", "none")
-      .on("mouseover", function(event: any, d: SankeyLink) {
+      .on("mouseover", function(event: any, d: any) {
         d3.select(this as any).attr("stroke-opacity", 0.7);
         const content = `
           <div class="font-semibold">${(d.source as SankeyNode).name} → ${(d.target as SankeyNode).name}</div>
@@ -176,11 +178,11 @@ export default function InteractiveSankey({ activities, caseId }: InteractiveSan
         `;
         setTooltip({ x: event.pageX, y: event.pageY, content });
       })
-      .on("mouseout", function(event: any, d: SankeyLink) {
+      .on("mouseout", function(event: any, d: any) {
         d3.select(this as any).attr("stroke-opacity", 0.4);
         setTooltip(null);
       })
-      .on("click", function(event: any, d: SankeyLink) {
+      .on("click", function(event: any, d: any) {
         setSelectedLink(d);
         setSelectedNode(null);
       });
@@ -201,7 +203,7 @@ export default function InteractiveSankey({ activities, caseId }: InteractiveSan
       .attr("stroke", "#fff")
       .attr("stroke-width", 2)
       .attr("rx", 4)
-      .on("mouseover", function(event: any, d: SankeyNode) {
+      .on("mouseover", function(event: any, d: any) {
         d3.select(this as any).attr("stroke-width", 3);
         const content = `
           <div class="font-semibold">${d.name}</div>
@@ -211,11 +213,11 @@ export default function InteractiveSankey({ activities, caseId }: InteractiveSan
         `;
         setTooltip({ x: event.pageX, y: event.pageY, content });
       })
-      .on("mouseout", function(event: any, d: SankeyNode) {
+      .on("mouseout", function(event: any, d: any) {
         d3.select(this as any).attr("stroke-width", 2);
         setTooltip(null);
       })
-      .on("click", function(event: any, d: SankeyNode) {
+      .on("click", function(event: any, d: any) {
         setSelectedNode(d);
         setSelectedLink(null);
       });
