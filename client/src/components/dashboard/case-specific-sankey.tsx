@@ -102,39 +102,37 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
         new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
       );
 
-      // Group activities by unique activity name to create consolidated nodes
-      const activityGroups = new Map<string, ProcessActivity[]>();
-      
-      sortedActivities.forEach(activity => {
-        const key = activity.activity;
-        if (!activityGroups.has(key)) {
-          activityGroups.set(key, []);
-        }
-        activityGroups.get(key)!.push(activity);
-      });
-
-      // Create nodes from unique activities
+      // Create nodes for each unique activity with position tracking
+      const activityCounts = new Map<string, number>();
       const nodes: SankeyNode[] = [];
       const nodeMap = new Map<string, number>();
       
-      Array.from(activityGroups.entries()).forEach(([activityName, activities], index) => {
-        const totalDuration = activities.reduce((sum, a) => sum + a.actualDurationS, 0);
-        const avgDuration = totalDuration / activities.length;
+      // Count occurrences of each activity
+      sortedActivities.forEach(activity => {
+        const count = activityCounts.get(activity.activity) || 0;
+        activityCounts.set(activity.activity, count + 1);
+      });
+
+      // Create nodes from unique activities
+      Array.from(activityCounts.entries()).forEach(([activityName, count], index) => {
+        const activitiesOfType = sortedActivities.filter(a => a.activity === activityName);
+        const totalDuration = activitiesOfType.reduce((sum, a) => sum + a.actualDurationS, 0);
+        const avgDuration = totalDuration / activitiesOfType.length;
         
         nodes.push({
           id: activityName,
           name: activityName.replace(/^\//, ''),
           category: activityName.split('/')[1] || 'unknown',
-          activities: activities,
+          activities: activitiesOfType,
           avgDuration: avgDuration,
-          totalOccurrences: activities.length,
-          value: activities.length
+          totalOccurrences: count,
+          value: count
         });
         
         nodeMap.set(activityName, index);
       });
 
-      // Create links based on sequential flow in the sorted activities
+      // Create links based on actual sequential flow including loops
       const links: SankeyLink[] = [];
       const linkMap = new Map<string, {
         sourceIndex: number;
@@ -143,119 +141,46 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
         activities: ProcessActivity[];
       }>();
 
+      // Track all transitions in the case, including loops
       for (let i = 0; i < sortedActivities.length - 1; i++) {
         const current = sortedActivities[i];
         const next = sortedActivities[i + 1];
         
-        const sourceIndex = nodeMap.get(current.activity)!;
-        const targetIndex = nodeMap.get(next.activity)!;
-        const linkKey = `${sourceIndex}-${targetIndex}`;
+        const sourceIndex = nodeMap.get(current.activity);
+        const targetIndex = nodeMap.get(next.activity);
         
-        const transitionTime = new Date(next.startTime).getTime() - new Date(current.completeTime).getTime();
-        
-        if (!linkMap.has(linkKey)) {
-          linkMap.set(linkKey, {
-            sourceIndex,
-            targetIndex,
-            transitions: [],
-            activities: []
-          });
-        }
-        
-        const linkData = linkMap.get(linkKey)!;
-        linkData.transitions.push(Math.max(0, transitionTime / 1000));
-        linkData.activities.push(current);
-      }
-
-      // Convert link map to links array and validate for circular dependencies
-      Array.from(linkMap.values()).forEach(linkData => {
-        // Prevent self-loops and circular dependencies
-        if (linkData.sourceIndex !== linkData.targetIndex) {
-          const avgTransitionTime = linkData.transitions.reduce((sum, t) => sum + t, 0) / linkData.transitions.length;
+        if (sourceIndex !== undefined && targetIndex !== undefined) {
+          const linkKey = `${sourceIndex}-${targetIndex}`;
+          const transitionTime = new Date(next.startTime).getTime() - new Date(current.completeTime).getTime();
           
-          links.push({
-            source: linkData.sourceIndex,
-            target: linkData.targetIndex,
-            value: linkData.transitions.length, // Number of times this transition occurred
-            avgTransitionTime,
-            occurrences: linkData.transitions.length,
-            activities: linkData.activities
-          });
-        }
-      });
-
-      // Validate the graph structure to prevent circular dependencies
-      const validateGraph = (nodes: SankeyNode[], links: SankeyLink[]) => {
-        const adjacencyList = new Map<number, number[]>();
-        
-        // Build adjacency list
-        for (let i = 0; i < nodes.length; i++) {
-          adjacencyList.set(i, []);
-        }
-        
-        links.forEach(link => {
-          const sourceIndex = typeof link.source === 'number' ? link.source : 0;
-          const targetIndex = typeof link.target === 'number' ? link.target : 0;
-          adjacencyList.get(sourceIndex)?.push(targetIndex);
-        });
-        
-        // Check for cycles using DFS
-        const visited = new Set<number>();
-        const recursionStack = new Set<number>();
-        
-        const hasCycle = (node: number): boolean => {
-          visited.add(node);
-          recursionStack.add(node);
-          
-          const neighbors = adjacencyList.get(node) || [];
-          for (const neighbor of neighbors) {
-            if (!visited.has(neighbor)) {
-              if (hasCycle(neighbor)) return true;
-            } else if (recursionStack.has(neighbor)) {
-              return true;
-            }
-          }
-          
-          recursionStack.delete(node);
-          return false;
-        };
-        
-        // Check each unvisited node
-        for (let i = 0; i < nodes.length; i++) {
-          if (!visited.has(i) && hasCycle(i)) {
-            console.warn('Circular dependency detected, removing problematic links');
-            return false;
-          }
-        }
-        
-        return true;
-      };
-
-      // If validation fails, create a simplified linear flow
-      if (!validateGraph(nodes, links)) {
-        console.log('Creating simplified linear flow to avoid circular dependencies');
-        const simplifiedLinks: SankeyLink[] = [];
-        
-        // Create simple sequential links based on the sorted activities
-        const uniqueActivities = Array.from(new Set(sortedActivities.map(a => a.activity)));
-        for (let i = 0; i < uniqueActivities.length - 1; i++) {
-          const sourceIndex = nodeMap.get(uniqueActivities[i]);
-          const targetIndex = nodeMap.get(uniqueActivities[i + 1]);
-          
-          if (sourceIndex !== undefined && targetIndex !== undefined && sourceIndex !== targetIndex) {
-            simplifiedLinks.push({
-              source: sourceIndex,
-              target: targetIndex,
-              value: 1,
-              avgTransitionTime: 0,
-              occurrences: 1,
+          if (!linkMap.has(linkKey)) {
+            linkMap.set(linkKey, {
+              sourceIndex,
+              targetIndex,
+              transitions: [],
               activities: []
             });
           }
+          
+          const linkData = linkMap.get(linkKey)!;
+          linkData.transitions.push(Math.max(0, transitionTime / 1000));
+          linkData.activities.push(current);
         }
-        
-        return { nodes, links: simplifiedLinks };
       }
+
+      // Convert link map to links array (allowing self-loops for repeated activities)
+      Array.from(linkMap.values()).forEach(linkData => {
+        const avgTransitionTime = linkData.transitions.reduce((sum, t) => sum + t, 0) / linkData.transitions.length;
+        
+        links.push({
+          source: linkData.sourceIndex,
+          target: linkData.targetIndex,
+          value: linkData.transitions.length,
+          avgTransitionTime,
+          occurrences: linkData.transitions.length,
+          activities: linkData.activities
+        });
+      });
 
       return { nodes, links };
     } catch (error) {
@@ -277,14 +202,27 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
     const { nodes, links } = buildCaseSankeyData(caseActivities);
     if (!nodes.length) return;
 
-    // Create sankey generator with proper layout
+    // Separate self-loops from regular links
+    const selfLoops = links.filter(link => {
+      const sourceIndex = typeof link.source === 'number' ? link.source : nodes.findIndex(n => n.id === (link.source as SankeyNode).id);
+      const targetIndex = typeof link.target === 'number' ? link.target : nodes.findIndex(n => n.id === (link.target as SankeyNode).id);
+      return sourceIndex === targetIndex;
+    });
+
+    const regularLinks = links.filter(link => {
+      const sourceIndex = typeof link.source === 'number' ? link.source : nodes.findIndex(n => n.id === (link.source as SankeyNode).id);
+      const targetIndex = typeof link.target === 'number' ? link.target : nodes.findIndex(n => n.id === (link.target as SankeyNode).id);
+      return sourceIndex !== targetIndex;
+    });
+
+    // Create sankey generator with regular links only
     const sankeyGenerator = d3Sankey.sankey<SankeyNode, SankeyLink>()
       .nodeWidth(15)
-      .nodePadding(10)
+      .nodePadding(20)
       .extent([[margin.left, margin.top], [width - margin.right, height - margin.bottom]])
       .nodeAlign(d3Sankey.sankeyLeft);
 
-    const graph = sankeyGenerator({ nodes, links });
+    const graph = sankeyGenerator({ nodes, links: regularLinks });
 
     const g = svg.append("g");
 
@@ -293,7 +231,7 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
       .domain(['hbw', 'vgr', 'ov', 'wt', 'pm', 'dm', 'mm', 'unknown'])
       .range(['#06b6d4', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#6366f1', '#ec4899', '#6b7280']);
 
-    // Draw links (flows between activities)
+    // Draw regular links (flows between different activities)
     const links_g = g.selectAll(".link")
       .data(graph.links)
       .enter().append("g")
@@ -304,7 +242,7 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
       .attr("d", d3Sankey.sankeyLinkHorizontal())
       .attr("stroke", "#94a3b8")
       .attr("stroke-opacity", 0.4)
-      .attr("stroke-width", (d: any) => Math.max(1, d.width))
+      .attr("stroke-width", (d: any) => Math.max(2, d.width))
       .attr("fill", "none")
       .on("mouseover", function(event: any, d: any) {
         d3.select(this as any)
@@ -313,8 +251,8 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
         
         const content = `
           <div class="font-semibold">${(d.source as SankeyNode).name} → ${(d.target as SankeyNode).name}</div>
-          <div class="text-sm">Transition Time: ${d.avgTransitionTime.toFixed(2)}s</div>
-          <div class="text-sm">Flow Connection</div>
+          <div class="text-sm">Transitions: ${d.occurrences}</div>
+          <div class="text-sm">Avg Time: ${d.avgTransitionTime.toFixed(2)}s</div>
         `;
         setTooltip({ x: event.pageX, y: event.pageY, content });
       })
@@ -328,6 +266,74 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
         setSelectedLink(d);
         setSelectedNode(null);
       });
+
+    // Draw self-loops as curved arcs above nodes
+    const selfLoopGroup = g.selectAll(".self-loop")
+      .data(selfLoops)
+      .enter().append("g")
+      .attr("class", "self-loop")
+      .style("cursor", "pointer");
+
+    selfLoopGroup.append("path")
+      .attr("d", (d: any) => {
+        const nodeIndex = typeof d.source === 'number' ? d.source : nodes.findIndex(n => n.id === (d.source as SankeyNode).id);
+        const node = graph.nodes[nodeIndex];
+        if (!node) return "";
+        
+        const x = (node.x0! + node.x1!) / 2;
+        const y = node.y0!;
+        const radius = 25;
+        
+        // Create an arc above the node
+        return `M ${x - radius},${y} 
+                Q ${x},${y - radius * 2} ${x + radius},${y}`;
+      })
+      .attr("stroke", (d: any) => {
+        const nodeIndex = typeof d.source === 'number' ? d.source : nodes.findIndex(n => n.id === (d.source as SankeyNode).id);
+        const node = graph.nodes[nodeIndex];
+        return node ? colorScale(node.category) : "#94a3b8";
+      })
+      .attr("stroke-width", (d: any) => Math.max(2, d.value * 2))
+      .attr("stroke-opacity", 0.6)
+      .attr("fill", "none")
+      .on("mouseover", function(event: any, d: any) {
+        d3.select(this as any).attr("stroke-opacity", 0.9);
+        const nodeIndex = typeof d.source === 'number' ? d.source : nodes.findIndex(n => n.id === (d.source as SankeyNode).id);
+        const node = graph.nodes[nodeIndex];
+        const content = `
+          <div class="font-semibold">${node?.name} (Loop)</div>
+          <div class="text-sm">Repetitions: ${d.occurrences}</div>
+          <div class="text-sm">Activity repeated ${d.occurrences} times</div>
+        `;
+        setTooltip({ x: event.pageX, y: event.pageY, content });
+      })
+      .on("mouseout", function(event: any, d: any) {
+        d3.select(this as any).attr("stroke-opacity", 0.6);
+        setTooltip(null);
+      })
+      .on("click", function(event: any, d: any) {
+        setSelectedLink(d);
+        setSelectedNode(null);
+      });
+
+    // Add loop count labels
+    selfLoopGroup.append("text")
+      .attr("x", (d: any) => {
+        const nodeIndex = typeof d.source === 'number' ? d.source : nodes.findIndex(n => n.id === (d.source as SankeyNode).id);
+        const node = graph.nodes[nodeIndex];
+        return node ? (node.x0! + node.x1!) / 2 : 0;
+      })
+      .attr("y", (d: any) => {
+        const nodeIndex = typeof d.source === 'number' ? d.source : nodes.findIndex(n => n.id === (d.source as SankeyNode).id);
+        const node = graph.nodes[nodeIndex];
+        return node ? node.y0! - 25 : 0;
+      })
+      .attr("text-anchor", "middle")
+      .style("font-size", "10px")
+      .style("font-weight", "bold")
+      .style("fill", "#374151")
+      .style("pointer-events", "none")
+      .text((d: any) => `×${d.occurrences}`);
 
     // Draw nodes (activity stations)
     const nodes_g = g.selectAll(".node")
