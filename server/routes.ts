@@ -1,6 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
+import { processActivities, processEvents, processCases } from "@shared/schema";
 import { XESParser } from "./services/xes-parser";
 import { AnomalyDetector } from "./services/anomaly-detector";
 import { AIAnalyst } from "./services/ai-analyst";
@@ -45,23 +47,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Data Import and Management Routes
   app.post("/api/import-sample-data", async (req, res) => {
     try {
+      console.log('Clearing existing data and importing your sample_data.csv...');
+      
+      // Clear existing data to avoid duplicates
+      await db.delete(processActivities);
+      await db.delete(processEvents);  
+      await db.delete(processCases);
+      console.log('Existing data cleared');
+      
       const sampleDataPath = path.join(process.cwd(), 'attached_assets', 'sample_data_1750608906974.csv');
       const { events, activities, cases } = await XESParser.parseCSV(sampleDataPath);
       
-      console.log('Importing parsed data to database...');
-      await storage.bulkInsertProcessEvents(events);
-      await storage.bulkInsertProcessActivities(activities);
+      console.log(`Parsed ${events.length} events, ${activities.length} activities, ${cases.length} cases from your manufacturing data`);
+
+      // Bulk insert all data in correct order
+      if (cases.length > 0) {
+        await storage.bulkInsertProcessCases(cases);
+        console.log(`✓ Inserted ${cases.length} process cases`);
+      }
       
-      for (const processCase of cases) {
-        await storage.createProcessCase(processCase);
+      if (events.length > 0) {
+        await storage.bulkInsertProcessEvents(events);
+        console.log(`✓ Inserted ${events.length} process events`);
+      }
+      
+      if (activities.length > 0) {
+        await storage.bulkInsertProcessActivities(activities);
+        console.log(`✓ Inserted ${activities.length} process activities`);
       }
 
       dataImported = true;
-      console.log('Sample data import completed');
+      console.log('✓ Your manufacturing data import completed successfully');
       
       res.json({ 
         success: true, 
-        message: 'Sample data imported successfully',
+        message: `Successfully imported your manufacturing data: ${cases.length} cases, ${events.length} events, ${activities.length} activities`,
         counts: {
           events: events.length,
           activities: activities.length,
@@ -72,7 +92,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Import error:', error);
       res.status(500).json({ 
         success: false, 
-        message: 'Failed to import sample data',
+        message: 'Failed to import your sample data',
         error: error instanceof Error ? error.message : String(error)
       });
     }

@@ -72,6 +72,7 @@ export interface IStorage {
   // Data import methods
   bulkInsertProcessEvents(events: InsertProcessEvent[]): Promise<void>;
   bulkInsertProcessActivities(activities: InsertProcessActivity[]): Promise<void>;
+  bulkInsertProcessCases(cases: InsertProcessCase[]): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -312,6 +313,16 @@ export class DatabaseStorage implements IStorage {
     for (let i = 0; i < activities.length; i += batchSize) {
       const batch = activities.slice(i, i + batchSize);
       await db.insert(processActivities).values(batch);
+    }
+  }
+
+  async bulkInsertProcessCases(cases: InsertProcessCase[]): Promise<void> {
+    if (cases.length === 0) return;
+    
+    const batchSize = 1000;
+    for (let i = 0; i < cases.length; i += batchSize) {
+      const batch = cases.slice(i, i + batchSize);
+      await db.insert(processCases).values(batch);
     }
   }
 }
