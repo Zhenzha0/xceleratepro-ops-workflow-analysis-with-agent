@@ -209,19 +209,22 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
           
           <div className="relative overflow-auto h-[600px] border rounded bg-white">
             <div 
-              className="flex justify-center items-center min-h-full"
+              className="w-full h-full flex justify-center items-start pt-8"
               style={{ 
                 transform: `scale(${zoomLevel})`,
-                transformOrigin: 'center center',
-                padding: '20px'
+                transformOrigin: 'center top',
+                minWidth: `${100 / zoomLevel}%`,
+                minHeight: `${100 / zoomLevel}%`
               }}
             >
               <svg 
-                width={viewBoxWidth * 0.8}
+                width="90%"
                 height="580" 
                 viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
+                preserveAspectRatio="xMidYMin meet"
                 style={{ 
-                  maxWidth: 'none'
+                  maxWidth: 'none',
+                  display: 'block'
                 }}
               >
             {/* Render flow connections with better routing */}
