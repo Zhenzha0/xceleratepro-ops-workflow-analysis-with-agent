@@ -23,7 +23,7 @@ import {
   type SemanticSearchResult
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, lte, sql, like, or } from "drizzle-orm";
+import { eq, desc, and, gte, lte, sql, like, or, isNotNull } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -241,12 +241,12 @@ export class DatabaseStorage implements IStorage {
     // Calculate average processing time by station (2 decimal places)
     const avgProcessingByStation = await db.select({
       station: processActivities.orgResource,
-      avgTime: sql<number>`avg(process_duration_s)`
+      avgTime: sql<number>`avg(actual_duration_s)`
     })
       .from(processActivities)
-      .where(isNotNull(processActivities.processDurationS))
+      .where(sql`actual_duration_s IS NOT NULL`)
       .groupBy(processActivities.orgResource)
-      .orderBy(sql`avg(process_duration_s) desc`)
+      .orderBy(sql`avg(actual_duration_s) desc`)
       .limit(1);
 
     const [anomalies] = await db.select({ count: sql<number>`count(*)` })
@@ -256,12 +256,12 @@ export class DatabaseStorage implements IStorage {
     // Calculate bottlenecks - processing time and wait time
     const processingBottlenecks = await db.select({
       station: processActivities.orgResource,
-      avgProcessingTime: sql<number>`avg(process_duration_s)`
+      avgProcessingTime: sql<number>`avg(actual_duration_s)`
     })
       .from(processActivities)
-      .where(isNotNull(processActivities.processDurationS))
+      .where(sql`actual_duration_s IS NOT NULL AND org_resource IS NOT NULL`)
       .groupBy(processActivities.orgResource)
-      .orderBy(sql`avg(process_duration_s) desc`)
+      .orderBy(sql`avg(actual_duration_s) desc`)
       .limit(5);
 
     // Calculate wait time bottlenecks (start_time - scheduled_time)
@@ -270,15 +270,12 @@ export class DatabaseStorage implements IStorage {
       avgWaitTime: sql<number>`avg(extract(epoch from start_time) - extract(epoch from scheduled_time))`
     })
       .from(processActivities)
-      .where(and(
-        isNotNull(processActivities.startTime),
-        isNotNull(processActivities.scheduledTime)
-      ))
+      .where(sql`start_time IS NOT NULL AND scheduled_time IS NOT NULL AND org_resource IS NOT NULL`)
       .groupBy(processActivities.orgResource)
       .orderBy(sql`avg(extract(epoch from start_time) - extract(epoch from scheduled_time)) desc`)
       .limit(5);
 
-    const totalBottlenecks = processingBottlenecks.length + waitTimeBottlenecks.length;
+    const totalBottlenecks = Math.min(processingBottlenecks.length + waitTimeBottlenecks.filter(w => w.avgWaitTime > 0).length, 10);
 
     const totalCases = activeCases.count + completedCases.count + failedCases.count;
     // Fix success rate calculation - should be completed cases / total cases

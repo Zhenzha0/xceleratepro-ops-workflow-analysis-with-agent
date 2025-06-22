@@ -26,39 +26,31 @@ export default function KeyMetrics({ metrics, isLoading }: KeyMetricsProps) {
   const metricCards = [
     {
       title: "Avg Processing Time",
-      value: `${metrics?.avgProcessingTime || 0} min`,
+      value: `${(metrics?.avgProcessingTime || 0).toFixed(2)}s`,
       icon: Clock,
       iconBg: "bg-blue-100",
-      iconColor: "text-primary",
-      trend: { direction: "down", value: "12%", color: "text-success" },
-      trendIcon: TrendingDown
+      iconColor: "text-primary"
     },
     {
       title: "Anomalies Detected",
       value: metrics?.anomaliesDetected || 0,
       icon: AlertTriangle,
       iconBg: "bg-orange-100",
-      iconColor: "text-accent",
-      trend: { direction: "up", value: "8%", color: "text-error" },
-      trendIcon: TrendingUp
+      iconColor: "text-accent"
     },
     {
       title: "Bottlenecks Found",
       value: metrics?.bottlenecksFound || 0,
       icon: Hourglass,
       iconBg: "bg-red-100",
-      iconColor: "text-error",
-      trend: { direction: "none", value: "No change", color: "text-warning" },
-      trendIcon: Minus
+      iconColor: "text-error"
     },
     {
       title: "Success Rate",
-      value: `${metrics?.successRate || 0}%`,
+      value: `${(metrics?.successRate || 0).toFixed(2)}%`,
       icon: CheckCircle,
       iconBg: "bg-green-100",
-      iconColor: "text-success",
-      trend: { direction: "up", value: "2.1%", color: "text-success" },
-      trendIcon: TrendingUp
+      iconColor: "text-success"
     }
   ];
 
@@ -80,12 +72,7 @@ export default function KeyMetrics({ metrics, isLoading }: KeyMetricsProps) {
                   <Icon className={`${metric.iconColor}`} size={20} />
                 </div>
               </div>
-              <div className="mt-4">
-                <div className={`flex items-center text-sm ${metric.trend.color}`}>
-                  <TrendIcon size={16} className="mr-1" />
-                  <span>{metric.trend.value} from last week</span>
-                </div>
-              </div>
+
             </CardContent>
           </Card>
         );
