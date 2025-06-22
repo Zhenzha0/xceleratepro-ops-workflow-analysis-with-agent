@@ -102,11 +102,15 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
   const calculateNodePositions = (uniqueActivities: any[]) => {
     const positions: { [key: string]: { x: number; y: number } } = {};
     
-    // Even more spacing for maximum clarity
-    const startX = 300;
-    const nodeSpacing = 260; // Even larger spacing between nodes
-    const rowHeight = 200; // Increased row height for better vertical spacing
-    const maxNodesPerRow = 4; // Fewer nodes per row for maximum clarity
+    // Calculate optimal spacing to center the content
+    const maxNodesPerRow = 4;
+    const nodeSpacing = 220;
+    const rowHeight = 180;
+    const totalRows = Math.ceil(uniqueActivities.length / maxNodesPerRow);
+    
+    // Calculate the total width needed and center it
+    const maxRowWidth = maxNodesPerRow * nodeSpacing;
+    const startX = (1400 - maxRowWidth) / 2 + nodeSpacing / 2; // Center within viewBox
     
     uniqueActivities.forEach((item, index) => {
       const row = Math.floor(index / maxNodesPerRow);
@@ -118,7 +122,7 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
       
       positions[item.activity.activity] = {
         x: rowStartX + (col * nodeSpacing),
-        y: 150 + (row * rowHeight)
+        y: 100 + (row * rowHeight)
       };
     });
     
@@ -170,8 +174,9 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
     const firstActivityPos = nodePositions[firstActivity.activity];
     const lastActivityPos = nodePositions[lastActivity.activity];
 
-    const viewBoxWidth = Math.max(2400, uniqueActivities.length * 260); // Even larger width
-    const viewBoxHeight = Math.max(600, Math.ceil(uniqueActivities.length / 4) * 200 + 400);
+    const totalRows = Math.ceil(uniqueActivities.length / 4);
+    const viewBoxWidth = 1400; // Fixed width for better centering
+    const viewBoxHeight = Math.max(400, totalRows * 180 + 200);
 
     return (
       <div className="space-y-6">
@@ -218,12 +223,12 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
               }}
             >
               <svg 
-                width="90%"
+                width="100%"
                 height="580" 
                 viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
-                preserveAspectRatio="xMidYMin meet"
+                preserveAspectRatio="xMidYMid meet"
                 style={{ 
-                  maxWidth: 'none',
+                  maxWidth: '1400px',
                   display: 'block'
                 }}
               >
