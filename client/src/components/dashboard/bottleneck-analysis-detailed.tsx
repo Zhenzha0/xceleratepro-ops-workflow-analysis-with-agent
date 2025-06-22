@@ -12,11 +12,16 @@ interface BottleneckData {
   processingBottlenecks: Array<{
     station: string;
     avgProcessingTime: number;
+    maxProcessingTime?: number;
+    minProcessingTime?: number;
+    count?: number;
     impact: 'high' | 'medium' | 'low';
   }>;
   waitTimeBottlenecks: Array<{
     station: string;
     avgWaitTime: number;
+    maxWaitTime?: number;
+    count?: number;
     impact: 'high' | 'medium' | 'low';
   }>;
 }
@@ -56,59 +61,83 @@ export default function BottleneckAnalysisDetailed({ filteredData: propFilteredD
   const calculateBottlenecksFromData = (activities: any[]) => {
     if (!activities || activities.length === 0) return null;
 
-    // Group by station/activity and calculate averages
+    console.log('Calculating bottlenecks from activities:', activities.length);
+    console.log('Sample activity:', activities[0]);
+
+    // Group by station/activity and calculate averages using the correct field names
     const stationStats = activities.reduce((acc: any, activity: any) => {
       const station = activity.activity || activity.resource || 'Unknown Station';
       if (!acc[station]) {
         acc[station] = {
           processingTimes: [],
-          waitTimes: []
+          waitTimes: [],
+          count: 0
         };
       }
       
-      if (activity.actual_duration_s) {
-        acc[station].processingTimes.push(activity.actual_duration_s);
+      acc[station].count++;
+      
+      // Use processingTimeS which exists in your manufacturing data
+      if (activity.processingTimeS && activity.processingTimeS > 0) {
+        acc[station].processingTimes.push(activity.processingTimeS);
       }
       
-      // Calculate wait time as difference between start and scheduled time
-      if (activity.start_time && activity.scheduled_time) {
-        const waitTime = new Date(activity.start_time).getTime() - new Date(activity.scheduled_time).getTime();
-        if (waitTime > 0) {
-          acc[station].waitTimes.push(waitTime / 1000); // Convert to seconds
+      // For wait time, calculate difference between timestamps if available
+      if (activity.timestamp && activity.operationEndTime) {
+        const startTime = new Date(activity.timestamp).getTime();
+        const endTime = new Date(activity.operationEndTime).getTime();
+        const duration = (endTime - startTime) / 1000; // Convert to seconds
+        if (duration > 0) {
+          acc[station].waitTimes.push(duration);
         }
       }
       
       return acc;
     }, {});
 
-    // Calculate averages and determine impact
+    console.log('Station stats:', stationStats);
+
+    // Calculate averages and determine impact for processing bottlenecks
     const processingBottlenecks = Object.entries(stationStats)
+      .filter(([station, stats]: [string, any]) => stats.processingTimes.length > 0)
       .map(([station, stats]: [string, any]) => {
-        if (stats.processingTimes.length === 0) return null;
         const avgTime = stats.processingTimes.reduce((a: number, b: number) => a + b, 0) / stats.processingTimes.length;
+        const maxTime = Math.max(...stats.processingTimes);
+        const minTime = Math.min(...stats.processingTimes);
+        
         return {
-          station,
-          avgProcessingTime: avgTime,
-          impact: avgTime > 300 ? 'high' : avgTime > 100 ? 'medium' : 'low'
+          station: station.replace(/^\//, ''), // Remove leading slash for cleaner display
+          avgProcessingTime: Math.round(avgTime * 100) / 100,
+          maxProcessingTime: Math.round(maxTime * 100) / 100,
+          minProcessingTime: Math.round(minTime * 100) / 100,
+          count: stats.count,
+          impact: (avgTime > 100 ? 'high' : avgTime > 30 ? 'medium' : 'low') as 'high' | 'medium' | 'low'
         };
       })
-      .filter(Boolean)
-      .sort((a: any, b: any) => b.avgProcessingTime - a.avgProcessingTime)
-      .slice(0, 5);
+      .sort((a, b) => b.avgProcessingTime - a.avgProcessingTime)
+      .slice(0, 8); // Show more bottlenecks
 
+    // Calculate wait time bottlenecks
     const waitTimeBottlenecks = Object.entries(stationStats)
       .map(([station, stats]: [string, any]) => {
         if (stats.waitTimes.length === 0) return null;
         const avgWait = stats.waitTimes.reduce((a: number, b: number) => a + b, 0) / stats.waitTimes.length;
+        const maxWait = Math.max(...stats.waitTimes);
+        
         return {
-          station,
-          avgWaitTime: avgWait,
-          impact: avgWait > 200 ? 'high' : avgWait > 50 ? 'medium' : 'low'
+          station: station.replace(/^\//, ''), // Remove leading slash for cleaner display
+          avgWaitTime: Math.round(avgWait * 100) / 100,
+          maxWaitTime: Math.round(maxWait * 100) / 100,
+          count: stats.count,
+          impact: (avgWait > 60 ? 'high' : avgWait > 20 ? 'medium' : 'low') as 'high' | 'medium' | 'low'
         };
       })
-      .filter(Boolean)
-      .sort((a: any, b: any) => b.avgWaitTime - a.avgWaitTime)
-      .slice(0, 5);
+      .filter((item): item is NonNullable<typeof item> => item !== null)
+      .sort((a, b) => b.avgWaitTime - a.avgWaitTime)
+      .slice(0, 8); // Show more bottlenecks
+
+    console.log('Processing bottlenecks:', processingBottlenecks);
+    console.log('Wait time bottlenecks:', waitTimeBottlenecks);
 
     return {
       processingBottlenecks,
