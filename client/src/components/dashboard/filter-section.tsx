@@ -54,10 +54,18 @@ export default function FilterSection({ filters, onFiltersChange, metrics }: Fil
   }, []);
 
   const handleFilterChange = (key: string, value: any) => {
-    onFiltersChange({
+    // When dataset type changes, automatically apply filters to trigger bottleneck analysis update
+    const newFilters = {
       ...filters,
       [key]: value
-    });
+    };
+    
+    // If changing dataset size or scope type, add timestamp to force refresh
+    if (key === 'datasetSize' || key === 'scopeType') {
+      newFilters._timestamp = Date.now();
+    }
+    
+    onFiltersChange(newFilters);
   };
 
   const handleApplyFilters = async () => {
@@ -175,10 +183,13 @@ export default function FilterSection({ filters, onFiltersChange, metrics }: Fil
                   <Input
                     type="number"
                     value={filters.activityRange?.end || 100}
-                    onChange={(e) => handleFilterChange('activityRange', { 
-                      ...filters.activityRange, 
-                      end: parseInt(e.target.value) || 100 
-                    })}
+                    onChange={(e) => {
+                      const newValue = e.target.value === "" ? 100 : parseInt(e.target.value) || 100;
+                      handleFilterChange('activityRange', { 
+                        ...filters.activityRange, 
+                        end: newValue
+                      });
+                    }}
                     placeholder="Activity #100"
                     min="1"
                     max="3157"
