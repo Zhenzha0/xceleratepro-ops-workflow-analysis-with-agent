@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import ProcessMap from "./process-map";
 import DetailedAnomalyView from "./detailed-anomaly-view";
 import BottleneckAnalysisDetailed from "./bottleneck-analysis-detailed";
+import SankeyDiagram from "./sankey-diagram";
 
 export default function VisualizationTabs({ filteredData }: { filteredData?: any }) {
   const [activeTab, setActiveTab] = useState("process-map");
@@ -40,7 +41,7 @@ export default function VisualizationTabs({ filteredData }: { filteredData?: any
         </div>
         
         <TabsContent value="process-map" className="mt-0">
-          <ProcessMap />
+          <ProcessMap filteredData={filteredData} />
         </TabsContent>
         
         <TabsContent value="sankey" className="mt-0">
