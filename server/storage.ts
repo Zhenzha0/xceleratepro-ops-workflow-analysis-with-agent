@@ -103,8 +103,6 @@ export class DatabaseStorage implements IStorage {
     resource?: string;
     status?: string;
   }): Promise<ProcessEvent[]> {
-    let query = db.select().from(processEvents);
-    
     const conditions = [];
     if (filters?.caseId) {
       conditions.push(eq(processEvents.caseId, filters.caseId));
@@ -122,17 +120,20 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(processEvents.lifecycleState, filters.status));
     }
     
+    const baseQuery = db.select().from(processEvents);
+    
+    let finalQuery = baseQuery;
     if (conditions.length > 0) {
-      query = query.where(and(...conditions));
+      finalQuery = baseQuery.where(and(...conditions));
     }
     
-    query = query.orderBy(desc(processEvents.timestamp));
+    finalQuery = finalQuery.orderBy(desc(processEvents.timestamp));
     
     if (filters?.limit) {
-      query = query.limit(filters.limit);
+      finalQuery = finalQuery.limit(filters.limit);
     }
     
-    return await query;
+    return await finalQuery;
   }
 
   async createProcessActivity(activity: InsertProcessActivity): Promise<ProcessActivity> {

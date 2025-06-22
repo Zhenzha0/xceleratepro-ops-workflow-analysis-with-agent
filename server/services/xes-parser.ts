@@ -28,18 +28,26 @@ export interface XESEvent {
 
 export class XESParser {
   private static parseTimeToSeconds(timeStr: string): number {
-    if (!timeStr) return 0;
+    if (!timeStr || timeStr.trim() === '') return 0;
     
-    // Handle formats like "00:54.9" or "0 days 00:00:52"
-    if (timeStr.includes('days')) {
-      const parts = timeStr.split(' ');
-      const days = parseInt(parts[0]);
-      const timePart = parts[2];
-      const [hours, minutes, seconds] = timePart.split(':').map(parseFloat);
-      return days * 24 * 3600 + hours * 3600 + minutes * 60 + seconds;
-    } else {
-      const [minutes, seconds] = timeStr.split(':').map(parseFloat);
-      return minutes * 60 + seconds;
+    try {
+      // Handle formats like "00:54.9" or "0 days 00:00:52"
+      if (timeStr.includes('days')) {
+        const parts = timeStr.split(' ');
+        const days = parseInt(parts[0]) || 0;
+        const timePart = parts[2];
+        if (!timePart) return 0;
+        const [hours, minutes, seconds] = timePart.split(':').map(part => parseFloat(part) || 0);
+        return days * 24 * 3600 + hours * 3600 + minutes * 60 + seconds;
+      } else {
+        const timeParts = timeStr.split(':');
+        if (timeParts.length < 2) return 0;
+        const [minutes, seconds] = timeParts.map(part => parseFloat(part) || 0);
+        return minutes * 60 + seconds;
+      }
+    } catch (error) {
+      console.warn(`Failed to parse time string: ${timeStr}`);
+      return 0;
     }
   }
 
@@ -182,7 +190,7 @@ export class XESParser {
         case 'complete':
           activity.completeTime = timestamp;
           activity.status = eventData['lifecycle:state'];
-          if (processingTimeS > 0) {
+          if (processingTimeS > 0 && !isNaN(processingTimeS)) {
             activity.actualDurationS = processingTimeS;
           }
           if (eventData.unsatisfied_condition_description) {
@@ -193,7 +201,8 @@ export class XESParser {
 
       // Calculate planned duration
       if (eventData.planned_operation_time) {
-        activity.plannedDurationS = this.parseTimeToSeconds(eventData.planned_operation_time);
+        const plannedDuration = this.parseTimeToSeconds(eventData.planned_operation_time);
+        activity.plannedDurationS = isNaN(plannedDuration) ? null : plannedDuration;
       }
 
       // Track case-level information
@@ -226,9 +235,19 @@ export class XESParser {
     activityMap.forEach(caseActivities => {
       caseActivities.forEach(activity => {
         if (activity.startTime && activity.completeTime && !activity.actualDurationS) {
-          activity.actualDurationS = (activity.completeTime.getTime() - activity.startTime.getTime()) / 1000;
+          const duration = (activity.completeTime.getTime() - activity.startTime.getTime()) / 1000;
+          activity.actualDurationS = isNaN(duration) ? null : duration;
         }
-        activities.push(activity as InsertProcessActivity);
+        
+        // Sanitize all numeric fields to prevent NaN values
+        const sanitizedActivity = {
+          ...activity,
+          plannedDurationS: activity.plannedDurationS && !isNaN(activity.plannedDurationS) ? activity.plannedDurationS : null,
+          actualDurationS: activity.actualDurationS && !isNaN(activity.actualDurationS) ? activity.actualDurationS : null,
+          anomalyScore: activity.anomalyScore && !isNaN(activity.anomalyScore) ? activity.anomalyScore : null,
+        };
+        
+        activities.push(sanitizedActivity as InsertProcessActivity);
       });
     });
 
@@ -243,10 +262,20 @@ export class XESParser {
       caseInfo.anomalyCount = caseActivities.filter(a => a.isAnomaly).length;
       
       if (caseInfo.startTime && caseInfo.endTime) {
-        caseInfo.totalDurationS = (caseInfo.endTime.getTime() - caseInfo.startTime.getTime()) / 1000;
+        const totalDuration = (caseInfo.endTime.getTime() - caseInfo.startTime.getTime()) / 1000;
+        caseInfo.totalDurationS = isNaN(totalDuration) ? null : totalDuration;
       }
       
-      cases.push(caseInfo as InsertProcessCase);
+      // Sanitize all numeric fields for case data
+      const sanitizedCase = {
+        ...caseInfo,
+        totalDurationS: caseInfo.totalDurationS && !isNaN(caseInfo.totalDurationS) ? caseInfo.totalDurationS : null,
+        activityCount: caseInfo.activityCount && !isNaN(caseInfo.activityCount) ? caseInfo.activityCount : 0,
+        failureCount: caseInfo.failureCount && !isNaN(caseInfo.failureCount) ? caseInfo.failureCount : 0,
+        anomalyCount: caseInfo.anomalyCount && !isNaN(caseInfo.anomalyCount) ? caseInfo.anomalyCount : 0,
+      };
+      
+      cases.push(sanitizedCase as InsertProcessCase);
     });
 
     return {
