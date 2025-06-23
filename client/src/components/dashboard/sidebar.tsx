@@ -1,4 +1,4 @@
-import { Factory, BarChart3, AlertTriangle, Bot, Search, Clock, GitBranch, Filter, Download } from "lucide-react";
+import { Factory, BarChart3, AlertTriangle, Bot, Search, Clock, GitBranch, Filter, Download, Network } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface SidebarProps {
@@ -10,6 +10,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const mainNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'process-maps', label: 'Process Maps', icon: GitBranch },
+    { id: 'case-clustering', label: 'Case Clustering', icon: Network },
     { id: 'anomaly-detection', label: 'Anomaly Detection', icon: AlertTriangle },
     { id: 'ai-assistant', label: 'AI Assistant', icon: Bot },
     { id: 'semantic-search', label: 'Semantic Search', icon: Search },

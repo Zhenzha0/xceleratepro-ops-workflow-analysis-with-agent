@@ -20,7 +20,10 @@ import {
   type DashboardMetrics,
   type AnomalyAlert,
   type CaseComparison,
-  type SemanticSearchResult
+  type SemanticSearchResult,
+  type CaseClusterAnalysis,
+  type CaseCluster,
+  type TimelineActivity
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql, like, or, isNotNull } from "drizzle-orm";
@@ -434,6 +437,195 @@ export class DatabaseStorage implements IStorage {
         impact: Number(w.avgWaitTime || 0) > 180 ? 'high' : Number(w.avgWaitTime || 0) > 60 ? 'medium' : 'low'
       }))
     };
+  }
+
+  async getCaseClusterAnalysis(params: {
+    mode: string;
+    maxClusters: number;
+    start: number;
+    n: number;
+    startTime?: string;
+    endTime?: string;
+  }): Promise<CaseClusterAnalysis> {
+    try {
+      // Get all cases and activities
+      const allCases = await db.select().from(processCases);
+      const allActivities = await db.select().from(processActivities);
+
+      // Apply filtering based on mode
+      let filteredCases: typeof allCases = [];
+      
+      if (params.mode === 'dataset') {
+        // Index-based filtering
+        filteredCases = allCases
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+          .slice(params.start, params.start + params.n);
+      } else if (params.mode === 'timerange' && params.startTime && params.endTime) {
+        // Time-based filtering
+        const startDate = new Date(params.startTime);
+        const endDate = new Date(params.endTime);
+        filteredCases = allCases.filter(c => {
+          const caseDate = c.createdAt ? new Date(c.createdAt) : new Date();
+          return caseDate >= startDate && caseDate <= endDate;
+        });
+      } else {
+        filteredCases = allCases.slice(0, params.n);
+      }
+
+      const filteredCaseIds = filteredCases.map(c => c.caseId);
+      const filteredActivities = allActivities.filter(a => filteredCaseIds.includes(a.caseId));
+
+      // Group activities by case to build process signatures
+      const caseActivitiesMap = filteredActivities.reduce((acc, activity) => {
+        if (!acc[activity.caseId]) {
+          acc[activity.caseId] = [];
+        }
+        acc[activity.caseId].push(activity);
+        return acc;
+      }, {} as Record<string, ProcessActivity[]>);
+
+      // Create process signatures for each case
+      const caseSignatures = Object.entries(caseActivitiesMap).map(([caseId, activities]) => {
+        // Sort activities by start time to create process flow signature
+        const sortedActivities = activities
+          .filter(a => a.startTime) // Only include activities with timing data
+          .sort((a, b) => new Date(a.startTime!).getTime() - new Date(b.startTime!).getTime());
+        
+        const signature = sortedActivities.map(a => a.activity).join(' -> ');
+        
+        return {
+          caseId,
+          signature,
+          activities: sortedActivities
+        };
+      });
+
+      // Group cases by their process signatures
+      const signatureGroups = caseSignatures.reduce((acc, caseData) => {
+        if (!acc[caseData.signature]) {
+          acc[caseData.signature] = [];
+        }
+        acc[caseData.signature].push(caseData);
+        return acc;
+      }, {} as Record<string, typeof caseSignatures>);
+
+      // Convert to clusters and sort by frequency
+      const clusters: CaseCluster[] = Object.entries(signatureGroups)
+        .map(([signature, cases], index) => {
+          const allActivitiesInCluster = cases.flatMap(c => c.activities);
+          
+          // Calculate cluster metrics
+          const avgProcessingTime = allActivitiesInCluster.length > 0
+            ? allActivitiesInCluster.reduce((sum, a) => sum + (a.actualDurationS || 0), 0) / allActivitiesInCluster.length
+            : 0;
+
+          const anomalyCount = allActivitiesInCluster.filter(a => a.isAnomaly).length;
+          
+          // Calculate case durations (start to finish for each case)
+          const caseDurations = cases.map(caseData => {
+            const activities = caseData.activities;
+            if (activities.length === 0) return 0;
+            
+            const startTime = new Date(activities[0].startTime!).getTime();
+            const endTime = new Date(activities[activities.length - 1].completeTime || activities[activities.length - 1].startTime!).getTime();
+            return (endTime - startTime) / 1000; // Convert to seconds
+          });
+
+          const avgDuration = caseDurations.length > 0
+            ? caseDurations.reduce((sum, d) => sum + d, 0) / caseDurations.length
+            : 0;
+
+          const totalDuration = caseDurations.reduce((sum, d) => sum + d, 0);
+
+          // Find bottleneck activity (highest average processing time)
+          const activityProcessingTimes = allActivitiesInCluster.reduce((acc, activity) => {
+            if (!acc[activity.activity]) {
+              acc[activity.activity] = [];
+            }
+            acc[activity.activity].push(activity.actualDurationS || 0);
+            return acc;
+          }, {} as Record<string, number[]>);
+
+          let bottleneckActivity = '';
+          let bottleneckAvgTime = 0;
+          
+          Object.entries(activityProcessingTimes).forEach(([activity, times]) => {
+            const avgTime = times.reduce((sum, t) => sum + t, 0) / times.length;
+            if (avgTime > bottleneckAvgTime) {
+              bottleneckAvgTime = avgTime;
+              bottleneckActivity = activity;
+            }
+          });
+
+          return {
+            clusterId: index + 1,
+            processSignature: signature,
+            caseCount: cases.length,
+            caseIds: cases.map(c => c.caseId),
+            avgProcessingTime,
+            avgDuration,
+            totalDuration,
+            anomalyCount,
+            bottleneckActivity,
+            bottleneckAvgTime,
+            coverage: (cases.length / filteredCases.length) * 100,
+            anomalyRate: allActivitiesInCluster.length > 0 
+              ? (anomalyCount / allActivitiesInCluster.length) * 100 
+              : 0
+          };
+        })
+        .sort((a, b) => b.caseCount - a.caseCount) // Sort by frequency (most common first)
+        .slice(0, params.maxClusters); // Limit to maxClusters
+
+      // Create timeline data for visualization
+      const timelineData: TimelineActivity[] = [];
+      clusters.forEach((cluster, clusterIndex) => {
+        cluster.caseIds.forEach(caseId => {
+          const caseActivities = filteredActivities
+            .filter(a => a.caseId === caseId && a.startTime)
+            .sort((a, b) => new Date(a.startTime!).getTime() - new Date(b.startTime!).getTime());
+          
+          caseActivities.forEach(activity => {
+            timelineData.push({
+              caseId: activity.caseId,
+              activity: activity.activity,
+              timestamp: new Date(activity.startTime!),
+              duration: activity.actualDurationS || 0,
+              isAnomaly: activity.isAnomaly || false,
+              clusterId: cluster.clusterId
+            });
+          });
+        });
+      });
+
+      // Calculate overall metrics
+      const totalPatterns = Object.keys(signatureGroups).length;
+      const totalCoverage = (filteredCases.length / allCases.length) * 100;
+      const totalAnomalies = filteredActivities.filter(a => a.isAnomaly).length;
+      const totalAnomalyRate = filteredActivities.length > 0 
+        ? (totalAnomalies / filteredActivities.length) * 100 
+        : 0;
+
+      return {
+        totalCases: filteredCases.length,
+        totalPatterns,
+        coverage: totalCoverage,
+        anomalyRate: totalAnomalyRate,
+        clusters,
+        timelineData: timelineData.slice(0, 1000) // Limit timeline data for performance
+      };
+
+    } catch (error) {
+      console.error('Error in getCaseClusterAnalysis:', error);
+      return {
+        totalCases: 0,
+        totalPatterns: 0,
+        coverage: 0,
+        anomalyRate: 0,
+        clusters: [],
+        timelineData: []
+      };
+    }
   }
 }
 
