@@ -56,7 +56,11 @@ function CaseActivitiesTable({ caseId, anomalousActivity }: CaseActivitiesTableP
           </thead>
           <tbody>
             {activities.map((activity: any, index: number) => {
-              const isAnomalous = activity.activity === anomalousActivity || activity.isAnomaly;
+              // More precise anomaly detection - check both exact match and if this specific activity has anomalous timing
+              const isAnomalous = activity.activity === anomalousActivity && 
+                (activity.isAnomaly || 
+                 (activity.actualDurationS && activity.plannedDurationS && 
+                  Math.abs(activity.actualDurationS - activity.plannedDurationS) > activity.plannedDurationS * 0.5));
               return (
                 <tr 
                   key={index} 
