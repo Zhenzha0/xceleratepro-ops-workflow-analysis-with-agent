@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Search, Download, ZoomIn, ZoomOut } from "lucide-react";
 import * as d3 from "d3";
-import * as d3Sankey from "d3-sankey";
 
 interface ProcessActivity {
   id: string;
@@ -24,27 +23,23 @@ interface SankeyNode {
   id: string;
   name: string;
   category: string;
-  x0?: number;
-  x1?: number;
-  y0?: number;
-  y1?: number;
-  value?: number;
-  sourceLinks?: SankeyLink[];
-  targetLinks?: SankeyLink[];
+  x: number;
+  y: number;
+  width: number;
+  height: number;
   activities: ProcessActivity[];
-  avgDuration: number;
   totalOccurrences: number;
+  inflowTotal: number;
+  outflowTotal: number;
 }
 
 interface SankeyLink {
-  source: number | SankeyNode;
-  target: number | SankeyNode;
+  source: number;
+  target: number;
   value: number;
-  width?: number;
-  y0?: number;
-  y1?: number;
-  avgTransitionTime: number;
-  occurrences: number;
+  sourceY: number;
+  targetY: number;
+  height: number;
   activities: ProcessActivity[];
 }
 
@@ -59,9 +54,7 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
   const [availableCases, setAvailableCases] = useState<string[]>([]);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; content: string } | null>(null);
   const [selectedNode, setSelectedNode] = useState<SankeyNode | null>(null);
-  const [selectedLink, setSelectedLink] = useState<SankeyLink | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [zoomLevel, setZoomLevel] = useState(1);
 
   // Get available cases from activities
   useEffect(() => {
@@ -97,8 +90,10 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
     }
   }, [selectedCaseId, activities]);
 
-  const buildCaseSankeyData = (caseActivities: ProcessActivity[]) => {
-    if (!caseActivities || caseActivities.length === 0) return { nodes: [], links: [] };
+  const buildProperSankeyData = (caseActivities: ProcessActivity[]) => {
+    if (!caseActivities || caseActivities.length === 0) {
+      return { nodes: [], links: [] };
+    }
 
     try {
       // Sort activities by start time
@@ -106,7 +101,7 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
         new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
       );
 
-      // Build flow connections based on timing (same as process map)
+      // Build flow connections based on timing
       const connections = [];
       for (let i = 1; i < sortedActivities.length; i++) {
         const prevActivity = sortedActivities[i - 1];
@@ -115,14 +110,12 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
         if (prevActivity.completeTime && currentActivity.startTime) {
           const prevEndTime = new Date(prevActivity.completeTime).getTime();
           const currentStartTime = new Date(currentActivity.startTime).getTime();
-          const timeDiff = (currentStartTime - prevEndTime) / 1000; // seconds
+          const timeDiff = (currentStartTime - prevEndTime) / 1000;
           
-          // Activities are connected if time difference is small (within 60 seconds)
           if (timeDiff >= -5 && timeDiff <= 60) {
             connections.push({
               from: prevActivity.activity,
               to: currentActivity.activity,
-              timeDiff: timeDiff,
               fromActivity: prevActivity,
               toActivity: currentActivity
             });
@@ -130,7 +123,7 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
         }
       }
 
-      // Create unique activity nodes
+      // Create unique activities and count occurrences
       const activityCounts = new Map<string, number>();
       const activityData = new Map<string, ProcessActivity[]>();
       
@@ -144,351 +137,259 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
         activityData.get(activity.activity)!.push(activity);
       });
 
-      // Create nodes from unique activities
-      const nodes: SankeyNode[] = [];
+      // Create nodes with proper positioning
+      const uniqueActivities = Array.from(activityCounts.keys());
       const nodeMap = new Map<string, number>();
       
-      Array.from(activityCounts.entries()).forEach(([activityName, count], index) => {
-        const activities = activityData.get(activityName)!;
-        const totalDuration = activities.reduce((sum, a) => sum + a.actualDurationS, 0);
-        const avgDuration = totalDuration / activities.length;
+      const nodes: SankeyNode[] = uniqueActivities.map((activity, index) => {
+        const activities = activityData.get(activity)!;
+        const count = activityCounts.get(activity)!;
         
-        nodes.push({
-          id: activityName,
-          name: activityName.replace(/^\//, ''),
-          category: activityName.split('/')[1] || 'unknown',
+        nodeMap.set(activity, index);
+        
+        return {
+          id: activity,
+          name: activity.replace(/^\//, ''),
+          category: activity.split('/')[1] || 'unknown',
+          x: 0, // Will be calculated
+          y: 0, // Will be calculated
+          width: 20,
+          height: 0, // Will be calculated based on flow
           activities: activities,
-          avgDuration: avgDuration,
           totalOccurrences: count,
-          value: count
-        });
-        
-        nodeMap.set(activityName, index);
+          inflowTotal: 0,
+          outflowTotal: 0
+        };
       });
 
-      // Create links based on actual flow connections
-      const linkMap = new Map<string, {
-        sourceIndex: number;
-        targetIndex: number;
-        transitions: number[];
-        activities: ProcessActivity[];
-      }>();
+      // Count connections for links
+      const linkMap = new Map<string, number>();
+      connections.forEach(conn => {
+        const key = `${conn.from}->${conn.to}`;
+        linkMap.set(key, (linkMap.get(key) || 0) + 1);
+      });
 
-      connections.forEach(connection => {
-        const sourceIndex = nodeMap.get(connection.from);
-        const targetIndex = nodeMap.get(connection.to);
+      // Create links
+      const links: SankeyLink[] = [];
+      linkMap.forEach((value, key) => {
+        const [fromActivity, toActivity] = key.split('->');
+        const sourceIndex = nodeMap.get(fromActivity);
+        const targetIndex = nodeMap.get(toActivity);
         
         if (sourceIndex !== undefined && targetIndex !== undefined) {
-          const linkKey = `${sourceIndex}-${targetIndex}`;
+          const sourceActivities = connections
+            .filter(c => c.from === fromActivity && c.to === toActivity)
+            .map(c => c.fromActivity);
           
-          if (!linkMap.has(linkKey)) {
-            linkMap.set(linkKey, {
-              sourceIndex,
-              targetIndex,
-              transitions: [],
-              activities: []
-            });
-          }
+          links.push({
+            source: sourceIndex,
+            target: targetIndex,
+            value: value,
+            sourceY: 0, // Will be calculated
+            targetY: 0, // Will be calculated
+            height: 0, // Will be calculated
+            activities: sourceActivities
+          });
           
-          const linkData = linkMap.get(linkKey)!;
-          linkData.transitions.push(Math.max(0, connection.timeDiff));
-          linkData.activities.push(connection.fromActivity);
+          // Update node flow totals
+          nodes[sourceIndex].outflowTotal += value;
+          nodes[targetIndex].inflowTotal += value;
         }
-      });
-
-      // Convert to links array
-      const links: SankeyLink[] = [];
-      Array.from(linkMap.values()).forEach(linkData => {
-        const avgTransitionTime = linkData.transitions.reduce((sum, t) => sum + t, 0) / linkData.transitions.length;
-        
-        links.push({
-          source: linkData.sourceIndex,
-          target: linkData.targetIndex,
-          value: linkData.transitions.length,
-          avgTransitionTime,
-          occurrences: linkData.transitions.length,
-          activities: linkData.activities
-        });
       });
 
       return { nodes, links };
     } catch (error) {
-      console.error('Error building case Sankey data:', error);
+      console.error('Error building Sankey data:', error);
       return { nodes: [], links: [] };
     }
   };
 
-  const renderSankey = () => {
+  const renderProperSankey = () => {
     if (!svgRef.current || !caseActivities.length) return;
 
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
 
-    const width = 1000;
-    const height = 500;
-    const margin = { top: 40, right: 200, bottom: 40, left: 60 };
+    const width = 900;
+    const height = 400;
+    const margin = { top: 20, right: 150, bottom: 20, left: 50 };
 
-    const { nodes, links } = buildCaseSankeyData(caseActivities);
+    const { nodes, links } = buildProperSankeyData(caseActivities);
     if (!nodes.length) return;
 
-    // Calculate proper Sankey layout with node heights based on flow
-    const nodeWidth = 20;
-    const minNodeHeight = 30;
-    const maxNodeHeight = 80;
-    const horizontalSpacing = 200;
-    const verticalPadding = 10;
+    // Calculate node heights based on max flow
+    const maxFlow = Math.max(...nodes.map(n => Math.max(n.inflowTotal, n.outflowTotal, 1)));
+    const minNodeHeight = 20;
+    const maxNodeHeight = 60;
     
-    // Calculate flow values for each node
-    const nodeFlowIn = new Map<number, number>();
-    const nodeFlowOut = new Map<number, number>();
-    
-    nodes.forEach((node, index) => {
-      nodeFlowIn.set(index, 0);
-      nodeFlowOut.set(index, 0);
+    nodes.forEach(node => {
+      const flowRatio = Math.max(node.inflowTotal, node.outflowTotal, 1) / maxFlow;
+      node.height = minNodeHeight + (maxNodeHeight - minNodeHeight) * flowRatio;
     });
+
+    // Position nodes horizontally by category
+    const categories = Array.from(new Set(nodes.map(n => n.category)));
+    const xSpacing = (width - margin.left - margin.right) / Math.max(1, categories.length - 1);
     
-    // Calculate incoming and outgoing flows
-    links.forEach(link => {
-      const sourceIndex = typeof link.source === 'number' ? link.source : 0;
-      const targetIndex = typeof link.target === 'number' ? link.target : 0;
-      const flow = link.value;
+    categories.forEach((category, catIndex) => {
+      const categoryNodes = nodes.filter(n => n.category === category);
+      const totalHeight = categoryNodes.reduce((sum, n) => sum + n.height + 10, -10);
+      const startY = margin.top + (height - margin.top - margin.bottom - totalHeight) / 2;
       
-      nodeFlowOut.set(sourceIndex, (nodeFlowOut.get(sourceIndex) || 0) + flow);
-      nodeFlowIn.set(targetIndex, (nodeFlowIn.get(targetIndex) || 0) + flow);
-    });
-    
-    // Calculate node heights based on max flow (in or out)
-    const maxFlow = Math.max(...nodes.map((_, index) => 
-      Math.max(nodeFlowIn.get(index) || 0, nodeFlowOut.get(index) || 0)
-    ));
-    
-    // Group nodes by station type for horizontal positioning
-    const stationGroups = new Map<string, number[]>();
-    nodes.forEach((node, index) => {
-      const category = node.category;
-      if (!stationGroups.has(category)) {
-        stationGroups.set(category, []);
-      }
-      stationGroups.get(category)!.push(index);
-    });
-    
-    // Calculate layout
-    const stationGroupArray = Array.from(stationGroups.entries());
-    let layoutNodes = nodes.map((node, index) => {
-      // Find which station group this node belongs to
-      let groupIndex = 0;
-      
-      for (let i = 0; i < stationGroupArray.length; i++) {
-        const [category, nodeIndices] = stationGroupArray[i];
-        if (nodeIndices.includes(index)) {
-          groupIndex = i;
-          break;
-        }
-      }
-      
-      // Calculate node height based on flow
-      const maxNodeFlow = Math.max(nodeFlowIn.get(index) || 0, nodeFlowOut.get(index) || 0);
-      const heightRatio = maxFlow > 0 ? maxNodeFlow / maxFlow : 0;
-      const nodeHeight = minNodeHeight + (maxNodeHeight - minNodeHeight) * heightRatio;
-      
-      const x = margin.left + groupIndex * horizontalSpacing;
-      
-      return {
-        ...node,
-        x0: x,
-        x1: x + nodeWidth,
-        y0: 0, // Will be calculated below
-        y1: nodeHeight,
-        nodeHeight,
-        groupIndex,
-        flowIn: nodeFlowIn.get(index) || 0,
-        flowOut: nodeFlowOut.get(index) || 0
-      };
-    });
-    
-    // Position nodes vertically within each group to center them
-    stationGroupArray.forEach(([category, nodeIndices], groupIndex) => {
-      const groupNodes = nodeIndices.map(i => layoutNodes[i]);
-      const totalHeight = groupNodes.reduce((sum, node) => sum + node.nodeHeight + verticalPadding, -verticalPadding);
-      const availableHeight = height - margin.top - margin.bottom;
-      const startY = margin.top + (availableHeight - totalHeight) / 2;
-      
-      let currentY = Math.max(margin.top, startY);
-      groupNodes.forEach((node, i) => {
-        const nodeIndex = nodeIndices[i];
-        layoutNodes[nodeIndex] = {
-          ...layoutNodes[nodeIndex],
-          y0: currentY,
-          y1: currentY + node.nodeHeight
-        };
-        currentY += node.nodeHeight + verticalPadding;
+      let currentY = startY;
+      categoryNodes.forEach(node => {
+        node.x = margin.left + catIndex * xSpacing;
+        node.y = currentY;
+        currentY += node.height + 10;
       });
+    });
+
+    // Calculate link positions to properly fill node heights
+    links.forEach(link => {
+      const sourceNode = nodes[link.source];
+      const targetNode = nodes[link.target];
+      
+      // Calculate proportional height based on flow value
+      const sourceRatio = link.value / Math.max(sourceNode.outflowTotal, 1);
+      const targetRatio = link.value / Math.max(targetNode.inflowTotal, 1);
+      
+      link.height = Math.min(sourceNode.height * sourceRatio, targetNode.height * targetRatio);
+      link.height = Math.max(8, link.height); // Minimum link height
+    });
+
+    // Position links vertically within nodes
+    const nodeOutflowY = new Map<number, number>();
+    const nodeInflowY = new Map<number, number>();
+    
+    nodes.forEach((node, index) => {
+      nodeOutflowY.set(index, node.y);
+      nodeInflowY.set(index, node.y);
+    });
+
+    links.forEach(link => {
+      link.sourceY = nodeOutflowY.get(link.source)!;
+      link.targetY = nodeInflowY.get(link.target)!;
+      
+      nodeOutflowY.set(link.source, link.sourceY + link.height + 2);
+      nodeInflowY.set(link.target, link.targetY + link.height + 2);
     });
 
     const g = svg.append("g");
 
-    // Color scale for different station categories
+    // Color scale
     const colorScale = d3.scaleOrdinal<string>()
       .domain(['hbw', 'vgr', 'ov', 'wt', 'pm', 'dm', 'mm', 'unknown'])
       .range(['#06b6d4', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#6366f1', '#ec4899', '#6b7280']);
 
-    // Calculate link positions for proper Sankey flow
-    const calculateLinkPositions = () => {
-      // Track vertical positions for each node's links
-      const nodeSourceY = new Map<number, number>();
-      const nodeTargetY = new Map<number, number>();
-      
-      layoutNodes.forEach((node, index) => {
-        nodeSourceY.set(index, node.y0!);
-        nodeTargetY.set(index, node.y0!);
-      });
-      
-      return links.map(link => {
-        const sourceIndex = typeof link.source === 'number' ? link.source : 0;
-        const targetIndex = typeof link.target === 'number' ? link.target : 0;
-        const sourceNode = layoutNodes[sourceIndex];
-        const targetNode = layoutNodes[targetIndex];
-        
-        if (!sourceNode || !targetNode) return null;
-        
-        // Calculate link thickness based on flow value
-        const linkHeight = Math.max(8, link.value * 15);
-        
-        // Get current positions and update for next link
-        const sourceY = nodeSourceY.get(sourceIndex)!;
-        const targetY = nodeTargetY.get(targetIndex)!;
-        
-        nodeSourceY.set(sourceIndex, sourceY + linkHeight + 2);
-        nodeTargetY.set(targetIndex, targetY + linkHeight + 2);
-        
-        return {
-          ...link,
-          sourceIndex,
-          targetIndex,
-          x0: sourceNode.x1,
-          y0: sourceY,
-          x1: targetNode.x0,
-          y1: targetY,
-          linkHeight
-        };
-      }).filter(Boolean);
-    };
+    // Draw links as filled paths
+    const linkGroup = g.append("g").attr("class", "links");
     
-    const linkPositions = calculateLinkPositions();
-
-    // Draw links as filled paths (proper Sankey style)
-    const link = g.append("g")
-      .selectAll(".link")
-      .data(linkPositions)
+    linkGroup.selectAll("path")
+      .data(links)
       .enter().append("path")
-      .attr("class", "link")
-      .attr("d", (d: any) => {
-        if (!d) return "";
+      .attr("d", (d: SankeyLink) => {
+        const sourceNode = nodes[d.source];
+        const targetNode = nodes[d.target];
         
-        const x0 = d.x0;
-        const y0 = d.y0;
-        const x1 = d.x1;
-        const y1 = d.y1;
-        const thickness = d.linkHeight;
+        const x0 = sourceNode.x + sourceNode.width;
+        const y0 = d.sourceY;
+        const x1 = targetNode.x;
+        const y1 = d.targetY;
+        const height = d.height;
         
-        // Create proper Sankey curve that fills the thickness
         const curvature = 0.5;
         const xi = d3.interpolateNumber(x0, x1);
         const x2 = xi(curvature);
         const x3 = xi(1 - curvature);
         
-        // Create the path for the filled area
         return `
           M${x0},${y0}
           C${x2},${y0} ${x3},${y1} ${x1},${y1}
-          L${x1},${y1 + thickness}
-          C${x3},${y1 + thickness} ${x2},${y0 + thickness} ${x0},${y0 + thickness}
+          L${x1},${y1 + height}
+          C${x3},${y1 + height} ${x2},${y0 + height} ${x0},${y0 + height}
           Z
         `;
       })
-      .style("fill", "#94a3b8")
-      .style("fill-opacity", 0.6)
+      .style("fill", (d: SankeyLink) => {
+        const sourceNode = nodes[d.source];
+        const baseColor = colorScale(sourceNode.category);
+        return baseColor + '80'; // Add transparency
+      })
       .style("stroke", "none")
-      .on("mouseover", function(event: any, d: any) {
-        d3.select(this).style("fill-opacity", 0.8);
-        const sourceNode = layoutNodes[d.sourceIndex];
-        const targetNode = layoutNodes[d.targetIndex];
+      .on("mouseover", function(event: any, d: SankeyLink) {
+        const sourceNode = nodes[d.source];
+        const targetNode = nodes[d.target];
         
         setTooltip({
           x: event.pageX,
           y: event.pageY,
-          content: `${sourceNode?.name} → ${targetNode?.name}\nTransitions: ${d.occurrences}\nAvg Time: ${d.avgTransitionTime.toFixed(1)}s`
+          content: `${sourceNode.name} → ${targetNode.name}\nTransitions: ${d.value}`
         });
+        
+        d3.select(this).style("fill-opacity", 0.8);
       })
-      .on("mouseout", function(event: any, d: any) {
-        d3.select(this).style("fill-opacity", 0.6);
+      .on("mouseout", function() {
         setTooltip(null);
-      })
-      .on("click", function(event: any, d: any) {
-        setSelectedLink(d);
-        setSelectedNode(null);
+        d3.select(this).style("fill-opacity", 1);
       });
 
     // Draw nodes
-    const node = g.append("g")
-      .selectAll(".node")
-      .data(layoutNodes)
+    const nodeGroup = g.append("g").attr("class", "nodes");
+    
+    const nodeElements = nodeGroup.selectAll("g")
+      .data(nodes)
       .enter().append("g")
       .attr("class", "node");
 
-    node.append("rect")
-      .attr("x", (d: any) => d.x0)
-      .attr("y", (d: any) => d.y0)
-      .attr("height", (d: any) => d.y1 - d.y0)
-      .attr("width", (d: any) => d.x1 - d.x0)
-      .style("fill", (d: any) => colorScale(d.category))
+    nodeElements.append("rect")
+      .attr("x", (d: SankeyNode) => d.x)
+      .attr("y", (d: SankeyNode) => d.y)
+      .attr("width", (d: SankeyNode) => d.width)
+      .attr("height", (d: SankeyNode) => d.height)
+      .style("fill", (d: SankeyNode) => colorScale(d.category))
       .style("stroke", "#000")
       .style("stroke-width", 1)
-      .on("mouseover", function(event: any, d: any) {
-        d3.select(this).style("fill", d3.color(colorScale(d.category))!.darker(0.3).toString());
+      .on("mouseover", function(event: any, d: SankeyNode) {
         setTooltip({
           x: event.pageX,
           y: event.pageY,
-          content: `${d.name}\nOccurrences: ${d.totalOccurrences}\nAvg Duration: ${d.avgDuration.toFixed(1)}s\nCategory: ${d.category}`
+          content: `${d.name}\nCategory: ${d.category}\nOccurrences: ${d.totalOccurrences}`
         });
+        
+        d3.select(this).style("fill", d3.color(colorScale(d.category))!.darker(0.3).toString());
       })
-      .on("mouseout", function(event: any, d: any) {
-        d3.select(this).style("fill", colorScale(d.category));
+      .on("mouseout", function(event: any, d: SankeyNode) {
         setTooltip(null);
+        d3.select(this).style("fill", colorScale(d.category));
       })
-      .on("click", function(event: any, d: any) {
+      .on("click", function(event: any, d: SankeyNode) {
         setSelectedNode(d);
-        setSelectedLink(null);
       });
 
-    // Add labels to nodes (positioned to the right)
-    node.append("text")
-      .attr("x", (d: any) => d.x1 + 8)
-      .attr("y", (d: any) => (d.y0 + d.y1) / 2)
+    // Add labels outside nodes
+    nodeElements.append("text")
+      .attr("x", (d: SankeyNode) => d.x + d.width + 8)
+      .attr("y", (d: SankeyNode) => d.y + d.height / 2)
       .attr("dy", "0.35em")
-      .attr("text-anchor", "start")
       .style("font-size", "12px")
-      .style("fill", "#374151")
       .style("font-weight", "600")
-      .style("font-family", "system-ui, -apple-system, sans-serif")
-      .text((d: any) => {
-        const name = d.name.replace(/^\//, '');
-        return name.length > 20 ? name.substring(0, 17) + "..." : name;
+      .style("fill", "#374151")
+      .text((d: SankeyNode) => {
+        const name = d.name;
+        return name.length > 18 ? name.substring(0, 15) + "..." : name;
       });
-    
-    // Add smaller category labels below the main label
-    node.append("text")
-      .attr("x", (d: any) => d.x1 + 8)
-      .attr("y", (d: any) => (d.y0 + d.y1) / 2 + 14)
-      .attr("text-anchor", "start")
+
+    // Add smaller category labels
+    nodeElements.append("text")
+      .attr("x", (d: SankeyNode) => d.x + d.width + 8)
+      .attr("y", (d: SankeyNode) => d.y + d.height / 2 + 14)
       .style("font-size", "10px")
       .style("fill", "#6b7280")
-      .style("font-weight", "400")
-      .text((d: any) => `${d.category} (${d.totalOccurrences}×)`);
+      .text((d: SankeyNode) => `${d.category} (${d.totalOccurrences}×)`);
   };
 
   useEffect(() => {
-    renderSankey();
+    renderProperSankey();
   }, [caseActivities]);
 
   const filteredCases = availableCases.filter(caseId =>
@@ -501,23 +402,6 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
         <CardTitle className="flex items-center justify-between">
           <span>Case-Specific Process Flow</span>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setZoomLevel(Math.max(0.5, zoomLevel - 0.1))}
-            >
-              <ZoomOut className="h-4 w-4" />
-            </Button>
-            <span className="text-sm text-muted-foreground">
-              {Math.round(zoomLevel * 100)}%
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setZoomLevel(Math.min(2, zoomLevel + 0.1))}
-            >
-              <ZoomIn className="h-4 w-4" />
-            </Button>
             <Button variant="outline" size="sm">
               <Download className="h-4 w-4" />
             </Button>
@@ -560,13 +444,12 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
           </div>
 
           {/* Sankey Diagram */}
-          <div className="relative">
+          <div className="relative overflow-hidden">
             <svg
               ref={svgRef}
               width="100%"
-              height="500"
-              viewBox="0 0 1000 500"
-              style={{ transform: `scale(${zoomLevel})` }}
+              height="400"
+              viewBox="0 0 900 400"
               className="border rounded"
             />
             
@@ -575,7 +458,7 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
               <div
                 className="absolute z-50 px-2 py-1 text-sm bg-black text-white rounded shadow-lg pointer-events-none"
                 style={{
-                  left: tooltip.x - 500,
+                  left: tooltip.x - 450,
                   top: tooltip.y - 200,
                   whiteSpace: 'pre-line'
                 }}
@@ -596,25 +479,14 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
                 <p><strong>Unique Stations:</strong> {Array.from(new Set(caseActivities.map(a => a.activity.split('/')[1]))).length}</p>
               </div>
               
-              {(selectedNode || selectedLink) && (
+              {selectedNode && (
                 <div className="p-4 bg-muted rounded">
-                  <h4 className="font-semibold mb-2">
-                    {selectedNode ? 'Activity Details' : 'Transition Details'}
-                  </h4>
-                  {selectedNode && (
-                    <>
-                      <p><strong>Activity:</strong> {selectedNode.name}</p>
-                      <p><strong>Category:</strong> {selectedNode.category}</p>
-                      <p><strong>Occurrences:</strong> {selectedNode.totalOccurrences}</p>
-                      <p><strong>Avg Duration:</strong> {selectedNode.avgDuration.toFixed(1)}s</p>
-                    </>
-                  )}
-                  {selectedLink && (
-                    <>
-                      <p><strong>Transitions:</strong> {selectedLink.occurrences}</p>
-                      <p><strong>Avg Transition Time:</strong> {selectedLink.avgTransitionTime.toFixed(1)}s</p>
-                    </>
-                  )}
+                  <h4 className="font-semibold mb-2">Selected Activity</h4>
+                  <p><strong>Activity:</strong> {selectedNode.name}</p>
+                  <p><strong>Category:</strong> {selectedNode.category}</p>
+                  <p><strong>Occurrences:</strong> {selectedNode.totalOccurrences}</p>
+                  <p><strong>Inflow:</strong> {selectedNode.inflowTotal} connections</p>
+                  <p><strong>Outflow:</strong> {selectedNode.outflowTotal} connections</p>
                 </div>
               )}
             </div>
