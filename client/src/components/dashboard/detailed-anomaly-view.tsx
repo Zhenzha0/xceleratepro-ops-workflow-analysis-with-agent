@@ -1,10 +1,104 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Clock, CheckCircle, XCircle } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { AlertTriangle, Clock, CheckCircle, XCircle, ChevronDown, ChevronRight, Table } from "lucide-react";
 import { AnomalyAlert } from "@shared/schema";
 import { format } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
+
+// CaseActivitiesTable Component
+interface CaseActivitiesTableProps {
+  caseId: string;
+  anomalousActivity: string;
+}
+
+function CaseActivitiesTable({ caseId, anomalousActivity }: CaseActivitiesTableProps) {
+  const { data: activities, isLoading } = useQuery({
+    queryKey: ['/api/process/activities', caseId],
+    queryFn: async () => {
+      const response = await fetch(`/api/process/activities?caseId=${caseId}`);
+      if (!response.ok) throw new Error('Failed to fetch activities');
+      return response.json();
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="animate-pulse">
+        <div className="h-32 bg-gray-100 rounded"></div>
+      </div>
+    );
+  }
+
+  if (!activities || activities.length === 0) {
+    return (
+      <div className="text-center py-4 text-gray-500">
+        No activities found for case {caseId}
+      </div>
+    );
+  }
+
+  return (
+    <div className="border rounded-lg overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 border-b">
+            <tr>
+              <th className="px-3 py-2 text-left font-medium text-gray-900">Case ID</th>
+              <th className="px-3 py-2 text-left font-medium text-gray-900">Activity</th>
+              <th className="px-3 py-2 text-left font-medium text-gray-900">Timestamp</th>
+              <th className="px-3 py-2 text-left font-medium text-gray-900">Processing Time (s)</th>
+              <th className="px-3 py-2 text-left font-medium text-gray-900">Planned (s)</th>
+              <th className="px-3 py-2 text-left font-medium text-gray-900">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {activities.map((activity: any, index: number) => {
+              const isAnomalous = activity.activity === anomalousActivity || activity.isAnomaly;
+              return (
+                <tr 
+                  key={index} 
+                  className={`border-b hover:bg-gray-50 ${
+                    isAnomalous ? 'bg-red-50 border-red-200' : ''
+                  }`}
+                >
+                  <td className="px-3 py-2 font-mono text-xs">{activity.caseId}</td>
+                  <td className={`px-3 py-2 ${isAnomalous ? 'font-semibold text-red-800' : ''}`}>
+                    {activity.activity}
+                  </td>
+                  <td className="px-3 py-2 text-gray-600">
+                    {activity.startTime ? format(new Date(activity.startTime), 'MMM dd, HH:mm:ss') : 'N/A'}
+                  </td>
+                  <td className={`px-3 py-2 font-mono ${isAnomalous ? 'text-red-600 font-bold' : ''}`}>
+                    {activity.actualDurationS ? activity.actualDurationS.toFixed(2) : 'N/A'}
+                  </td>
+                  <td className="px-3 py-2 font-mono text-gray-600">
+                    {activity.plannedDurationS ? activity.plannedDurationS.toFixed(0) : 'N/A'}
+                  </td>
+                  <td className="px-3 py-2">
+                    <Badge 
+                      variant={activity.status === 'success' ? 'default' : 'destructive'}
+                      className="text-xs"
+                    >
+                      {activity.status}
+                    </Badge>
+                    {isAnomalous && (
+                      <Badge variant="destructive" className="ml-1 text-xs">
+                        ANOMALY
+                      </Badge>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 interface DetailedAnomalyViewProps {
   anomalies: AnomalyAlert[];
@@ -20,9 +114,12 @@ interface AnomalyDetailRow {
   status: 'success' | 'failure';
   deviation: number;
   severity: 'high' | 'medium' | 'low';
+  currentTask?: string;
 }
 
 export default function DetailedAnomalyView({ anomalies, isLoading }: DetailedAnomalyViewProps) {
+  const [expandedCases, setExpandedCases] = useState<Set<string>>(new Set());
+
   const getStatusIcon = (status: string) => {
     return status === 'success' ? (
       <CheckCircle className="h-4 w-4 text-green-500" />
@@ -38,6 +135,16 @@ export default function DetailedAnomalyView({ anomalies, isLoading }: DetailedAn
       low: 'outline'
     } as const;
     return <Badge variant={variants[severity]}>{severity.toUpperCase()}</Badge>;
+  };
+
+  const toggleCaseExpansion = (caseId: string) => {
+    const newExpanded = new Set(expandedCases);
+    if (newExpanded.has(caseId)) {
+      newExpanded.delete(caseId);
+    } else {
+      newExpanded.add(caseId);
+    }
+    setExpandedCases(newExpanded);
   };
 
   if (isLoading) {
@@ -107,6 +214,10 @@ export default function DetailedAnomalyView({ anomalies, isLoading }: DetailedAn
     const plannedTime = detailsMatch ? parseFloat(detailsMatch[2]) : 0;
     const deviation = detailsMatch ? parseFloat(detailsMatch[3]) : 0;
     
+    // Extract current_task from anomaly details if available
+    const currentTaskMatch = anomaly.details.match(/Current task: ([^,\n]+)/);
+    const currentTask = currentTaskMatch ? currentTaskMatch[1] : undefined;
+    
     return {
       caseId: anomaly.caseId || 'Unknown',
       activity: anomaly.equipment || anomaly.title || 'Unknown Activity',
@@ -115,7 +226,8 @@ export default function DetailedAnomalyView({ anomalies, isLoading }: DetailedAn
       plannedTime,
       status: deviation > 0 ? 'failure' : 'success',
       deviation: Math.abs(deviation),
-      severity: anomaly.severity
+      severity: anomaly.severity,
+      currentTask
     };
   });
 
@@ -268,6 +380,39 @@ export default function DetailedAnomalyView({ anomalies, isLoading }: DetailedAn
                         <span className="text-gray-500">Planned Time:</span>
                         <span className="ml-2 font-mono">{row.plannedTime.toFixed(1)}s</span>
                       </div>
+                      {row.currentTask && (
+                        <div className="col-span-2">
+                          <span className="text-gray-500">Current Task:</span>
+                          <span className="ml-2 text-blue-700 font-medium">{row.currentTask}</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Expandable Case Details Table */}
+                    <div className="mt-3 border-t pt-3">
+                      <Collapsible open={expandedCases.has(row.caseId)} onOpenChange={() => toggleCaseExpansion(row.caseId)}>
+                        <CollapsibleTrigger asChild>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex items-center gap-2"
+                          >
+                            {expandedCases.has(row.caseId) ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
+                            <Table className="h-4 w-4" />
+                            View Case Activities
+                          </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="mt-3">
+                          <CaseActivitiesTable 
+                            caseId={row.caseId} 
+                            anomalousActivity={row.activity}
+                          />
+                        </CollapsibleContent>
+                      </Collapsible>
                     </div>
                   </div>
                   <div className="text-right">

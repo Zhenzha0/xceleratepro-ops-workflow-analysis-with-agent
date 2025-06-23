@@ -313,17 +313,34 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(processActivities.startTime))
       .limit(limit);
 
-    return anomalies.map(anomaly => ({
-      id: anomaly.id.toString(),
-      type: 'processing_time',
-      title: 'Processing Time Anomaly Detected',
-      description: `${anomaly.activity} operation exceeded expected time`,
-      details: `Case ${anomaly.caseId} - Equipment: ${anomaly.orgResource}${anomaly.failureDescription ? ` - ${anomaly.failureDescription}` : ''}`,
-      timestamp: anomaly.startTime || anomaly.completeTime || new Date(),
-      severity: anomaly.anomalyScore && anomaly.anomalyScore > 2 ? 'high' : 'medium',
-      caseId: anomaly.caseId,
-      equipment: anomaly.orgResource || undefined,
-    }));
+    return anomalies.map(anomaly => {
+      const processingTime = anomaly.actualDurationS || 0;
+      const plannedTime = anomaly.plannedDurationS || 0;
+      const deviation = processingTime - plannedTime;
+      
+      let details = `Processing time ${processingTime.toFixed(1)}s vs planned ${plannedTime.toFixed(1)}s (deviation: ${deviation > 0 ? '+' : ''}${deviation.toFixed(1)}s)`;
+      details += `\nCase ${anomaly.caseId} - Equipment: ${anomaly.orgResource || 'Unknown'}`;
+      
+      if (anomaly.currentTask) {
+        details += `\nCurrent task: ${anomaly.currentTask}`;
+      }
+      
+      if (anomaly.failureDescription) {
+        details += `\nFailure: ${anomaly.failureDescription}`;
+      }
+
+      return {
+        id: anomaly.id.toString(),
+        type: 'processing_time',
+        title: 'Processing Time Anomaly Detected',
+        description: `${anomaly.activity} operation exceeded expected time`,
+        details,
+        timestamp: anomaly.startTime || anomaly.completeTime || new Date(),
+        severity: anomaly.anomalyScore && anomaly.anomalyScore > 2 ? 'high' : 'medium',
+        caseId: anomaly.caseId,
+        equipment: anomaly.orgResource || undefined,
+      };
+    });
   }
 
   async getCaseComparison(caseAId: string, caseBId: string): Promise<CaseComparison | null> {
