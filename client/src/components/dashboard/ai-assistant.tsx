@@ -23,6 +23,8 @@ interface AIAssistantProps {
   appliedFilters?: any;
 }
 
+
+
 export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
   const [currentQuery, setCurrentQuery] = useState('');
   const [sessionId] = useState(() => `session_${Date.now()}`);
@@ -35,6 +37,33 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
     }
   ]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  // Format assistant messages with better HTML styling
+  const formatAssistantMessage = (content: string): string => {
+    return content
+      // Headers
+      .replace(/## (.*?)$/gm, '<h3 class="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2 mt-4 first:mt-0">$1</h3>')
+      .replace(/### (.*?)$/gm, '<h4 class="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1 mt-3">$1</h4>')
+      
+      // Bold text
+      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-gray-900 dark:text-gray-100">$1</strong>')
+      
+      // Bullet points
+      .replace(/^• (.*?)$/gm, '<div class="flex items-start space-x-2 mb-1"><div class="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div><span>$1</span></div>')
+      
+      // Numbers/metrics highlighting
+      .replace(/(\d+(?:\.\d+)?%?)/g, '<span class="font-medium text-blue-600 dark:text-blue-400">$1</span>')
+      
+      // Equipment/activity names (starting with /)
+      .replace(/(\/\w+(?:\/\w+)*)/g, '<code class="px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs font-mono">$1</code>')
+      
+      // Case IDs (WF_xxx format)
+      .replace(/(WF_\d+(?:_\d+)?)/g, '<span class="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded text-xs font-medium">$1</span>')
+      
+      // Line breaks
+      .replace(/\n\n/g, '<br><br>')
+      .replace(/\n/g, '<br>');
+  };
 
   // Fetch conversation history
   const { data: conversationHistory } = useQuery({
@@ -107,22 +136,24 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
   }, [messages]);
 
   return (
-    <div className="w-96 bg-white shadow-lg border-l border-gray-200 flex flex-col h-full">
+    <div className="w-[600px] bg-white dark:bg-gray-900 shadow-lg border-l border-gray-200 dark:border-gray-700 flex flex-col h-full">
       {/* AI Assistant Section */}
       <div className="flex-1 flex flex-col">
-        <CardHeader className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
-          <CardTitle className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-              <Bot className="text-white" size={18} />
+        <CardHeader className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30">
+          <CardTitle className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+              <Bot className="text-white" size={20} />
             </div>
-            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-bold">ProcessGPT</span>
+            <div className="flex flex-col">
+              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-bold text-xl">ProcessGPT</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400 font-normal">Manufacturing Intelligence Assistant</span>
+            </div>
           </CardTitle>
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm text-gray-600">Your intelligent manufacturing analyst powered by AI</p>
+          <div className="mt-3">
             {appliedFilters && (
-              <div className="flex items-center space-x-1">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-xs text-green-700 font-medium">Analyzing filtered data</span>
+              <div className="flex items-center space-x-2 bg-green-50 dark:bg-green-900/30 px-3 py-2 rounded-lg">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-sm text-green-700 dark:text-green-400 font-medium">Analyzing your filtered dataset</span>
               </div>
             )}
           </div>
@@ -130,42 +161,62 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
         
         {/* Chat Messages */}
         <ScrollArea className="flex-1 p-6" ref={scrollAreaRef}>
-          <div className="space-y-4">
+          <div className="space-y-6">
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={`flex items-start space-x-3 ${
+                className={`flex items-start space-x-4 ${
                   message.role === 'user' ? 'justify-end' : ''
                 }`}
               >
                 {message.role === 'assistant' && (
-                  <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-                    <Bot className="text-white" size={16} />
+                  <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+                    <Bot className="text-white" size={18} />
                   </div>
                 )}
                 
-                <div className={`max-w-xs ${
+                <div className={`max-w-[85%] ${
                   message.role === 'user' 
-                    ? 'bg-primary text-white' 
-                    : 'bg-gray-100 text-gray-900'
-                } rounded-lg p-3`}>
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' 
+                    : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-md border border-gray-200 dark:border-gray-700'
+                } rounded-2xl p-4`}>
+                  <div className="prose prose-sm max-w-none dark:prose-invert">
+                    {message.role === 'assistant' ? (
+                      <div 
+                        className="text-sm leading-relaxed whitespace-pre-wrap"
+                        dangerouslySetInnerHTML={{
+                          __html: formatAssistantMessage(message.content)
+                        }}
+                      />
+                    ) : (
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                    )}
+                  </div>
                   
                   {message.suggestedActions && message.suggestedActions.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-gray-200">
-                      <p className="text-xs text-gray-600 mb-1">Suggested actions:</p>
-                      <ul className="text-xs space-y-1">
+                    <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
+                      <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">💡 Suggested next steps:</p>
+                      <div className="space-y-2">
                         {message.suggestedActions.map((action, index) => (
-                          <li key={index} className="text-gray-700">• {action}</li>
+                          <div key={index} className="flex items-start space-x-2">
+                            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                            <span className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">{action}</span>
+                          </div>
                         ))}
-                      </ul>
+                      </div>
                     </div>
                   )}
+                  
+                  <div className="mt-2 flex justify-end">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
                 </div>
                 
                 {message.role === 'user' && (
-                  <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
-                    <User className="text-gray-600" size={16} />
+                  <div className="w-10 h-10 bg-gray-300 dark:bg-gray-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+                    <User className="text-gray-600 dark:text-gray-300" size={18} />
                   </div>
                 )}
               </div>
@@ -188,55 +239,62 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
         </ScrollArea>
         
         {/* Chat Input */}
-        <div className="p-6 border-t border-gray-200">
-          <div className="flex space-x-2">
-            <Input
-              value={currentQuery}
-              onChange={(e) => setCurrentQuery(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Ask about processes, failures, or comparisons..."
-              className="flex-1"
-              disabled={aiAnalysisMutation.isPending}
-            />
+        <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+          <div className="flex space-x-3">
+            <div className="flex-1 relative">
+              <Input
+                value={currentQuery}
+                onChange={(e) => setCurrentQuery(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Ask about processes, failures, bottlenecks, or equipment performance..."
+                className="pr-12 py-3 border-2 border-gray-200 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400 rounded-xl bg-white dark:bg-gray-900"
+                disabled={aiAnalysisMutation.isPending}
+              />
+              {aiAnalysisMutation.isPending && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                </div>
+              )}
+            </div>
             <Button 
               onClick={handleSendMessage}
               disabled={!currentQuery.trim() || aiAnalysisMutation.isPending}
-              className="bg-primary hover:bg-primary/90"
+              className="px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105"
             >
-              <Send size={16} />
+              <Send size={18} />
             </Button>
           </div>
           
           {/* Quick Queries */}
-          <div className="mt-3">
-            <p className="text-xs text-gray-500 mb-2">Quick queries:</p>
-            <div className="flex flex-wrap gap-2">
+          <div className="mt-4">
+            <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-3">Suggested questions:</p>
+            <div className="grid grid-cols-1 gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                className="text-xs"
-                onClick={() => handleQuickQuery("Find anomalies in the last 24 hours")}
+                className="text-xs justify-start h-8 bg-white dark:bg-gray-900 hover:bg-blue-50 dark:hover:bg-blue-900/30 border-gray-200 dark:border-gray-600"
+                onClick={() => handleQuickQuery("What are the most common failure causes?")}
               >
-                <AlertCircle size={12} className="mr-1" />
-                Find anomalies
+                <AlertCircle size={12} className="mr-2 text-red-500" />
+                What are the most common failure causes?
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                className="text-xs"
-                onClick={() => handleQuickQuery("Show equipment efficiency trends")}
+                className="text-xs justify-start h-8 bg-white dark:bg-gray-900 hover:bg-green-50 dark:hover:bg-green-900/30 border-gray-200 dark:border-gray-600"
+                onClick={() => handleQuickQuery("Show me equipment performance trends")}
               >
-                <TrendingUp size={12} className="mr-1" />
-                Equipment efficiency
+                <TrendingUp size={12} className="mr-2 text-green-500" />
+                Show me equipment performance trends
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                className="text-xs"
-                onClick={() => handleQuickQuery("Analyze failure patterns by equipment")}
+                className="text-xs justify-start h-8 bg-white dark:bg-gray-900 hover:bg-purple-50 dark:hover:bg-purple-900/30 border-gray-200 dark:border-gray-600"
+                onClick={() => handleQuickQuery("Which activities are bottlenecks?")}
               >
-                <Search size={12} className="mr-1" />
-                Failure patterns
+                <Search size={12} className="mr-2 text-purple-500" />
+                Which activities are bottlenecks?
               </Button>
             </div>
           </div>
