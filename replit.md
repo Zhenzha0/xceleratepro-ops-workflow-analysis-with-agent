@@ -127,6 +127,7 @@ The application has a sidebar navigation with different sections:
 - June 22, 2025. Built interactive Sankey diagram with D3.js featuring clickable nodes/links, hover tooltips, detailed activity information panels, and color-coded station categories matching reference design quality
 - June 22, 2025. Created case-specific Sankey diagram component with individual case selection, sequential activity flow visualization, and comprehensive activity analysis for single manufacturing cases
 - June 22, 2025. Enhanced Sankey diagram to properly show loops, parallel paths, and multiple start/end points with self-loop visualization as curved arcs above nodes
+- June 23, 2025. Improved case-specific Sankey diagram to use proper filled link paths, node heights that reflect flow volume, better centering and spacing, and clear external labels for better readability matching reference design
 
 ## User Preferences
 
