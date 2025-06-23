@@ -444,6 +444,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Intelligent Analysis Route - More versatile AI approach
+  app.post("/api/ai/intelligent-analyze", async (req, res) => {
+    try {
+      const { query, sessionId, filters } = req.body;
+      
+      if (!query || query.trim().length === 0) {
+        return res.status(400).json({ 
+          error: 'Query is required' 
+        });
+      }
+
+      const { IntelligentAnalyst } = await import('./services/intelligent-analyst.js');
+      const result = await IntelligentAnalyst.intelligentAnalysis(query, filters);
+      
+      // Store conversation in database
+      await storage.createAiConversation({
+        sessionId: sessionId || 'default',
+        query,
+        response: result.analysisResults.response || 'Analysis completed',
+        queryType: 'intelligent_analysis',
+        contextData: {
+          selectedCapabilities: result.selectedCapabilities,
+          reasoning: result.reasoning,
+          methodsUsed: result.analysisResults.methodsUsed
+        }
+      });
+
+      res.json({
+        response: result.analysisResults.response,
+        queryType: 'intelligent_analysis',
+        selectedCapabilities: result.selectedCapabilities,
+        reasoning: result.reasoning,
+        keyFindings: result.analysisResults.keyFindings,
+        suggestedActions: result.analysisResults.suggestedActions,
+        methodsUsed: result.analysisResults.methodsUsed,
+        dataTransparency: result.analysisResults.dataTransparency
+      });
+
+    } catch (error) {
+      console.error('Error in intelligent analysis:', error);
+      res.status(500).json({ 
+        message: 'Failed to process intelligent analysis',
+        response: 'I apologize, but I encountered an error. Please try rephrasing your question.',
+        queryType: 'error'
+      });
+    }
+  });
+
   app.get("/api/ai/conversations/:sessionId", async (req, res) => {
     try {
       const { sessionId } = req.params;

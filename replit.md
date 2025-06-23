@@ -37,9 +37,25 @@ The application handles three primary data entities:
 - **Process Cases**: Complete workflow instances from start to finish
 
 ### AI Services
-- **AI Analyst**: OpenAI GPT-4o integration for natural language process analysis
+- **ProcessGPT (Legacy)**: Keyword-based query classification with hardcoded analysis patterns
+- **Intelligent Analyst**: Advanced AI system that dynamically selects analysis capabilities based on natural language understanding
 - **Anomaly Detection**: Statistical analysis using IQR and Z-score methods
 - **Semantic Search**: Vector embeddings for failure description similarity matching
+
+### AI Analysis Approaches
+
+#### Legacy Approach (ProcessGPT)
+- Uses keyword matching to classify queries (e.g., "anomaly" → anomaly_analysis)
+- Predefined analysis types with hardcoded data gathering
+- Limited to anticipated question patterns
+- Rigid and not easily extensible
+
+#### Intelligent Approach (IntelligentAnalyst)
+- AI-powered capability selection based on natural language understanding
+- Dynamic analysis pipeline that combines multiple analysis methods
+- Extensible capability system that can handle new question types
+- Two-stage AI process: capability selection → intelligent interpretation
+- More robust error handling and fallback mechanisms
 
 ### Dashboard Features
 - **Real-time Metrics**: Live KPI tracking with automatic refresh
