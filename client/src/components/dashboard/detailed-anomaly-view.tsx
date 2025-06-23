@@ -208,8 +208,18 @@ export default function DetailedAnomalyView({ anomalies, isLoading }: DetailedAn
 
   // Helper function to extract activity name from anomaly description
   const extractActivityName = (anomaly: AnomalyAlert): string => {
+    // Direct check for common activity patterns in description
+    if (anomaly.description?.includes('/hbw/unload')) return '/hbw/unload';
+    if (anomaly.description?.includes('/wt/pick_up_and_transport')) return '/wt/pick_up_and_transport';
+    if (anomaly.description?.includes('/ov/burn')) return '/ov/burn';
+    if (anomaly.description?.includes('/pm/punch_gill')) return '/pm/punch_gill';
+    if (anomaly.description?.includes('/mm/deburr')) return '/mm/deburr';
+    if (anomaly.description?.includes('/vgr/')) return anomaly.description.split(' ')[0];
+    
+    // Try regex extraction as fallback
     const activityNameMatch = anomaly.description?.match(/^(.+?) operation exceeded expected time$/);
     const fullActivityName = activityNameMatch ? activityNameMatch[1] : null;
+    
     return fullActivityName || anomaly.equipment || 'Unknown Activity';
   };
 
