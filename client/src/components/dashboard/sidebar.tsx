@@ -12,7 +12,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
     { id: 'process-maps', label: 'Process Maps', icon: GitBranch },
     { id: 'case-clustering', label: 'Case Clustering', icon: Network },
     { id: 'anomaly-detection', label: 'Anomaly Detection', icon: AlertTriangle },
-    { id: 'ai-assistant', label: 'AI Assistant', icon: Bot },
+    { id: 'ai-assistant', label: 'ProcessGPT', icon: Bot },
     { id: 'semantic-search', label: 'Semantic Search', icon: Search },
     { id: 'timeline-analysis', label: 'Timeline Analysis', icon: Clock },
     { id: 'case-comparison', label: 'Case Comparison', icon: GitBranch },

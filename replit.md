@@ -134,6 +134,9 @@ The application has a sidebar navigation with different sections:
 - June 23, 2025. Fixed dashboard metrics calculations: corrected bottleneck detection thresholds and success rate calculation bug caused by string concatenation in database count operations
 - June 23, 2025. Enhanced Timeline Analysis with comprehensive Y-axis labeling showing all activities and severity-based anomaly classification: blue dots for normal activities, yellow diamonds for moderate anomalies (50-200% deviation), red diamonds for severe anomalies (>200% deviation)
 - June 23, 2025. Enhanced Anomaly Details tab with expandable table view showing all case activities with anomalous activities highlighted in red, added current_task field to database schema for richer anomaly context, and improved anomaly detection accuracy to only highlight officially detected anomalies
+- June 23, 2025. Implemented Case Clustering feature with advanced multi-dimensional pattern analysis including parallel activity detection, loop recognition, and resource utilization patterns for sophisticated manufacturing workflow grouping
+- June 23, 2025. Enhanced clustering algorithm to move beyond simple linear sequences to capture true process complexity including concurrent operations, rework loops, and equipment patterns
+- June 23, 2025. Rebranded AI Assistant to "ProcessGPT" - intelligent manufacturing analyst with enhanced branding and user interface improvements
 
 ## User Preferences
 
