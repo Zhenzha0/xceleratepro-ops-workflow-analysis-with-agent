@@ -26,7 +26,7 @@ export default function AIAssistant() {
     {
       id: 'welcome',
       role: 'assistant',
-      content: "Hello! I'm your AI Process Analyst. I can help you analyze manufacturing workflows, identify bottlenecks, and compare cases. What would you like to know?",
+      content: "👋 Hello! I'm ProcessGPT, your intelligent manufacturing analyst. I can help you understand production patterns, diagnose workflow issues, and optimize your processes. Ask me anything about your manufacturing data!",
       timestamp: new Date()
     }
   ]);
@@ -105,12 +105,14 @@ export default function AIAssistant() {
     <div className="w-96 bg-white shadow-lg border-l border-gray-200 flex flex-col h-full">
       {/* AI Assistant Section */}
       <div className="flex-1 flex flex-col">
-        <CardHeader className="p-6 border-b border-gray-200">
+        <CardHeader className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
           <CardTitle className="flex items-center space-x-2">
-            <Bot className="text-primary" size={20} />
-            <span>AI Process Analyst</span>
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+              <Bot className="text-white" size={18} />
+            </div>
+            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-bold">ProcessGPT</span>
           </CardTitle>
-          <p className="text-sm text-gray-600">Ask questions about your manufacturing processes</p>
+          <p className="text-sm text-gray-600">Your intelligent manufacturing analyst powered by AI</p>
         </CardHeader>
         
         {/* Chat Messages */}
