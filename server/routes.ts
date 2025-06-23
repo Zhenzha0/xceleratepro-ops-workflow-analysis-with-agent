@@ -265,13 +265,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const AnomalyDetector = (await import('./services/anomaly-detector.js')).AnomalyDetector;
       const scopedAnomalies = [];
       
-      // Detect anomalies in the scoped activities
+      // Detect anomalies in the scoped activities and mark them
       for (const activity of scopedActivities) {
         // Processing time anomalies
         const processingAnomaly = AnomalyDetector.analyzeProcessingTimeAnomaly(
           activity,
           scopedActivities
         );
+        
+        // Mark activity as anomalous and set anomaly score
+        activity.isAnomaly = processingAnomaly.isAnomaly;
+        activity.anomalyScore = processingAnomaly.score;
         
         if (processingAnomaly.isAnomaly) {
           scopedAnomalies.push({

@@ -6,8 +6,8 @@ import { format, parseISO } from 'date-fns';
 
 interface TimelineAnalysisProps {
   filteredData?: {
-    activities: ProcessActivity[];
-    anomalies: Array<{
+    activities?: ProcessActivity[];
+    anomalies?: Array<{
       id: string;
       type: string;
       title: string;
@@ -33,10 +33,13 @@ interface TimelineDataPoint {
 
 export default function TimelineAnalysis({ filteredData }: TimelineAnalysisProps) {
   const timelineData = useMemo(() => {
-    if (!filteredData?.activities) return { normalData: [], severeAnomalyData: [], moderateAnomalyData: [], activityLabels: [] };
-
-    const activities = filteredData.activities;
-    const anomalies = filteredData.anomalies || [];
+    // Handle both direct activities array and filtered data structure
+    const activities = filteredData?.activities || [];
+    const anomalies = filteredData?.anomalies || [];
+    
+    if (!activities || activities.length === 0) {
+      return { normalData: [], severeAnomalyData: [], moderateAnomalyData: [], activityLabels: [] };
+    }
     
     // Get unique activity names and sort them
     const uniqueActivities = Array.from(new Set(activities.map(a => a.activity))).sort();
@@ -64,6 +67,16 @@ export default function TimelineAnalysis({ filteredData }: TimelineAnalysisProps
       // Use the activity-specific anomaly detection from the database
       const isAnomaly = activity.isAnomaly || false;
       const anomalyScore = activity.anomalyScore || 0;
+      
+      // Debug log for anomaly detection
+      if (isAnomaly) {
+        console.log('Timeline Analysis - Found anomaly:', {
+          caseId: activity.caseId,
+          activity: activity.activity,
+          isAnomaly,
+          anomalyScore
+        });
+      }
       
       // Determine severity based on anomaly score and deviation from planned time
       let severity: 'high' | 'medium' | 'low' = 'low';
