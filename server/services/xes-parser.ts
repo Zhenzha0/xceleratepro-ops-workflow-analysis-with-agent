@@ -29,32 +29,39 @@ export interface XESEvent {
 
 export class XESParser {
   private static parseCSVRow(row: string): string[] {
-    const result: string[] = [];
-    let current = '';
-    let inQuotes = false;
-    let i = 0;
-    
-    // Split by comma but be careful about quoted content and special structures
+    // Parse CSV row handling commas in the last column (failure descriptions)
     const parts = [];
-    let temp = '';
-    let quoteCount = 0;
+    let current = '';
+    let parenDepth = 0;
     let braceDepth = 0;
+    let quoteDepth = 0;
     
-    for (let j = 0; j < row.length; j++) {
-      const char = row[j];
+    for (let i = 0; i < row.length; i++) {
+      const char = row[i];
       
-      if (char === '"') quoteCount++;
-      if (char === '{') braceDepth++;
-      if (char === '}') braceDepth--;
+      // Track nesting levels
+      if (char === '(') parenDepth++;
+      else if (char === ')') parenDepth--;
+      else if (char === '{') braceDepth++;
+      else if (char === '}') braceDepth--;
+      else if (char === "'") quoteDepth = quoteDepth === 0 ? 1 : 0;
       
-      if (char === ',' && quoteCount % 2 === 0 && braceDepth === 0) {
-        parts.push(temp.trim());
-        temp = '';
+      // Split on comma only if we're not inside nested structures
+      if (char === ',' && parenDepth === 0 && braceDepth === 0 && quoteDepth === 0) {
+        parts.push(current.trim());
+        current = '';
       } else {
-        temp += char;
+        current += char;
       }
     }
-    parts.push(temp.trim()); // Don't forget the last part
+    
+    // Add the last part
+    parts.push(current.trim());
+    
+    // Ensure we have exactly 21 columns by padding with empty strings if needed
+    while (parts.length < 21) {
+      parts.push('');
+    }
     
     return parts;
   }
