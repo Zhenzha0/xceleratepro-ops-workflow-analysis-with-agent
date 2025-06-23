@@ -227,15 +227,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDashboardMetrics(): Promise<DashboardMetrics> {
-    const [activeCases] = await db.select({ count: sql<number>`count(*)` })
+    const [activeCases] = await db.select({ count: sql<number>`cast(count(*) as integer)` })
       .from(processCases)
       .where(eq(processCases.status, 'inProgress'));
 
-    const [completedCases] = await db.select({ count: sql<number>`count(*)` })
+    const [completedCases] = await db.select({ count: sql<number>`cast(count(*) as integer)` })
       .from(processCases)
       .where(eq(processCases.status, 'success'));
 
-    const [failedCases] = await db.select({ count: sql<number>`count(*)` })
+    const [failedCases] = await db.select({ count: sql<number>`cast(count(*) as integer)` })
       .from(processCases)
       .where(or(eq(processCases.status, 'failed'), eq(processCases.status, 'error')));
 
@@ -250,7 +250,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(sql`avg(actual_duration_s) desc`)
       .limit(1);
 
-    const [anomalies] = await db.select({ count: sql<number>`count(*)` })
+    const [anomalies] = await db.select({ count: sql<number>`cast(count(*) as integer)` })
       .from(processActivities)
       .where(eq(processActivities.isAnomaly, true));
 
@@ -282,17 +282,15 @@ export class DatabaseStorage implements IStorage {
     const significantWaitBottlenecks = waitTimeBottlenecks.filter(w => w.avgWaitTime > 10).length; // > 10 seconds wait
     const totalBottlenecks = significantProcessingBottlenecks + significantWaitBottlenecks;
 
-    const totalCases = activeCases.count + completedCases.count + failedCases.count;
-    // Calculate success rate - completed cases / total finished cases (completed + failed)
-    const finishedCases = completedCases.count + failedCases.count;
-    const successRate = finishedCases > 0 ? (completedCases.count / finishedCases) * 100 : 0;
+    // Ensure proper number conversion to fix string concatenation bug
+    const activeCount = parseInt(String(activeCases.count));
+    const completedCount = parseInt(String(completedCases.count)); 
+    const failedCount = parseInt(String(failedCases.count));
     
-    console.log('Success rate calculation:', {
-      completedCases: completedCases.count,
-      failedCases: failedCases.count,
-      finishedCases,
-      successRate
-    });
+    const totalCases = activeCount + completedCount + failedCount;
+    // Calculate success rate - completed cases / total finished cases (completed + failed)
+    const finishedCases = completedCount + failedCount;
+    const successRate = finishedCases > 0 ? (completedCount / finishedCases) * 100 : 0;
 
     return {
       avgProcessingTime: avgProcessingByStation.length > 0 
@@ -301,9 +299,9 @@ export class DatabaseStorage implements IStorage {
       anomaliesDetected: Number(anomalies.count || 0),
       bottlenecksFound: totalBottlenecks,
       successRate: Math.round(successRate * 100) / 100,
-      activeCases: Number(activeCases.count || 0),
-      completedCases: Number(completedCases.count || 0),
-      failedCases: Number(failedCases.count || 0),
+      activeCases: activeCount,
+      completedCases: completedCount,
+      failedCases: failedCount,
     };
   }
 
