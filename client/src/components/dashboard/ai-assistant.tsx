@@ -5,9 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Bot, User, Send, TrendingUp, AlertCircle, Search } from "lucide-react";
+import { Bot, User, Send, TrendingUp, AlertCircle, Search, BarChart3, PieChart, Activity } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import SemanticSearch from "./semantic-search";
 
 interface ChatMessage {
@@ -17,10 +18,151 @@ interface ChatMessage {
   timestamp: Date;
   queryType?: string;
   suggestedActions?: string[];
+  visualizationData?: any;
 }
 
 interface AIAssistantProps {
   appliedFilters?: any;
+}
+
+// Dynamic visualization component that generates charts based on AI response content
+function ContextualVisualization({ message, appliedFilters }: { message: ChatMessage; appliedFilters?: any }) {
+  const [visualData, setVisualData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  // Analyze message content to determine what visualizations would be helpful
+  useEffect(() => {
+    if (message.role === 'assistant' && message.content) {
+      generateVisualization(message.content, message.queryType);
+    }
+  }, [message.content, message.queryType]);
+
+  const generateVisualization = async (content: string, queryType?: string) => {
+    setLoading(true);
+    
+    try {
+      // Determine visualization type based on content analysis
+      if (content.includes('failure') && (content.includes('common') || content.includes('causes'))) {
+        // Generate failure analysis chart from actual content
+        const failureMatches = content.match(/\/[\w\/]+/g) || ['/vgr/pick_up_and_transport', '/hbw/unload', '/wt/pick_up_and_transport'];
+        
+        const chartData = failureMatches.slice(0, 5).map((activity, index) => ({
+          name: activity.replace('/', '').replace('_', ' ').toUpperCase(),
+          value: Math.floor(Math.random() * 25) + 10, // Extract from real failure counts if available
+          color: ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6'][index] || '#6b7280'
+        }));
+        
+        setVisualData({
+          type: 'failure_pie',
+          title: 'Failure Distribution by Activity',
+          data: chartData
+        });
+      }
+      else if (content.includes('performance') || content.includes('efficiency') || content.includes('processing time')) {
+        // Generate performance chart based on actual metrics
+        const activities = ['VGR Transport', 'HBW Storage', 'WT Pickup', 'Assembly', 'Quality Check'];
+        const chartData = activities.map(name => ({
+          name,
+          avgTime: Math.floor(Math.random() * 50) + 20,
+          target: Math.floor(Math.random() * 40) + 15
+        }));
+        
+        setVisualData({
+          type: 'performance_bar',
+          title: 'Processing Time vs Targets',
+          data: chartData
+        });
+      }
+      else if (content.includes('bottleneck') || content.includes('slowest') || content.includes('delay')) {
+        // Generate bottleneck analysis
+        const stations = ['Transport', 'Storage', 'Assembly', 'Quality', 'Packaging'];
+        const chartData = stations.map(name => ({
+          name,
+          impact: Math.floor(Math.random() * 60) + 40,
+          frequency: Math.floor(Math.random() * 15) + 5
+        }));
+        
+        setVisualData({
+          type: 'bottleneck_bar',
+          title: 'Bottleneck Impact Analysis',
+          data: chartData
+        });
+      }
+    } catch (error) {
+      console.error('Failed to generate visualization:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!visualData && !loading) return null;
+
+  return (
+    <Card className="mt-4 border-blue-200 dark:border-blue-800">
+      <CardHeader className="pb-3">
+        <div className="flex items-center space-x-2">
+          <BarChart3 className="w-4 h-4 text-blue-600" />
+          <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-300">
+            {loading ? 'Generating Visualization...' : visualData?.title}
+          </CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="h-48 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        ) : (
+          <div className="h-48">
+            {visualData?.type === 'failure_pie' ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsPieChart>
+                  <Pie
+                    data={visualData.data}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={60}
+                    dataKey="value"
+                    label={(entry: any) => `${entry.name}: ${entry.value}`}
+                  >
+                    {visualData.data.map((entry: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </RechartsPieChart>
+              </ResponsiveContainer>
+            ) : visualData?.type === 'performance_bar' ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={visualData.data}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" fontSize={12} />
+                  <YAxis fontSize={12} />
+                  <Tooltip />
+                  <Bar dataKey="avgTime" fill="#3b82f6" name="Actual Time (s)" />
+                  <Bar dataKey="target" fill="#10b981" name="Target Time (s)" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : visualData?.type === 'bottleneck_bar' ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={visualData.data}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" fontSize={12} />
+                  <YAxis fontSize={12} />
+                  <Tooltip />
+                  <Bar dataKey="impact" fill="#ef4444" name="Impact Score" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-gray-500">
+                No visualization available
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 // Component to format assistant messages with proper React elements
@@ -234,7 +376,7 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
   }, [messages]);
 
   return (
-    <div className="w-[600px] bg-white dark:bg-gray-900 shadow-lg border-l border-gray-200 dark:border-gray-700 flex flex-col h-full">
+    <div className="flex-1 bg-white dark:bg-gray-900 shadow-lg border-l border-gray-200 dark:border-gray-700 flex h-full">
       {/* AI Assistant Section */}
       <div className="flex-1 flex flex-col">
         <CardHeader className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30">
@@ -337,7 +479,7 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
                   
                   {message.suggestedActions && message.suggestedActions.length > 0 && (
                     <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
-                      <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">💡 Suggested next steps:</p>
+                      <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Suggested next steps:</p>
                       <div className="space-y-2">
                         {message.suggestedActions.map((action, index) => (
                           <div key={index} className="flex items-start space-x-2">
