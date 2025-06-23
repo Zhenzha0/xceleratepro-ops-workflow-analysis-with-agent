@@ -492,6 +492,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Failure Analysis Route - Actual data analysis
+  app.post("/api/ai/failure-analysis", async (req, res) => {
+    try {
+      const { query, sessionId, filters } = req.body;
+      
+      const { FailureAnalyzer } = await import('./services/failure-analyzer.js');
+      
+      // Detect if this is a failure-related query
+      const queryLower = query.toLowerCase();
+      const isFailureQuery = queryLower.includes('failure') || queryLower.includes('fail') || 
+                            queryLower.includes('cause') || queryLower.includes('problem') ||
+                            queryLower.includes('issue') || queryLower.includes('error');
+      
+      if (!isFailureQuery) {
+        return res.status(400).json({ 
+          error: 'This endpoint is for failure analysis queries only' 
+        });
+      }
+
+      // Get actual failure analysis from real data
+      const failureSummary = await FailureAnalyzer.getFailureSummary(filters);
+      const failureData = await FailureAnalyzer.analyzeFailureCauses(filters);
+      
+      // Store conversation in database
+      await storage.createAiConversation({
+        sessionId: sessionId || 'default',
+        query,
+        response: failureSummary,
+        queryType: 'failure_analysis',
+        contextData: {
+          totalFailures: failureData.totalFailures,
+          failureRate: failureData.failureRate,
+          topPatterns: failureData.commonPatterns.slice(0, 3).map(p => p.description)
+        }
+      });
+
+      res.json({
+        response: failureSummary,
+        queryType: 'failure_analysis',
+        data: failureData,
+        methodsUsed: ['actual_failure_data_analysis', 'unsatisfied_condition_description_parsing'],
+        dataTransparency: `Analyzed ${failureData.totalFailures} actual failure records from ${failureData.totalActivities} activities`
+      });
+
+    } catch (error) {
+      console.error('Error in failure analysis:', error);
+      res.status(500).json({ 
+        message: 'Failed to process failure analysis',
+        response: 'I apologize, but I encountered an error analyzing failure data.',
+        queryType: 'error'
+      });
+    }
+  });
+
   app.get("/api/ai/conversations/:sessionId", async (req, res) => {
     try {
       const { sessionId } = req.params;
