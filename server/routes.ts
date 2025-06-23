@@ -109,12 +109,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Get activities for specific case
         activities = await storage.getProcessActivities(caseId);
         
-        // Mark anomalous activities for highlighting
+        // Mark only the officially detected anomalous activities for highlighting
         activities = activities.map(activity => ({
           ...activity,
-          // Check if this activity has anomalous processing time
-          isAnomaly: activity.isAnomaly || (activity.actualDurationS && activity.plannedDurationS && 
-            Math.abs(activity.actualDurationS - activity.plannedDurationS) > activity.plannedDurationS * 0.5)
+          // Only use the isAnomaly flag from our anomaly detection system
+          isAnomaly: activity.isAnomaly === true
         }));
       } else {
         // Get all activities (existing behavior)

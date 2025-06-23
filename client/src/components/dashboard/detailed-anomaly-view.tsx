@@ -381,9 +381,9 @@ export default function DetailedAnomalyView({ anomalies, isLoading }: DetailedAn
                         <span className="ml-2 font-mono">{row.plannedTime.toFixed(1)}s</span>
                       </div>
                       {row.currentTask && (
-                        <div className="col-span-2">
-                          <span className="text-gray-500">Current Task:</span>
-                          <span className="ml-2 text-blue-700 font-medium">{row.currentTask}</span>
+                        <div className="col-span-2 bg-blue-50 p-2 rounded border-l-2 border-blue-400">
+                          <span className="text-blue-800 font-semibold">Current Task:</span>
+                          <span className="ml-2 text-blue-900 font-medium">{row.currentTask}</span>
                         </div>
                       )}
                     </div>
