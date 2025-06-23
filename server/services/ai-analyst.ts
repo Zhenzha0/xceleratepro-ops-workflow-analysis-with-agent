@@ -246,12 +246,27 @@ export class AIAnalyst {
         data.summary.totalPatterns = clusteringData.totalPatterns;
       }
 
-      // Run anomaly detection on scoped data
-      if (queryLower.includes('anomal') || queryLower.includes('issue') || queryLower.includes('problem')) {
+      // Use actual failure analysis for failure-related queries
+      if (queryLower.includes('failure') || queryLower.includes('fail') || 
+          queryLower.includes('cause') || queryLower.includes('problem') ||
+          queryLower.includes('issue') || queryLower.includes('error')) {
+        const { FailureAnalyzer } = await import('./failure-analyzer.js');
+        const failureAnalysis = await FailureAnalyzer.analyzeFailureCauses(filters);
+        const failureSummary = await FailureAnalyzer.getFailureSummary(filters);
+        
+        data.actualFailures = failureAnalysis;
+        data.failureSummary = failureSummary;
+        data.summary.actualFailureCount = failureAnalysis.totalFailures;
+        data.summary.failureRate = failureAnalysis.failureRate;
+        data.summary.topFailureTypes = failureAnalysis.commonPatterns.slice(0, 3).map(p => p.description);
+      }
+
+      // Run anomaly detection on scoped data for other issues
+      if (queryLower.includes('anomal') || queryLower.includes('unusual') || queryLower.includes('deviation')) {
         const { AnomalyDetector } = await import('./anomaly-detector.js');
         const anomalies = [];
         
-        for (const activity of scopedActivities) {
+        for (const activity of scopedActivities.slice(0, 100)) { // Limit for performance
           const anomalyResult = AnomalyDetector.analyzeProcessingTimeAnomaly(activity, scopedActivities);
           if (anomalyResult.isAnomaly) {
             anomalies.push({
