@@ -47,7 +47,7 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
     }
   }, [activities]);
 
-  // Get activities for selected case
+  // Get activities for selected case (deduplicated - each activity should only be counted once)
   useEffect(() => {
     if (selectedCaseId && activities) {
       const filteredActivities = activities
@@ -55,10 +55,21 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
           a.caseId === selectedCaseId || 
           a.caseConceptName === selectedCaseId || 
           a.case === selectedCaseId
-        )
+        );
+      
+      // Deduplicate activities - group by activity name and timestamp, keep only one per unique activity
+      const uniqueActivities = new Map();
+      filteredActivities.forEach(activity => {
+        const key = `${activity.activity}_${activity.startTime}_${activity.orgResource}`;
+        if (!uniqueActivities.has(key)) {
+          uniqueActivities.set(key, activity);
+        }
+      });
+      
+      const deduplicatedActivities = Array.from(uniqueActivities.values())
         .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
       
-      setCaseActivities(filteredActivities);
+      setCaseActivities(deduplicatedActivities);
     } else {
       setCaseActivities([]);
     }

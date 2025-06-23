@@ -61,11 +61,20 @@ export default function BottleneckAnalysisDetailed({ filteredData: propFilteredD
   const calculateBottlenecksFromData = (activities: any[]) => {
     if (!activities || activities.length === 0) return null;
 
-    console.log('Calculating bottlenecks from activities:', activities.length);
-    console.log('Sample activity:', activities[0]);
+    // First deduplicate activities - each activity should only be counted once
+    const uniqueActivities = new Map();
+    activities.forEach(activity => {
+      const key = `${activity.activity}_${activity.startTime}_${activity.orgResource}_${activity.caseId}`;
+      if (!uniqueActivities.has(key)) {
+        uniqueActivities.set(key, activity);
+      }
+    });
+    
+    const deduplicatedActivities = Array.from(uniqueActivities.values());
+    console.log('Calculating bottlenecks from deduplicated activities:', deduplicatedActivities.length, 'from original:', activities.length);
 
-    // Group activities by case ID first to calculate wait times between activities
-    const activitiesByCase = activities.reduce((acc: any, activity: any) => {
+    // Group deduplicated activities by case ID first to calculate wait times between activities
+    const activitiesByCase = deduplicatedActivities.reduce((acc: any, activity: any) => {
       if (!acc[activity.caseId]) {
         acc[activity.caseId] = [];
       }
@@ -104,8 +113,8 @@ export default function BottleneckAnalysisDetailed({ filteredData: propFilteredD
       }
     });
 
-    // Group by station/activity and calculate processing time averages
-    const stationStats = activities.reduce((acc: any, activity: any) => {
+    // Group by station/activity and calculate processing time averages using deduplicated activities
+    const stationStats = deduplicatedActivities.reduce((acc: any, activity: any) => {
       const station = activity.activity || activity.resource || 'Unknown Station';
       if (!acc[station]) {
         acc[station] = {

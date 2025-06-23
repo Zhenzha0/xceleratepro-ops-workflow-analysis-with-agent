@@ -36,12 +36,23 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
 
   useEffect(() => {
     if (selectedCaseId && filteredData?.activities) {
-      // Get activities for selected case
+      // Get activities for selected case and deduplicate (each activity should only be counted once)
       const activities = filteredData.activities
-        .filter((a: any) => a.caseId === selectedCaseId)
+        .filter((a: any) => a.caseId === selectedCaseId);
+      
+      // Deduplicate activities - group by activity name, startTime, and resource
+      const uniqueActivities = new Map();
+      activities.forEach((activity: any) => {
+        const key = `${activity.activity}_${activity.startTime}_${activity.orgResource}`;
+        if (!uniqueActivities.has(key)) {
+          uniqueActivities.set(key, activity);
+        }
+      });
+      
+      const deduplicatedActivities = Array.from(uniqueActivities.values())
         .sort((a: any, b: any) => new Date(a.startTime || a.scheduledTime).getTime() - new Date(b.startTime || b.scheduledTime).getTime());
       
-      setCaseActivities(activities);
+      setCaseActivities(deduplicatedActivities);
     }
   }, [selectedCaseId, filteredData]);
 
