@@ -216,40 +216,50 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
 
-    const width = 900;
-    const height = 400;
-    const margin = { top: 20, right: 150, bottom: 20, left: 50 };
+    const width = 1200;
+    const height = 600;
+    const margin = { top: 40, right: 200, bottom: 40, left: 80 };
 
     const { nodes, links } = buildProperSankeyData(caseActivities);
     if (!nodes.length) return;
 
-    // Calculate node heights based on max flow (make them taller for better visibility)
+    // Calculate node dimensions based on max flow
     const maxFlow = Math.max(...nodes.map(n => Math.max(n.inflowTotal, n.outflowTotal, 1)));
-    const minNodeHeight = 40;
-    const maxNodeHeight = 100;
+    const minNodeHeight = 30;
+    const maxNodeHeight = 80;
+    const nodeWidth = 120;
     
     nodes.forEach(node => {
       const flowRatio = Math.max(node.inflowTotal, node.outflowTotal, 1) / maxFlow;
       node.height = minNodeHeight + (maxNodeHeight - minNodeHeight) * flowRatio;
+      node.width = nodeWidth;
     });
 
-    // Position nodes horizontally by category with better spacing
+    // Position nodes horizontally by category with much more vertical spacing
     const categories = Array.from(new Set(nodes.map(n => n.category)));
     const availableWidth = width - margin.left - margin.right;
     const xSpacing = categories.length > 1 ? availableWidth / (categories.length - 1) : 0;
     
     categories.forEach((category, catIndex) => {
       const categoryNodes = nodes.filter(n => n.category === category);
-      const totalHeight = categoryNodes.reduce((sum, n) => sum + n.height, 0);
-      const padding = Math.max(5, (categoryNodes.length - 1) * 8); // Minimum padding between nodes
-      const totalSpace = totalHeight + padding;
-      const startY = margin.top + (height - margin.top - margin.bottom - totalSpace) / 2;
+      const availableHeight = height - margin.top - margin.bottom;
+      const minSpacing = 60; // Much larger spacing between nodes
+      const totalNodeHeight = categoryNodes.reduce((sum, n) => sum + n.height, 0);
+      const totalSpacing = (categoryNodes.length - 1) * minSpacing;
+      const totalRequired = totalNodeHeight + totalSpacing;
+      
+      // If we need more space, spread nodes evenly
+      const actualSpacing = totalRequired > availableHeight ? 
+        Math.max(20, (availableHeight - totalNodeHeight) / Math.max(1, categoryNodes.length - 1)) : 
+        minSpacing;
+      
+      const startY = margin.top + (availableHeight - totalNodeHeight - (categoryNodes.length - 1) * actualSpacing) / 2;
       
       let currentY = Math.max(margin.top, startY);
       categoryNodes.forEach((node, nodeIndex) => {
         node.x = margin.left + catIndex * xSpacing;
         node.y = currentY;
-        currentY += node.height + (nodeIndex < categoryNodes.length - 1 ? 8 : 0);
+        currentY += node.height + (nodeIndex < categoryNodes.length - 1 ? actualSpacing : 0);
       });
     });
 
@@ -275,41 +285,38 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
       nodeInflowLinks.get(link.target)!.push(link);
     });
 
-    // Calculate link heights and positions to completely fill node heights
+    // Calculate link positions to fill entire node heights (both source and target)
     nodes.forEach((node, nodeIndex) => {
       const outLinks = nodeOutflowLinks.get(nodeIndex) || [];
       const inLinks = nodeInflowLinks.get(nodeIndex) || [];
       
-      // For outgoing links - divide node height proportionally
+      // For outgoing links - each link fills proportional height of source node
       if (outLinks.length > 0) {
         const totalOutValue = outLinks.reduce((sum, link) => sum + link.value, 0);
-        let currentY = node.y;
+        let currentSourceY = node.y;
         
-        outLinks.forEach((link, index) => {
+        outLinks.forEach((link) => {
           const proportion = link.value / totalOutValue;
           const linkHeight = node.height * proportion;
           
-          link.sourceY = currentY;
+          link.sourceY = currentSourceY;
           link.height = linkHeight;
-          currentY += linkHeight;
+          currentSourceY += linkHeight;
         });
       }
       
-      // For incoming links - ensure they also fill the target node completely
+      // For incoming links - each link fills proportional height of target node
       if (inLinks.length > 0) {
         const totalInValue = inLinks.reduce((sum, link) => sum + link.value, 0);
-        let currentY = node.y;
+        let currentTargetY = node.y;
         
-        inLinks.forEach((link, index) => {
+        inLinks.forEach((link) => {
           const proportion = link.value / totalInValue;
           const targetHeight = node.height * proportion;
           
-          link.targetY = currentY;
-          // Keep the height consistent from source calculation
-          if (!link.height) {
-            link.height = targetHeight;
-          }
-          currentY += targetHeight;
+          link.targetY = currentTargetY;
+          // Ensure link height matches both source and target proportions
+          currentTargetY += targetHeight;
         });
       }
     });
@@ -331,21 +338,22 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
         const sourceNode = nodes[d.source];
         const targetNode = nodes[d.target];
         
-        const x0 = sourceNode.x + sourceNode.width;
-        const y0 = d.sourceY;
-        const x1 = targetNode.x;
-        const y1 = d.targetY;
-        const height = d.height;
+        // Connect from right edge of source to left edge of target
+        const x0 = sourceNode.x + sourceNode.width;  // Right edge of source
+        const x1 = targetNode.x;                     // Left edge of target
+        const y0 = d.sourceY || sourceNode.y;        // Top of link on source
+        const y1 = d.targetY || targetNode.y;        // Top of link on target
+        const height = d.height || 10;               // Height of the link
         
-        // Create smooth curves that properly connect node edges
-        const curvature = 0.4;
-        const midX = x0 + (x1 - x0) * curvature;
+        // Create curved path that fills the entire height
+        const curvature = 0.5;
+        const controlX = x0 + (x1 - x0) * curvature;
         
         return `
           M${x0},${y0}
-          C${midX},${y0} ${midX},${y1} ${x1},${y1}
+          C${controlX},${y0} ${controlX},${y1} ${x1},${y1}
           L${x1},${y1 + height}
-          C${midX},${y1 + height} ${midX},${y0 + height} ${x0},${y0 + height}
+          C${controlX},${y1 + height} ${controlX},${y0 + height} ${x0},${y0 + height}
           Z
         `;
       })
@@ -383,7 +391,7 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
     nodeElements.append("rect")
       .attr("x", (d: SankeyNode) => d.x)
       .attr("y", (d: SankeyNode) => d.y)
-      .attr("width", (d: SankeyNode) => d.width)
+      .attr("width", nodeWidth)
       .attr("height", (d: SankeyNode) => d.height)
       .style("fill", (d: SankeyNode) => colorScale(d.category))
       .style("stroke", "#000")
@@ -487,8 +495,8 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
             <svg
               ref={svgRef}
               width="100%"
-              height="400"
-              viewBox="0 0 900 400"
+              height="600"
+              viewBox="0 0 1200 600"
               className="border rounded"
             />
             
