@@ -8,6 +8,7 @@ import { AnomalyDetector } from "./services/anomaly-detector";
 import { AIAnalyst } from "./services/ai-analyst";
 import { SemanticSearch } from "./services/semantic-search";
 import { z } from "zod";
+import { sql } from "drizzle-orm";
 import * as path from 'path';
 
 // Validation schemas
