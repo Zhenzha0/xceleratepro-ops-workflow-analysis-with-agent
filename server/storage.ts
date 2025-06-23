@@ -458,7 +458,11 @@ export class DatabaseStorage implements IStorage {
       if (params.mode === 'dataset') {
         // Index-based filtering
         filteredCases = allCases
-          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+          .sort((a, b) => {
+            const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return dateA - dateB;
+          })
           .slice(params.start, params.start + params.n);
       } else if (params.mode === 'timerange' && params.startTime && params.endTime) {
         // Time-based filtering
