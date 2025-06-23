@@ -24,7 +24,7 @@ export default function Dashboard() {
   });
 
   // Separate state for actually applied filters
-  const [appliedFilters, setAppliedFilters] = useState<typeof filters | null>(null);
+  const [appliedFilters, setAppliedFilters] = useState<typeof filters | undefined>(undefined);
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const { metrics, anomalies, cases, activities, filteredData, isLoading, applyFilters } = useDashboardData(filters, appliedFilters);
@@ -55,6 +55,7 @@ export default function Dashboard() {
                   <FilterSection 
                     filters={filters} 
                     onFiltersChange={setFilters}
+                    onApplyFilters={handleApplyFilters}
                     metrics={metrics}
                   />
                   
