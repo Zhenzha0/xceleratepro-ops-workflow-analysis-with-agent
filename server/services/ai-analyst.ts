@@ -86,7 +86,7 @@ export class AIAnalyst {
       return {
         response: 'I apologize, but I encountered an error while analyzing your query. Please try rephrasing your question or contact support if the issue persists.',
         queryType: 'error',
-        contextData: { error: error.message }
+        contextData: { error: error instanceof Error ? error.message : 'Unknown error' }
       };
     }
   }
@@ -117,24 +117,68 @@ export class AIAnalyst {
 
   private static async gatherRelevantData(query: string, queryType: string, filters?: any): Promise<any> {
     const queryLower = query.toLowerCase();
-    const data: any = { summary: {} };
+    const data: any = { summary: {}, filters: filters };
 
-    // Build filter criteria from provided filters
-    const filterCriteria: any = {};
-    if (filters) {
+    // When filters are applied, use the filtered dataset
+    let scopedActivities = [];
+    let scopedEvents = [];
+    let scopedCases = [];
+    
+    if (filters && (filters.scopeType === 'dataset' && filters.datasetSize === 'range') || 
+        (filters.equipment && filters.equipment !== 'all') || 
+        (filters.status && filters.status !== 'all') ||
+        (filters.caseIds && filters.caseIds.length > 0)) {
+      
+      // Get filtered data based on applied filters
+      let activities = await storage.getProcessActivities();
+      let events = await storage.getProcessEvents();
+      let cases = await storage.getProcessCases();
+      
+      // Apply dataset scope filters
+      if (filters.scopeType === 'dataset' && filters.datasetSize === 'range') {
+        const start = filters.activityRange?.start || 1;
+        const end = filters.activityRange?.end || 100;
+        activities = activities.slice(start - 1, end);
+        const scopedCaseIds = Array.from(new Set(activities.map(a => a.caseId)));
+        events = events.filter(e => scopedCaseIds.includes(e.caseId));
+        cases = cases.filter(c => scopedCaseIds.includes(c.caseId));
+      }
+      
+      // Apply equipment filter
       if (filters.equipment && filters.equipment !== 'all') {
-        filterCriteria.resource = filters.equipment;
+        activities = activities.filter(a => a.orgResource === filters.equipment);
+        events = events.filter(e => e.orgResource === filters.equipment);
       }
+      
+      // Apply status filter
       if (filters.status && filters.status !== 'all') {
-        filterCriteria.status = filters.status;
+        activities = activities.filter(a => a.status === filters.status);
       }
-      if (filters.timeRange?.start && filters.timeRange?.end) {
-        filterCriteria.startDate = new Date(filters.timeRange.start);
-        filterCriteria.endDate = new Date(filters.timeRange.end);
+      
+      // Apply case ID filter
+      if (filters.caseIds && filters.caseIds.length > 0) {
+        activities = activities.filter(a => filters.caseIds.includes(a.caseId));
+        events = events.filter(e => filters.caseIds.includes(e.caseId));
+        cases = cases.filter(c => filters.caseIds.includes(c.caseId));
       }
-      if (filters.customLimit) {
-        filterCriteria.limit = filters.customLimit;
-      }
+      
+      scopedActivities = activities;
+      scopedEvents = events;
+      scopedCases = cases;
+      
+      data.summary.dataScope = 'filtered';
+      data.summary.totalActivities = scopedActivities.length;
+      data.summary.totalCases = scopedCases.length;
+      data.summary.appliedFilters = filters;
+    } else {
+      // Use full dataset when no filters applied
+      scopedActivities = await storage.getProcessActivities();
+      scopedEvents = await storage.getProcessEvents();
+      scopedCases = await storage.getProcessCases();
+      
+      data.summary.dataScope = 'full';
+      data.summary.totalActivities = scopedActivities.length;
+      data.summary.totalCases = scopedCases.length;
     }
 
     try {
@@ -152,12 +196,49 @@ export class AIAnalyst {
           mode: 'advanced',
           maxClusters: 10,
           start: 0,
-          n: 100
+          n: scopedActivities.length
         });
         data.clustering = clusteringData;
         data.summary.clustersFound = clusteringData.clusters.length;
         data.summary.totalPatterns = clusteringData.totalPatterns;
       }
+
+      // Run anomaly detection on scoped data
+      if (queryLower.includes('anomal') || queryLower.includes('issue') || queryLower.includes('problem')) {
+        const { AnomalyDetector } = await import('./anomaly-detector.js');
+        const anomalies = [];
+        
+        for (const activity of scopedActivities) {
+          const anomalyResult = AnomalyDetector.analyzeProcessingTimeAnomaly(activity, scopedActivities);
+          if (anomalyResult.isAnomaly) {
+            anomalies.push({
+              caseId: activity.caseId,
+              activity: activity.activity,
+              score: anomalyResult.score,
+              reason: anomalyResult.reason,
+              equipment: activity.orgResource
+            });
+          }
+        }
+        
+        data.anomalies = anomalies;
+        data.summary.anomaliesFound = anomalies.length;
+      }
+
+      // Get performance metrics for scoped data
+      data.metrics = {
+        avgProcessingTime: scopedActivities.length > 0 
+          ? scopedActivities.reduce((sum, a) => sum + (a.actualDurationS || 0), 0) / scopedActivities.length 
+          : 0,
+        successRate: scopedActivities.length > 0 
+          ? (scopedActivities.filter(a => a.status === 'success').length / scopedActivities.length) * 100 
+          : 0,
+        totalActivities: scopedActivities.length,
+        totalCases: scopedCases.length,
+        activeCases: scopedCases.filter(c => c.status === 'inProgress').length,
+        completedCases: scopedCases.filter(c => c.status === 'success').length,
+        failedCases: scopedCases.filter(c => c.status === 'failed').length
+      };
 
       if (queryType === 'anomaly_analysis') {
         const anomalies = await storage.getAnomalyAlerts(15);
@@ -173,6 +254,7 @@ export class AIAnalyst {
         }
         
         // Use our anomaly detector for deeper analysis on filtered data
+        const { AnomalyDetector } = await import('./anomaly-detector.js');
         const recentActivities = filteredActivities.slice(0, 50);
         const anomalyAnalysis = recentActivities.map(activity => {
           const timeAnomaly = AnomalyDetector.analyzeProcessingTimeAnomaly(
@@ -217,10 +299,9 @@ export class AIAnalyst {
         data.summary.metrics = metrics;
       }
 
-      // Get recent activities for context, applying filters
-      const recentEvents = await storage.getProcessEvents(filterCriteria);
-      data.recentEvents = recentEvents.slice(0, 10); // Limit for prompt size
-      data.summary.recentEventCount = recentEvents.length;
+      // Get recent activities for context using scoped data
+      data.recentEvents = scopedEvents.slice(0, 10); // Limit for prompt size
+      data.summary.recentEventCount = scopedEvents.length;
 
       // Extract specific equipment if mentioned
       const equipmentKeywords = ['hbw', 'vgr', 'oven', 'mill', 'sort'];
