@@ -208,19 +208,31 @@ export default function DetailedAnomalyView({ anomalies, isLoading }: DetailedAn
 
   // Helper function to extract activity name from anomaly description
   const extractActivityName = (anomaly: AnomalyAlert): string => {
-    // Direct check for common activity patterns in description
-    if (anomaly.description?.includes('/hbw/unload')) return '/hbw/unload';
-    if (anomaly.description?.includes('/wt/pick_up_and_transport')) return '/wt/pick_up_and_transport';
-    if (anomaly.description?.includes('/ov/burn')) return '/ov/burn';
-    if (anomaly.description?.includes('/pm/punch_gill')) return '/pm/punch_gill';
-    if (anomaly.description?.includes('/mm/deburr')) return '/mm/deburr';
-    if (anomaly.description?.includes('/vgr/')) return anomaly.description.split(' ')[0];
+    if (!anomaly.description) return anomaly.equipment || 'Unknown Activity';
     
-    // Try regex extraction as fallback
-    const activityNameMatch = anomaly.description?.match(/^(.+?) operation exceeded expected time$/);
-    const fullActivityName = activityNameMatch ? activityNameMatch[1] : null;
+    // Extract activity name from the standard format: "ACTIVITY_NAME operation exceeded expected time"
+    // Use a more flexible regex to handle any activity name format
+    const activityMatch = anomaly.description.match(/^(.+?)\s+operation\s+exceeded\s+expected\s+time$/);
+    if (activityMatch) {
+      return activityMatch[1].trim();
+    }
     
-    return fullActivityName || anomaly.equipment || 'Unknown Activity';
+    // Fallback: look for activity patterns in the description (path-like structures)
+    const activityPattern = anomaly.description.match(/\/\w+\/[\w_]+/);
+    if (activityPattern) {
+      return activityPattern[0];
+    }
+    
+    // Another fallback: extract anything before "operation"
+    if (anomaly.description.includes('operation')) {
+      const beforeOperation = anomaly.description.split(' operation')[0].trim();
+      if (beforeOperation && beforeOperation.length > 0) {
+        return beforeOperation;
+      }
+    }
+    
+    // Last resort: return equipment name
+    return anomaly.equipment || 'Unknown Activity';
   };
 
   // Convert anomalies to detailed rows with processing time calculations
