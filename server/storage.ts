@@ -286,6 +286,13 @@ export class DatabaseStorage implements IStorage {
     // Calculate success rate - completed cases / total finished cases (completed + failed)
     const finishedCases = completedCases.count + failedCases.count;
     const successRate = finishedCases > 0 ? (completedCases.count / finishedCases) * 100 : 0;
+    
+    console.log('Success rate calculation:', {
+      completedCases: completedCases.count,
+      failedCases: failedCases.count,
+      finishedCases,
+      successRate
+    });
 
     return {
       avgProcessingTime: avgProcessingByStation.length > 0 
