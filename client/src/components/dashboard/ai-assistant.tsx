@@ -377,8 +377,8 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
 
   return (
     <div className="flex-1 bg-white dark:bg-gray-900 shadow-lg border-l border-gray-200 dark:border-gray-700 flex h-full">
-      {/* AI Assistant Section */}
-      <div className="flex-1 flex flex-col">
+      {/* Chat Section */}
+      <div className="w-[600px] flex flex-col border-r border-gray-200 dark:border-gray-700">
         <CardHeader className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30">
           <CardTitle className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
@@ -585,9 +585,49 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
         </div>
       </div>
       
-      {/* Semantic Search Section */}
-      <div className="border-t border-gray-200">
-        <SemanticSearch />
+      {/* Visualization Panel */}
+      <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-800">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center space-x-2">
+            <Activity className="w-5 h-5 text-purple-600" />
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Live Insights</h3>
+          </div>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            Visual analytics generated from your conversations
+          </p>
+        </div>
+        
+        <ScrollArea className="flex-1 p-4">
+          <div className="space-y-4">
+            {messages
+              .filter(msg => msg.role === 'assistant' && msg.content.length > 100)
+              .slice(-3)
+              .map((message) => (
+                <ContextualVisualization 
+                  key={message.id} 
+                  message={message} 
+                  appliedFilters={appliedFilters}
+                />
+              ))}
+            
+            {messages.filter(msg => msg.role === 'assistant').length === 0 && (
+              <div className="text-center py-12">
+                <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                  No visualizations yet
+                </h4>
+                <p className="text-xs text-gray-500 dark:text-gray-500">
+                  Ask ProcessGPT about failures, performance, or bottlenecks to see relevant charts
+                </p>
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+        
+        {/* Semantic Search Section */}
+        <div className="border-t border-gray-200 dark:border-gray-700">
+          <SemanticSearch />
+        </div>
       </div>
     </div>
   );
