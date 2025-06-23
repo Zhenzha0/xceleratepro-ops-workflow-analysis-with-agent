@@ -233,7 +233,7 @@ export class DatabaseStorage implements IStorage {
 
     const [completedCases] = await db.select({ count: sql<number>`count(*)` })
       .from(processCases)
-      .where(or(eq(processCases.status, 'success'), eq(processCases.status, 'completed')));
+      .where(eq(processCases.status, 'success'));
 
     const [failedCases] = await db.select({ count: sql<number>`count(*)` })
       .from(processCases)
@@ -277,14 +277,15 @@ export class DatabaseStorage implements IStorage {
       .limit(5);
 
     // Count actual bottlenecks (stations with significant delays)
-    const significantProcessingBottlenecks = processingBottlenecks.filter(b => b.avgProcessingTime > 60).length; // > 1 minute
-    const significantWaitBottlenecks = waitTimeBottlenecks.filter(w => w.avgWaitTime > 30).length; // > 30 seconds wait
+    // Based on the data analysis, stations with >50 seconds processing time are bottlenecks
+    const significantProcessingBottlenecks = processingBottlenecks.filter(b => b.avgProcessingTime > 50).length; 
+    const significantWaitBottlenecks = waitTimeBottlenecks.filter(w => w.avgWaitTime > 10).length; // > 10 seconds wait
     const totalBottlenecks = significantProcessingBottlenecks + significantWaitBottlenecks;
 
     const totalCases = activeCases.count + completedCases.count + failedCases.count;
-    // Fix success rate calculation - completed cases / (completed + failed cases)
-    const casesWithFinalStatus = completedCases.count + failedCases.count;
-    const successRate = casesWithFinalStatus > 0 ? (completedCases.count / casesWithFinalStatus) * 100 : 0;
+    // Calculate success rate - completed cases / total finished cases (completed + failed)
+    const finishedCases = completedCases.count + failedCases.count;
+    const successRate = finishedCases > 0 ? (completedCases.count / finishedCases) * 100 : 0;
 
     return {
       avgProcessingTime: avgProcessingByStation.length > 0 
