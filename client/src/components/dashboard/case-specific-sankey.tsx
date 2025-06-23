@@ -102,7 +102,13 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
       );
 
       // Build flow connections based on timing
-      const connections = [];
+      const connections: Array<{
+        from: string;
+        to: string;
+        fromActivity: ProcessActivity;
+        toActivity: ProcessActivity;
+      }> = [];
+      
       for (let i = 1; i < sortedActivities.length; i++) {
         const prevActivity = sortedActivities[i - 1];
         const currentActivity = sortedActivities[i];
@@ -169,7 +175,7 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
         linkMap.set(key, (linkMap.get(key) || 0) + 1);
       });
 
-      // Create links
+      // Create links with proper typing
       const links: SankeyLink[] = [];
       linkMap.forEach((value, key) => {
         const [fromActivity, toActivity] = key.split('->');
@@ -185,9 +191,9 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
             source: sourceIndex,
             target: targetIndex,
             value: value,
-            sourceY: 0, // Will be calculated
-            targetY: 0, // Will be calculated
-            height: 0, // Will be calculated
+            sourceY: 0,
+            targetY: 0,
+            height: 0,
             activities: sourceActivities
           });
           
@@ -217,61 +223,95 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
     const { nodes, links } = buildProperSankeyData(caseActivities);
     if (!nodes.length) return;
 
-    // Calculate node heights based on max flow
+    // Calculate node heights based on max flow (make them taller for better visibility)
     const maxFlow = Math.max(...nodes.map(n => Math.max(n.inflowTotal, n.outflowTotal, 1)));
-    const minNodeHeight = 20;
-    const maxNodeHeight = 60;
+    const minNodeHeight = 40;
+    const maxNodeHeight = 100;
     
     nodes.forEach(node => {
       const flowRatio = Math.max(node.inflowTotal, node.outflowTotal, 1) / maxFlow;
       node.height = minNodeHeight + (maxNodeHeight - minNodeHeight) * flowRatio;
     });
 
-    // Position nodes horizontally by category
+    // Position nodes horizontally by category with better spacing
     const categories = Array.from(new Set(nodes.map(n => n.category)));
-    const xSpacing = (width - margin.left - margin.right) / Math.max(1, categories.length - 1);
+    const availableWidth = width - margin.left - margin.right;
+    const xSpacing = categories.length > 1 ? availableWidth / (categories.length - 1) : 0;
     
     categories.forEach((category, catIndex) => {
       const categoryNodes = nodes.filter(n => n.category === category);
-      const totalHeight = categoryNodes.reduce((sum, n) => sum + n.height + 10, -10);
-      const startY = margin.top + (height - margin.top - margin.bottom - totalHeight) / 2;
+      const totalHeight = categoryNodes.reduce((sum, n) => sum + n.height, 0);
+      const padding = Math.max(5, (categoryNodes.length - 1) * 8); // Minimum padding between nodes
+      const totalSpace = totalHeight + padding;
+      const startY = margin.top + (height - margin.top - margin.bottom - totalSpace) / 2;
       
-      let currentY = startY;
-      categoryNodes.forEach(node => {
+      let currentY = Math.max(margin.top, startY);
+      categoryNodes.forEach((node, nodeIndex) => {
         node.x = margin.left + catIndex * xSpacing;
         node.y = currentY;
-        currentY += node.height + 10;
+        currentY += node.height + (nodeIndex < categoryNodes.length - 1 ? 8 : 0);
       });
     });
 
-    // Calculate link positions to properly fill node heights
-    links.forEach(link => {
-      const sourceNode = nodes[link.source];
-      const targetNode = nodes[link.target];
-      
-      // Calculate proportional height based on flow value
-      const sourceRatio = link.value / Math.max(sourceNode.outflowTotal, 1);
-      const targetRatio = link.value / Math.max(targetNode.inflowTotal, 1);
-      
-      link.height = Math.min(sourceNode.height * sourceRatio, targetNode.height * targetRatio);
-      link.height = Math.max(8, link.height); // Minimum link height
+    // Sort links to prevent overlaps
+    links.sort((a, b) => {
+      if (a.source !== b.source) return a.source - b.source;
+      return a.target - b.target;
     });
 
-    // Position links vertically within nodes
-    const nodeOutflowY = new Map<number, number>();
-    const nodeInflowY = new Map<number, number>();
+    // Calculate link heights to properly fill node heights
+    const nodeOutflowLinks = new Map<number, SankeyLink[]>();
+    const nodeInflowLinks = new Map<number, SankeyLink[]>();
     
-    nodes.forEach((node, index) => {
-      nodeOutflowY.set(index, node.y);
-      nodeInflowY.set(index, node.y);
+    // Group links by source and target nodes
+    links.forEach(link => {
+      if (!nodeOutflowLinks.has(link.source)) {
+        nodeOutflowLinks.set(link.source, []);
+      }
+      if (!nodeInflowLinks.has(link.target)) {
+        nodeInflowLinks.set(link.target, []);
+      }
+      nodeOutflowLinks.get(link.source)!.push(link);
+      nodeInflowLinks.get(link.target)!.push(link);
     });
 
-    links.forEach(link => {
-      link.sourceY = nodeOutflowY.get(link.source)!;
-      link.targetY = nodeInflowY.get(link.target)!;
+    // Calculate link heights and positions to completely fill node heights
+    nodes.forEach((node, nodeIndex) => {
+      const outLinks = nodeOutflowLinks.get(nodeIndex) || [];
+      const inLinks = nodeInflowLinks.get(nodeIndex) || [];
       
-      nodeOutflowY.set(link.source, link.sourceY + link.height + 2);
-      nodeInflowY.set(link.target, link.targetY + link.height + 2);
+      // For outgoing links - divide node height proportionally
+      if (outLinks.length > 0) {
+        const totalOutValue = outLinks.reduce((sum, link) => sum + link.value, 0);
+        let currentY = node.y;
+        
+        outLinks.forEach((link, index) => {
+          const proportion = link.value / totalOutValue;
+          const linkHeight = node.height * proportion;
+          
+          link.sourceY = currentY;
+          link.height = linkHeight;
+          currentY += linkHeight;
+        });
+      }
+      
+      // For incoming links - ensure they also fill the target node completely
+      if (inLinks.length > 0) {
+        const totalInValue = inLinks.reduce((sum, link) => sum + link.value, 0);
+        let currentY = node.y;
+        
+        inLinks.forEach((link, index) => {
+          const proportion = link.value / totalInValue;
+          const targetHeight = node.height * proportion;
+          
+          link.targetY = currentY;
+          // Keep the height consistent from source calculation
+          if (!link.height) {
+            link.height = targetHeight;
+          }
+          currentY += targetHeight;
+        });
+      }
     });
 
     const g = svg.append("g");
@@ -297,16 +337,15 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
         const y1 = d.targetY;
         const height = d.height;
         
-        const curvature = 0.5;
-        const xi = d3.interpolateNumber(x0, x1);
-        const x2 = xi(curvature);
-        const x3 = xi(1 - curvature);
+        // Create smooth curves that properly connect node edges
+        const curvature = 0.4;
+        const midX = x0 + (x1 - x0) * curvature;
         
         return `
           M${x0},${y0}
-          C${x2},${y0} ${x3},${y1} ${x1},${y1}
+          C${midX},${y0} ${midX},${y1} ${x1},${y1}
           L${x1},${y1 + height}
-          C${x3},${y1 + height} ${x2},${y0 + height} ${x0},${y0 + height}
+          C${midX},${y1 + height} ${midX},${y0 + height} ${x0},${y0 + height}
           Z
         `;
       })
