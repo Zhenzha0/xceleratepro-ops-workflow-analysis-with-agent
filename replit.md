@@ -128,6 +128,9 @@ The application has a sidebar navigation with different sections:
 - June 22, 2025. Created case-specific Sankey diagram component with individual case selection, sequential activity flow visualization, and comprehensive activity analysis for single manufacturing cases
 - June 22, 2025. Enhanced Sankey diagram to properly show loops, parallel paths, and multiple start/end points with self-loop visualization as curved arcs above nodes
 - June 23, 2025. Improved case-specific Sankey diagram to use proper filled link paths, node heights that reflect flow volume, better centering and spacing, and clear external labels for better readability matching reference design
+- June 23, 2025. Rebuilt Sankey diagram using Plotly.js for proper flow visualization with colored nodes and interactive features
+- June 23, 2025. Fixed critical activity deduplication issue across all components - each activity now counted once instead of triple-counting from 3 event logs per activity
+- June 23, 2025. Implemented proper timing-based activity linking in Sankey diagram - activities only connected when timing difference between complete/start times indicates actual workflow relationship (allowing -30 to +60 seconds for realistic transitions)
 
 ## User Preferences
 

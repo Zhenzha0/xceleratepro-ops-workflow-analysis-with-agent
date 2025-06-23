@@ -108,24 +108,34 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
         }
       });
 
-      // Create sequential connections between activities
+      // Create connections between activities only when they are truly linked based on timing
       for (let i = 0; i < caseActivities.length - 1; i++) {
         const currentActivity = caseActivities[i];
         const nextActivity = caseActivities[i + 1];
         
-        const sourceIndex = nodeMap.get(currentActivity.activity)!;
-        const targetIndex = nodeMap.get(nextActivity.activity)!;
+        // Check if activities are linked based on timing rules:
+        // - nextActivity.startTime - currentActivity.completeTime should be small negative, zero, or small positive
+        const currentCompleteTime = new Date(currentActivity.completeTime).getTime();
+        const nextStartTime = new Date(nextActivity.startTime).getTime();
+        const timeDifference = (nextStartTime - currentCompleteTime) / 1000; // Convert to seconds
         
-        // Find existing link or create new one
-        let existingLink = links.find(l => l.source === sourceIndex && l.target === targetIndex);
-        if (existingLink) {
-          existingLink.value += 1;
-        } else {
-          links.push({
-            source: sourceIndex,
-            target: targetIndex,
-            value: 1
-          });
+        // Only link if timing difference indicates they are related (small negative, zero, or reasonable positive)
+        // Allow up to 60 seconds gap for reasonable workflow transitions, and small negatives for overlaps
+        if (timeDifference >= -30 && timeDifference <= 60) {
+          const sourceIndex = nodeMap.get(currentActivity.activity)!;
+          const targetIndex = nodeMap.get(nextActivity.activity)!;
+          
+          // Find existing link or create new one
+          let existingLink = links.find(l => l.source === sourceIndex && l.target === targetIndex);
+          if (existingLink) {
+            existingLink.value += 1;
+          } else {
+            links.push({
+              source: sourceIndex,
+              target: targetIndex,
+              value: 1
+            });
+          }
         }
       }
 
