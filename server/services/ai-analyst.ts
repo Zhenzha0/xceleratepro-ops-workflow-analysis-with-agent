@@ -90,8 +90,37 @@ export class AIAnalyst {
       };
     } catch (error) {
       console.error('AI Analysis Error:', error);
+      
+      // Provide more helpful error messages based on error type
+      let errorMessage = 'I apologize, but I encountered an error while processing your request. Please try again or rephrase your question.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('API key')) {
+          errorMessage = 'There seems to be an issue with the AI service configuration. Please contact support.';
+        } else if (error.message.includes('rate limit')) {
+          errorMessage = 'The AI service is temporarily busy. Please wait a moment and try again.';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = 'The analysis is taking longer than expected. Please try a simpler question.';
+        } else if (error.message.includes('JSON')) {
+          errorMessage = 'I had trouble processing the analysis results. Please try rephrasing your question.';
+        }
+      }
+      
+      // Try to store the failed conversation
+      try {
+        await storage.createAiConversation({
+          sessionId,
+          query,
+          response: errorMessage,
+          queryType: 'error',
+          contextData: { error: error instanceof Error ? error.message : 'Unknown error' }
+        });
+      } catch (dbError) {
+        console.error('Error storing failed conversation:', dbError);
+      }
+      
       return {
-        response: 'I apologize, but I encountered an error while analyzing your query. Please try rephrasing your question or contact support if the issue persists.',
+        response: errorMessage,
         queryType: 'error',
         contextData: { error: error instanceof Error ? error.message : 'Unknown error' }
       };
@@ -347,7 +376,16 @@ Your advanced capabilities include:
 Current analysis context:
 ${JSON.stringify(relevantData.summary, null, 2)}
 
-Query classification: ${queryType}`;
+Query classification: ${queryType}
+
+IMPORTANT: You must respond with valid JSON in this exact format:
+{
+  "response": "Your detailed analysis with structured sections including Executive Summary, Key Performance Metrics, Critical Issues, Data Quality Assessment, Visual Analysis, and Recommendations",
+  "suggestedActions": ["action1", "action2", "action3"],
+  "visualizationHint": "suggestion for relevant charts or visualizations"
+}
+
+Make your response comprehensive and well-structured with clear sections. Always include specific numbers and insights from the provided data.`;
 
     // Add specialized context based on analysis type
     if (queryType === 'clustering_analysis' && relevantData.clustering) {
@@ -444,7 +482,35 @@ Be precise, data-driven, and transparent about analysis scope.`;
   }
 
   private static buildUserPrompt(query: string, contextData?: any): string {
-    let prompt = `Analyze this manufacturing process query: "${query}"`;
+    const queryLower = query.toLowerCase();
+    
+    // Build context-aware prompts based on question type
+    let specificGuidance = '';
+    if (queryLower.includes('failure') || queryLower.includes('error') || queryLower.includes('problem')) {
+      specificGuidance = 'Focus on failure analysis, root cause identification, and preventive measures.';
+    } else if (queryLower.includes('performance') || queryLower.includes('efficiency')) {
+      specificGuidance = 'Emphasize performance metrics, efficiency ratios, and optimization opportunities.';
+    } else if (queryLower.includes('bottleneck') || queryLower.includes('slow') || queryLower.includes('delay')) {
+      specificGuidance = 'Identify bottlenecks, queue times, and throughput constraints.';
+    } else if (queryLower.includes('equipment') || queryLower.includes('machine') || queryLower.includes('station')) {
+      specificGuidance = 'Focus on equipment utilization, maintenance patterns, and resource allocation.';
+    } else if (queryLower.includes('trend') || queryLower.includes('pattern') || queryLower.includes('over time')) {
+      specificGuidance = 'Analyze temporal patterns, trends, and cyclical behaviors.';
+    } else if (queryLower.includes('compare') || queryLower.includes('difference')) {
+      specificGuidance = 'Provide comparative analysis with specific differences and similarities.';
+    } else if (queryLower.includes('most') || queryLower.includes('common') || queryLower.includes('frequent')) {
+      specificGuidance = 'Identify the most frequent patterns, common issues, or typical behaviors in the data.';
+    } else if (queryLower.includes('what') || queryLower.includes('how') || queryLower.includes('why')) {
+      specificGuidance = 'Provide explanatory analysis with clear reasoning and data support.';
+    } else {
+      specificGuidance = 'Provide comprehensive analysis covering all relevant aspects of the manufacturing process.';
+    }
+
+    let prompt = `Analyze this manufacturing process query: "${query}"
+
+${specificGuidance}
+
+Use the provided data context to give specific, data-driven insights with actual numbers and case references.`;
     
     if (contextData) {
       prompt += `\n\nAdditional context: ${JSON.stringify(contextData, null, 2)}`;
