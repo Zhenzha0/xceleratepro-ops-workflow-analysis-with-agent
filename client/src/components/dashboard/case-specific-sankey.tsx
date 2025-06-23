@@ -69,6 +69,13 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
     caseId.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Auto-select first filtered case if current selection is not in filtered results
+  useEffect(() => {
+    if (searchTerm && filteredCases.length > 0 && !filteredCases.includes(selectedCaseId)) {
+      setSelectedCaseId(filteredCases[0]);
+    }
+  }, [searchTerm, filteredCases, selectedCaseId]);
+
   // Build Plotly Sankey data
   useEffect(() => {
     if (!caseActivities || caseActivities.length === 0) {
@@ -169,9 +176,8 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
   const config = {
     displayModeBar: true,
     displaylogo: false,
-    modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d'],
     responsive: true
-  };
+  } as any;
 
   return (
     <Card className="w-full">
@@ -189,19 +195,22 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
         {/* Case Selection */}
         <div className="flex items-center gap-4">
           <div className="flex-1">
-            <Label htmlFor="case-search">Search Cases</Label>
+            <Label htmlFor="case-search">Search Cases ({filteredCases.length} of {availableCases.length} cases)</Label>
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 id="case-search"
-                placeholder="Search case IDs..."
+                placeholder="Type to filter case IDs (e.g., WF_101, WF_102)..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-8"
               />
             </div>
+            {searchTerm && filteredCases.length === 0 && (
+              <p className="text-sm text-muted-foreground mt-1">No cases found matching "{searchTerm}"</p>
+            )}
           </div>
-          <div>
+          <div className="min-w-[200px]">
             <Label htmlFor="case-select">Selected Case</Label>
             <select
               id="case-select"
@@ -210,11 +219,14 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
             >
               <option value="">Select a case...</option>
-              {filteredCases.map((caseId) => (
+              {filteredCases.slice(0, 50).map((caseId) => (
                 <option key={caseId} value={caseId}>
                   {caseId}
                 </option>
               ))}
+              {filteredCases.length > 50 && (
+                <option disabled>... and {filteredCases.length - 50} more cases</option>
+              )}
             </select>
           </div>
         </div>
