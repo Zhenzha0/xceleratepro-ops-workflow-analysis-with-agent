@@ -168,10 +168,10 @@ export class AIAnalyst {
       let scopedEvents = [];
       let scopedCases = [];
       
-      if (filters && (filters.scopeType === 'dataset' && filters.datasetSize === 'range') || 
+      if (filters && ((filters.scopeType === 'dataset' && filters.datasetSize === 'range') || 
           (filters.equipment && filters.equipment !== 'all') || 
           (filters.status && filters.status !== 'all') ||
-          (filters.caseIds && filters.caseIds.length > 0)) {
+          (filters.caseIds && Array.isArray(filters.caseIds) && filters.caseIds.length > 0))) {
         
         // Get filtered data based on applied filters
         let activities = await storage.getProcessActivities();
@@ -189,18 +189,18 @@ export class AIAnalyst {
         }
         
         // Apply equipment filter
-        if (filters.equipment && filters.equipment !== 'all') {
+        if (filters?.equipment && filters.equipment !== 'all') {
           activities = activities.filter(a => a.orgResource === filters.equipment);
           events = events.filter(e => e.orgResource === filters.equipment);
         }
         
         // Apply status filter
-        if (filters.status && filters.status !== 'all') {
+        if (filters?.status && filters.status !== 'all') {
           activities = activities.filter(a => a.status === filters.status);
         }
         
         // Apply case ID filter
-        if (filters.caseIds && filters.caseIds.length > 0) {
+        if (filters?.caseIds && Array.isArray(filters.caseIds) && filters.caseIds.length > 0) {
           activities = activities.filter(a => filters.caseIds.includes(a.caseId));
           events = events.filter(e => filters.caseIds.includes(e.caseId));
           cases = cases.filter(c => filters.caseIds.includes(c.caseId));
@@ -289,7 +289,7 @@ export class AIAnalyst {
         
         // Filter activities based on applied filters
         let filteredActivities = activities;
-        if (filters?.caseIds && filters.caseIds.length > 0) {
+        if (filters?.caseIds && Array.isArray(filters.caseIds) && filters.caseIds.length > 0) {
           filteredActivities = activities.filter(a => filters.caseIds.includes(a.caseId));
         }
         if (filters?.equipment && filters.equipment !== 'all') {
@@ -318,7 +318,7 @@ export class AIAnalyst {
         // Use semantic search for failure analysis
         const searchResults = await SemanticSearch.searchWithContext(
           query,
-          { caseId: caseIdMatches?.[0] }
+          { caseId: caseIdMatches && caseIdMatches.length > 0 ? caseIdMatches[0] : undefined }
         );
         data.semanticResults = searchResults;
         data.summary.similarFailures = Array.isArray(searchResults) ? searchResults.length : searchResults.results?.length || 0;
