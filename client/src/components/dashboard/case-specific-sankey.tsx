@@ -413,9 +413,9 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
         setSelectedNode(d);
       });
 
-    // Add labels outside nodes
+    // Add labels outside nodes using fixed node width
     nodeElements.append("text")
-      .attr("x", (d: SankeyNode) => d.x + d.width + 8)
+      .attr("x", (d: SankeyNode) => d.x + nodeWidth + 8)
       .attr("y", (d: SankeyNode) => d.y + d.height / 2)
       .attr("dy", "0.35em")
       .style("font-size", "12px")
@@ -428,7 +428,7 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
 
     // Add smaller category labels
     nodeElements.append("text")
-      .attr("x", (d: SankeyNode) => d.x + d.width + 8)
+      .attr("x", (d: SankeyNode) => d.x + nodeWidth + 8)
       .attr("y", (d: SankeyNode) => d.y + d.height / 2 + 14)
       .style("font-size", "10px")
       .style("fill", "#6b7280")
