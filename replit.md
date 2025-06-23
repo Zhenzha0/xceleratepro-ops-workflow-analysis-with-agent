@@ -131,6 +131,7 @@ The application has a sidebar navigation with different sections:
 - June 23, 2025. Rebuilt Sankey diagram using Plotly.js for proper flow visualization with colored nodes and interactive features
 - June 23, 2025. Fixed critical activity deduplication issue across all components - each activity now counted once instead of triple-counting from 3 event logs per activity
 - June 23, 2025. Implemented proper timing-based activity linking in Sankey diagram - activities only connected when timing difference between complete/start times indicates actual workflow relationship (allowing -30 to +60 seconds for realistic transitions)
+- June 23, 2025. Fixed dashboard metrics calculations: corrected bottleneck detection thresholds and success rate calculation bug caused by string concatenation in database count operations
 
 ## User Preferences
 
