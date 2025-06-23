@@ -19,7 +19,11 @@ interface ChatMessage {
   suggestedActions?: string[];
 }
 
-export default function AIAssistant() {
+interface AIAssistantProps {
+  appliedFilters?: any;
+}
+
+export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
   const [currentQuery, setCurrentQuery] = useState('');
   const [sessionId] = useState(() => `session_${Date.now()}`);
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -43,7 +47,8 @@ export default function AIAssistant() {
     mutationFn: (query: string) => api.analyzeAIQuery({
       query,
       sessionId,
-      contextData: { timestamp: new Date().toISOString() }
+      contextData: { timestamp: new Date().toISOString() },
+      filters: appliedFilters
     }),
     onSuccess: (response) => {
       const assistantMessage: ChatMessage = {

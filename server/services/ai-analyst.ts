@@ -12,6 +12,17 @@ export interface AIAnalysisRequest {
   query: string;
   sessionId: string;
   contextData?: any;
+  filters?: {
+    scopeType?: string;
+    datasetSize?: string;
+    datasetOrder?: string;
+    customLimit?: number;
+    activityRange?: { start: number; end: number };
+    timeRange?: { start: string; end: string };
+    equipment?: string;
+    status?: string;
+    caseIds?: string[];
+  };
 }
 
 export interface AIAnalysisResponse {
@@ -104,9 +115,27 @@ export class AIAnalyst {
     }
   }
 
-  private static async gatherRelevantData(query: string, queryType: string): Promise<any> {
+  private static async gatherRelevantData(query: string, queryType: string, filters?: any): Promise<any> {
     const queryLower = query.toLowerCase();
     const data: any = { summary: {} };
+
+    // Build filter criteria from provided filters
+    const filterCriteria: any = {};
+    if (filters) {
+      if (filters.equipment && filters.equipment !== 'all') {
+        filterCriteria.resource = filters.equipment;
+      }
+      if (filters.status && filters.status !== 'all') {
+        filterCriteria.status = filters.status;
+      }
+      if (filters.timeRange?.start && filters.timeRange?.end) {
+        filterCriteria.startDate = new Date(filters.timeRange.start);
+        filterCriteria.endDate = new Date(filters.timeRange.end);
+      }
+      if (filters.customLimit) {
+        filterCriteria.limit = filters.customLimit;
+      }
+    }
 
     try {
       // Extract case IDs from query
@@ -134,12 +163,21 @@ export class AIAnalyst {
         const anomalies = await storage.getAnomalyAlerts(15);
         const activities = await storage.getProcessActivities();
         
-        // Use our anomaly detector for deeper analysis
-        const recentActivities = activities.slice(0, 50);
+        // Filter activities based on applied filters
+        let filteredActivities = activities;
+        if (filters?.caseIds && filters.caseIds.length > 0) {
+          filteredActivities = activities.filter(a => filters.caseIds.includes(a.caseId));
+        }
+        if (filters?.equipment && filters.equipment !== 'all') {
+          filteredActivities = filteredActivities.filter(a => a.orgResource === filters.equipment);
+        }
+        
+        // Use our anomaly detector for deeper analysis on filtered data
+        const recentActivities = filteredActivities.slice(0, 50);
         const anomalyAnalysis = recentActivities.map(activity => {
           const timeAnomaly = AnomalyDetector.analyzeProcessingTimeAnomaly(
             activity,
-            activities.filter(a => a.activity === activity.activity)
+            filteredActivities.filter(a => a.activity === activity.activity)
           );
           return { activity, anomaly: timeAnomaly };
         }).filter(result => result.anomaly.isAnomaly);
@@ -148,6 +186,7 @@ export class AIAnalyst {
         data.detailedAnomalies = anomalyAnalysis;
         data.summary.anomalyCount = anomalies.length;
         data.summary.detectedAnomalies = anomalyAnalysis.length;
+        data.summary.filteredDataSize = filteredActivities.length;
       }
 
       if (queryType === 'semantic_search') {
@@ -178,8 +217,8 @@ export class AIAnalyst {
         data.summary.metrics = metrics;
       }
 
-      // Get recent activities for context
-      const recentEvents = await storage.getProcessEvents({ limit: 50 });
+      // Get recent activities for context, applying filters
+      const recentEvents = await storage.getProcessEvents(filterCriteria);
       data.recentEvents = recentEvents.slice(0, 10); // Limit for prompt size
       data.summary.recentEventCount = recentEvents.length;
 
