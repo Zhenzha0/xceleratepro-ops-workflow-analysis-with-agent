@@ -33,7 +33,7 @@ interface TimelineDataPoint {
 
 export default function TimelineAnalysis({ filteredData }: TimelineAnalysisProps) {
   const timelineData = useMemo(() => {
-    if (!filteredData?.activities) return { normalData: [], anomalyData: [], activityLabels: [] };
+    if (!filteredData?.activities) return { normalData: [], severeAnomalyData: [], moderateAnomalyData: [], activityLabels: [] };
 
     const activities = filteredData.activities;
     const anomalies = filteredData.anomalies || [];
@@ -235,8 +235,8 @@ export default function TimelineAnalysis({ filteredData }: TimelineAnalysisProps
         
         <div className="mt-4 text-sm text-gray-600">
           <p>
-            Showing {timelineData.normalData.length + timelineData.severeAnomalyData.length + timelineData.moderateAnomalyData.length} activities 
-            ({timelineData.normalData.length} normal, {timelineData.moderateAnomalyData.length} moderate anomalies, {timelineData.severeAnomalyData.length} severe anomalies)
+            Showing {(timelineData.normalData?.length || 0) + (timelineData.severeAnomalyData?.length || 0) + (timelineData.moderateAnomalyData?.length || 0)} activities 
+            ({timelineData.normalData?.length || 0} normal, {timelineData.moderateAnomalyData?.length || 0} moderate anomalies, {timelineData.severeAnomalyData?.length || 0} severe anomalies)
           </p>
         </div>
       </CardContent>
