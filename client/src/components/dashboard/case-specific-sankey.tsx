@@ -90,6 +90,11 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
     }
   }, [selectedCaseId, activities]);
 
+  // Filter cases based on search term
+  const filteredCases = availableCases.filter(caseId =>
+    caseId.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const buildProperSankeyData = (caseActivities: ProcessActivity[]) => {
     if (!caseActivities || caseActivities.length === 0) {
       return { nodes: [], links: [] };
@@ -216,9 +221,9 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
 
-    const width = 1200;
-    const height = 600;
-    const margin = { top: 40, right: 200, bottom: 40, left: 80 };
+    const width = 1400;
+    const height = 800;
+    const margin = { top: 60, right: 250, bottom: 60, left: 100 };
 
     const { nodes, links } = buildProperSankeyData(caseActivities);
     if (!nodes.length) return;
@@ -243,24 +248,24 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
     categories.forEach((category, catIndex) => {
       const categoryNodes = nodes.filter(n => n.category === category);
       const availableHeight = height - margin.top - margin.bottom;
-      const minSpacing = 60; // Much larger spacing between nodes
-      const totalNodeHeight = categoryNodes.reduce((sum, n) => sum + n.height, 0);
-      const totalSpacing = (categoryNodes.length - 1) * minSpacing;
-      const totalRequired = totalNodeHeight + totalSpacing;
+      const minSpacing = 120; // Much larger spacing to eliminate all overlaps
       
-      // If we need more space, spread nodes evenly
-      const actualSpacing = totalRequired > availableHeight ? 
-        Math.max(20, (availableHeight - totalNodeHeight) / Math.max(1, categoryNodes.length - 1)) : 
-        minSpacing;
-      
-      const startY = margin.top + (availableHeight - totalNodeHeight - (categoryNodes.length - 1) * actualSpacing) / 2;
-      
-      let currentY = Math.max(margin.top, startY);
-      categoryNodes.forEach((node, nodeIndex) => {
-        node.x = margin.left + catIndex * xSpacing;
-        node.y = currentY;
-        currentY += node.height + (nodeIndex < categoryNodes.length - 1 ? actualSpacing : 0);
-      });
+      // Distribute nodes evenly across available height
+      if (categoryNodes.length === 1) {
+        categoryNodes[0].x = margin.left + catIndex * xSpacing;
+        categoryNodes[0].y = margin.top + (availableHeight - categoryNodes[0].height) / 2;
+      } else {
+        const totalNodeHeight = categoryNodes.reduce((sum, n) => sum + n.height, 0);
+        const remainingSpace = availableHeight - totalNodeHeight;
+        const actualSpacing = Math.max(minSpacing, remainingSpace / (categoryNodes.length - 1));
+        
+        let currentY = margin.top;
+        categoryNodes.forEach((node, nodeIndex) => {
+          node.x = margin.left + catIndex * xSpacing;
+          node.y = currentY;
+          currentY += node.height + (nodeIndex < categoryNodes.length - 1 ? actualSpacing : 0);
+        });
+      }
     });
 
     // Sort links to prevent overlaps
@@ -439,10 +444,6 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
     renderProperSankey();
   }, [caseActivities]);
 
-  const filteredCases = availableCases.filter(caseId =>
-    caseId.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   return (
     <Card className="w-full">
       <CardHeader>
@@ -495,8 +496,8 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
             <svg
               ref={svgRef}
               width="100%"
-              height="600"
-              viewBox="0 0 1200 600"
+              height="800"
+              viewBox="0 0 1400 800"
               className="border rounded"
             />
             
