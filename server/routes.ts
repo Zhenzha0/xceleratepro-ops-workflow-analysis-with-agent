@@ -258,18 +258,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Calculate bottlenecks for scoped data
+      const processingTimeBottlenecks = [];
+      const waitTimeBottlenecks = [];
+      
+      // Group activities by station to calculate bottlenecks
+      const stationGroups = scopedActivities.reduce((groups, activity) => {
+        const station = activity.orgResource || 'Unknown';
+        if (!groups[station]) {
+          groups[station] = [];
+        }
+        groups[station].push(activity);
+        return groups;
+      }, {} as Record<string, typeof scopedActivities>);
+      
+      // Calculate processing time bottlenecks
+      for (const [station, activities] of Object.entries(stationGroups)) {
+        const avgProcessingTime = activities.reduce((sum, a) => sum + (a.actualDurationS || 0), 0) / activities.length;
+        if (avgProcessingTime > 120) { // Threshold for bottleneck detection
+          processingTimeBottlenecks.push({
+            station,
+            avgProcessingTime,
+            impact: avgProcessingTime > 300 ? 'high' : avgProcessingTime > 120 ? 'medium' : 'low'
+          });
+        }
+      }
+      
+      // Calculate wait time bottlenecks (simplified - using planned vs actual time difference)
+      for (const [station, activities] of Object.entries(stationGroups)) {
+        const avgWaitTime = activities.reduce((sum, a) => {
+          const planned = a.plannedDurationS || 0;
+          const actual = a.actualDurationS || 0;
+          return sum + Math.max(0, actual - planned);
+        }, 0) / activities.length;
+        
+        if (avgWaitTime > 60) { // Threshold for wait time bottleneck
+          waitTimeBottlenecks.push({
+            station,
+            avgWaitTime,
+            impact: avgWaitTime > 180 ? 'high' : avgWaitTime > 60 ? 'medium' : 'low'
+          });
+        }
+      }
+      
+      const totalBottlenecks = processingTimeBottlenecks.length + waitTimeBottlenecks.length;
+
       // Calculate metrics for scoped data
       const scopedMetrics = {
         avgProcessingTime: scopedActivities.length > 0 
           ? scopedActivities.reduce((sum, a) => sum + (a.actualDurationS || 0), 0) / scopedActivities.length 
           : 0,
         anomaliesDetected: scopedAnomalies.length,
-        bottlenecksFound: 0, // Will be calculated separately
+        bottlenecksFound: totalBottlenecks,
         successRate: scopedActivities.length > 0 
-          ? (scopedActivities.filter(a => a.status === 'completed').length / scopedActivities.length) * 100 
+          ? (scopedActivities.filter(a => a.status === 'success').length / scopedActivities.length) * 100 
           : 0,
-        activeCases: scopedCases.filter(c => c.status === 'active').length,
-        completedCases: scopedCases.filter(c => c.status === 'completed').length,
+        activeCases: scopedCases.filter(c => c.status === 'inProgress').length,
+        completedCases: scopedCases.filter(c => c.status === 'success').length,
         failedCases: scopedCases.filter(c => c.status === 'failed').length
       };
       
