@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Bot, User, Send, TrendingUp, AlertCircle, Search, BarChart3, PieChart, Activity } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import SemanticSearch from "./semantic-search";
 
 interface ChatMessage {
@@ -113,44 +113,185 @@ function ContextualVisualization({ message, appliedFilters }: { message: ChatMes
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           </div>
         ) : (
-          <div className="h-48">
-            {visualData?.type === 'failure_pie' ? (
+          <div className="space-y-3">
+            {/* Statistics Summary */}
+            {visualData && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 border border-blue-200 dark:border-blue-800">
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  {visualData.type === 'failure_pie' && (
+                    <>
+                      <div>
+                        <span className="text-gray-600 dark:text-gray-400">Total Failures:</span>
+                        <span className="ml-1 font-semibold text-red-600">
+                          {visualData.data.reduce((sum: number, item: any) => sum + item.value, 0)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600 dark:text-gray-400">Most Common:</span>
+                        <span className="ml-1 font-semibold text-blue-600">
+                          {visualData.data.reduce((max: any, item: any) => 
+                            item.value > (max?.value || 0) ? item : max, null)?.name?.substring(0, 20) || 'N/A'}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  {visualData.type === 'performance_bar' && (
+                    <>
+                      <div>
+                        <span className="text-gray-600 dark:text-gray-400">Avg Efficiency:</span>
+                        <span className="ml-1 font-semibold text-green-600">
+                          {visualData.data.length > 0 ? 
+                            Math.round(visualData.data.reduce((sum: number, item: any) => 
+                              sum + (item.target && item.avgTime ? (item.target / item.avgTime) * 100 : 0), 0) / visualData.data.length) : 0}%
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600 dark:text-gray-400">Worst Performer:</span>
+                        <span className="ml-1 font-semibold text-red-600">
+                          {visualData.data.reduce((worst: any, item: any) => 
+                            (!worst || (item.avgTime / (item.target || 1)) > (worst.avgTime / (worst.target || 1))) ? item : worst, null)?.name?.substring(0, 15) || 'N/A'}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  {visualData.type === 'bottleneck_bar' && (
+                    <>
+                      <div>
+                        <span className="text-gray-600 dark:text-gray-400">Critical Issues:</span>
+                        <span className="ml-1 font-semibold text-red-600">
+                          {visualData.data.filter((item: any) => item.impact > 50).length}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600 dark:text-gray-400">Total Impact:</span>
+                        <span className="ml-1 font-semibold text-orange-600">
+                          {Math.round(visualData.data.reduce((sum: number, item: any) => sum + item.impact, 0))}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {/* Chart */}
+            <div className="h-48">
+              {visualData?.type === 'failure_pie' ? (
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsPieChart>
                   <Pie
                     data={visualData.data}
                     cx="50%"
                     cy="50%"
-                    outerRadius={60}
+                    innerRadius={30}
+                    outerRadius={70}
                     dataKey="value"
-                    label={(entry: any) => `${entry.name}: ${entry.value}`}
+                    label={({name, percent}: any) => `${(percent * 100).toFixed(1)}%`}
+                    labelLine={false}
                   >
                     {visualData.data.map((entry: any, index: number) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip 
+                    formatter={(value: any, name: any, props: any) => [
+                      `${value} failures (${((value / visualData.data.reduce((sum: number, item: any) => sum + item.value, 0)) * 100).toFixed(1)}%)`,
+                      'Count'
+                    ]}
+                    labelFormatter={(label: any) => `Activity: ${label}`}
+                    contentStyle={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                    }}
+                  />
+
                 </RechartsPieChart>
               </ResponsiveContainer>
             ) : visualData?.type === 'performance_bar' ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={visualData.data}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" fontSize={12} />
-                  <YAxis fontSize={12} />
-                  <Tooltip />
-                  <Bar dataKey="avgTime" fill="#3b82f6" name="Actual Time (s)" />
-                  <Bar dataKey="target" fill="#10b981" name="Target Time (s)" />
+                <BarChart data={visualData.data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis 
+                    dataKey="name" 
+                    fontSize={11}
+                    tick={{ fill: '#6b7280' }}
+                    tickFormatter={(value) => value.length > 15 ? `${value.substring(0, 15)}...` : value}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis 
+                    fontSize={11}
+                    tick={{ fill: '#6b7280' }}
+                    label={{ value: 'Time (seconds)', angle: -90, position: 'insideLeft' }}
+                  />
+                  <Tooltip 
+                    formatter={(value: any, name: any, props: any) => {
+                      const efficiency = props.payload.target ? 
+                        `${((props.payload.target / value) * 100).toFixed(1)}% efficiency` : '';
+                      const variance = props.payload.target ? 
+                        `${((value - props.payload.target) / props.payload.target * 100).toFixed(1)}% variance` : '';
+                      return [
+                        `${value}s${efficiency ? ` (${efficiency})` : ''}${variance ? ` - ${variance}` : ''}`, 
+                        name
+                      ];
+                    }}
+                    labelFormatter={(label: any) => `Activity: ${label}`}
+                    contentStyle={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                    }}
+                  />
+
+                  <Bar dataKey="avgTime" fill="#3b82f6" name="Actual Time" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="target" fill="#10b981" name="Target Time" radius={[2, 2, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : visualData?.type === 'bottleneck_bar' ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={visualData.data}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" fontSize={12} />
-                  <YAxis fontSize={12} />
-                  <Tooltip />
-                  <Bar dataKey="impact" fill="#ef4444" name="Impact Score" />
+                <BarChart data={visualData.data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis 
+                    dataKey="name" 
+                    fontSize={11}
+                    tick={{ fill: '#6b7280' }}
+                    tickFormatter={(value) => value.length > 15 ? `${value.substring(0, 15)}...` : value}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis 
+                    fontSize={11}
+                    tick={{ fill: '#6b7280' }}
+                    label={{ value: 'Impact Score', angle: -90, position: 'insideLeft' }}
+                  />
+                  <Tooltip 
+                    formatter={(value: any, name: any, props: any) => {
+                      const severity = value > 50 ? 'Critical' : value > 25 ? 'High' : value > 10 ? 'Medium' : 'Low';
+                      const cases = props.payload.affectedCases || 0;
+                      return [
+                        `${value} (${severity} impact)${cases ? ` - ${cases} cases affected` : ''}`, 
+                        'Impact Score'
+                      ];
+                    }}
+                    labelFormatter={(label: any) => `Bottleneck: ${label}`}
+                    contentStyle={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                    }}
+                  />
+                  <Bar 
+                    dataKey="impact" 
+                    fill="#ef4444" 
+                    name="Impact Score" 
+                    radius={[2, 2, 0, 0]}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -158,6 +299,7 @@ function ContextualVisualization({ message, appliedFilters }: { message: ChatMes
                 No visualization available
               </div>
             )}
+            </div>
           </div>
         )}
       </CardContent>
