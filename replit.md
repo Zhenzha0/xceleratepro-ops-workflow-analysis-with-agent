@@ -156,6 +156,7 @@ The application has a sidebar navigation with different sections:
 - June 23, 2025. Enhanced ProcessGPT with advanced analysis integration: now leverages anomaly detection, semantic search, case clustering, and bottleneck analysis functions for much more powerful and accurate manufacturing insights
 - June 23, 2025. Implemented filter-aware ProcessGPT: AI assistant now respects dashboard filters and only analyzes selected data subsets (equipment, time ranges, case IDs) for targeted insights with visual filter status indicator
 - June 23, 2025. Fixed critical ProcessGPT data fabrication issue: AI was generating fake failure descriptions instead of analyzing real data. Dataset has 95 actual failures (lifecycle_state = 'failure') but no descriptions in unsatisfied_condition_description column. Created FailureAnalyzer that analyzes real failure patterns by HTTP status codes (401/418 errors) and equipment/activity combinations
+- June 23, 2025. Successfully resolved CSV parsing issue preventing failure description import: rewrote CSV parser using proper csv-parser library to handle complex failure descriptions containing commas and JSON structures. All 95 failures now have authentic descriptions imported (42 High Bay Warehouse inventory issues, 53 equipment condition validation failures with detailed JSON condition checks)
 
 ## User Preferences
 

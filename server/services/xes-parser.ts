@@ -172,14 +172,7 @@ export class XESParser {
             processingTimeS: processingTimeS > 0 ? processingTimeS : null,
           };
 
-          // Debug failure descriptions to verify they're being extracted
-          if (eventData['lifecycle:state'] === 'failure' && eventData.unsatisfied_condition_description) {
-            console.log('Found failure with description:', {
-              caseId: eventData.case_id,
-              activity: eventData.activity,
-              description: eventData.unsatisfied_condition_description.substring(0, 100)
-            });
-          }
+
 
           events.push(processEvent);
 
