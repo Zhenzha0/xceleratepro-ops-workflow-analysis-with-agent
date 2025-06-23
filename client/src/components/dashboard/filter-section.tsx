@@ -71,15 +71,11 @@ export default function FilterSection({ filters, onFiltersChange, onApplyFilters
     onFiltersChange(newFilters);
   };
 
+  const [isApplying, setIsApplying] = useState(false);
+
   const handleApplyFilters = async () => {
     try {
-      // Show visual feedback
-      const button = document.querySelector('button[type="button"]:last-child') as HTMLButtonElement;
-      if (button) {
-        button.textContent = 'Applying...';
-        button.disabled = true;
-      }
-      
+      setIsApplying(true);
       console.log('Applying filters:', filters);
       
       // Trigger the actual filter application through the parent component
@@ -89,14 +85,12 @@ export default function FilterSection({ filters, onFiltersChange, onApplyFilters
       
       // Reset button after a delay
       setTimeout(() => {
-        if (button) {
-          button.textContent = 'Apply Filters & Regenerate Analysis';
-          button.disabled = false;
-        }
+        setIsApplying(false);
       }, 1500);
       
     } catch (error) {
       console.error('Failed to apply filters:', error);
+      setIsApplying(false);
     }
   };
 
@@ -322,8 +316,12 @@ export default function FilterSection({ filters, onFiltersChange, onApplyFilters
           </div>
         </div>
 
-        <Button onClick={handleApplyFilters} className="w-full mt-6">
-          Apply Filters & Regenerate Analysis
+        <Button 
+          onClick={handleApplyFilters} 
+          disabled={isApplying}
+          className="w-full mt-6"
+        >
+          {isApplying ? 'Applying...' : 'Apply Filters & Regenerate Analysis'}
         </Button>
       </CardContent>
     </Card>
