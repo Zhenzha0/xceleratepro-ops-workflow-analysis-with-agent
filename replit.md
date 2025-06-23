@@ -137,6 +137,7 @@ The application has a sidebar navigation with different sections:
 - June 23, 2025. Implemented Case Clustering feature with advanced multi-dimensional pattern analysis including parallel activity detection, loop recognition, and resource utilization patterns for sophisticated manufacturing workflow grouping
 - June 23, 2025. Enhanced clustering algorithm to move beyond simple linear sequences to capture true process complexity including concurrent operations, rework loops, and equipment patterns
 - June 23, 2025. Rebranded AI Assistant to "ProcessGPT" - intelligent manufacturing analyst with enhanced branding and user interface improvements
+- June 23, 2025. Enhanced ProcessGPT with advanced analysis integration: now leverages anomaly detection, semantic search, case clustering, and bottleneck analysis functions for much more powerful and accurate manufacturing insights
 
 ## User Preferences
 
