@@ -177,128 +177,126 @@ function ContextualVisualization({ message, appliedFilters }: { message: ChatMes
             {/* Chart */}
             <div className="h-48">
               {visualData?.type === 'failure_pie' ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <RechartsPieChart>
-                  <Pie
-                    data={visualData.data}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={30}
-                    outerRadius={70}
-                    dataKey="value"
-                    label={({name, percent}: any) => `${(percent * 100).toFixed(1)}%`}
-                    labelLine={false}
-                  >
-                    {visualData.data.map((entry: any, index: number) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    formatter={(value: any, name: any, props: any) => [
-                      `${value} failures (${((value / visualData.data.reduce((sum: number, item: any) => sum + item.value, 0)) * 100).toFixed(1)}%)`,
-                      'Count'
-                    ]}
-                    labelFormatter={(label: any) => `Activity: ${label}`}
-                    contentStyle={{
-                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                    }}
-                  />
-
-                </RechartsPieChart>
-              </ResponsiveContainer>
-            ) : visualData?.type === 'performance_bar' ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={visualData.data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis 
-                    dataKey="name" 
-                    fontSize={11}
-                    tick={{ fill: '#6b7280' }}
-                    tickFormatter={(value) => value.length > 15 ? `${value.substring(0, 15)}...` : value}
-                    angle={-45}
-                    textAnchor="end"
-                    height={60}
-                  />
-                  <YAxis 
-                    fontSize={11}
-                    tick={{ fill: '#6b7280' }}
-                    label={{ value: 'Time (seconds)', angle: -90, position: 'insideLeft' }}
-                  />
-                  <Tooltip 
-                    formatter={(value: any, name: any, props: any) => {
-                      const efficiency = props.payload.target ? 
-                        `${((props.payload.target / value) * 100).toFixed(1)}% efficiency` : '';
-                      const variance = props.payload.target ? 
-                        `${((value - props.payload.target) / props.payload.target * 100).toFixed(1)}% variance` : '';
-                      return [
-                        `${value}s${efficiency ? ` (${efficiency})` : ''}${variance ? ` - ${variance}` : ''}`, 
-                        name
-                      ];
-                    }}
-                    labelFormatter={(label: any) => `Activity: ${label}`}
-                    contentStyle={{
-                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                    }}
-                  />
-
-                  <Bar dataKey="avgTime" fill="#3b82f6" name="Actual Time" radius={[2, 2, 0, 0]} />
-                  <Bar dataKey="target" fill="#10b981" name="Target Time" radius={[2, 2, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : visualData?.type === 'bottleneck_bar' ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={visualData.data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis 
-                    dataKey="name" 
-                    fontSize={11}
-                    tick={{ fill: '#6b7280' }}
-                    tickFormatter={(value) => value.length > 15 ? `${value.substring(0, 15)}...` : value}
-                    angle={-45}
-                    textAnchor="end"
-                    height={60}
-                  />
-                  <YAxis 
-                    fontSize={11}
-                    tick={{ fill: '#6b7280' }}
-                    label={{ value: 'Impact Score', angle: -90, position: 'insideLeft' }}
-                  />
-                  <Tooltip 
-                    formatter={(value: any, name: any, props: any) => {
-                      const severity = value > 50 ? 'Critical' : value > 25 ? 'High' : value > 10 ? 'Medium' : 'Low';
-                      const cases = props.payload.affectedCases || 0;
-                      return [
-                        `${value} (${severity} impact)${cases ? ` - ${cases} cases affected` : ''}`, 
-                        'Impact Score'
-                      ];
-                    }}
-                    labelFormatter={(label: any) => `Bottleneck: ${label}`}
-                    contentStyle={{
-                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                    }}
-                  />
-                  <Bar 
-                    dataKey="impact" 
-                    fill="#ef4444" 
-                    name="Impact Score" 
-                    radius={[2, 2, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-gray-500">
-                No visualization available
-              </div>
-            )}
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsPieChart>
+                    <Pie
+                      data={visualData.data}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={30}
+                      outerRadius={70}
+                      dataKey="value"
+                      label={({name, percent}: any) => `${(percent * 100).toFixed(1)}%`}
+                      labelLine={false}
+                    >
+                      {visualData.data.map((entry: any, index: number) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      formatter={(value: any, name: any, props: any) => [
+                        `${value} failures (${((value / visualData.data.reduce((sum: number, item: any) => sum + item.value, 0)) * 100).toFixed(1)}%)`,
+                        'Count'
+                      ]}
+                      labelFormatter={(label: any) => `Activity: ${label}`}
+                      contentStyle={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                      }}
+                    />
+                  </RechartsPieChart>
+                </ResponsiveContainer>
+              ) : visualData?.type === 'performance_bar' ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={visualData.data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis 
+                      dataKey="name" 
+                      fontSize={11}
+                      tick={{ fill: '#6b7280' }}
+                      tickFormatter={(value) => value.length > 15 ? `${value.substring(0, 15)}...` : value}
+                      angle={-45}
+                      textAnchor="end"
+                      height={60}
+                    />
+                    <YAxis 
+                      fontSize={11}
+                      tick={{ fill: '#6b7280' }}
+                      label={{ value: 'Time (seconds)', angle: -90, position: 'insideLeft' }}
+                    />
+                    <Tooltip 
+                      formatter={(value: any, name: any, props: any) => {
+                        const efficiency = props.payload.target ? 
+                          `${((props.payload.target / value) * 100).toFixed(1)}% efficiency` : '';
+                        const variance = props.payload.target ? 
+                          `${((value - props.payload.target) / props.payload.target * 100).toFixed(1)}% variance` : '';
+                        return [
+                          `${value}s${efficiency ? ` (${efficiency})` : ''}${variance ? ` - ${variance}` : ''}`, 
+                          name
+                        ];
+                      }}
+                      labelFormatter={(label: any) => `Activity: ${label}`}
+                      contentStyle={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                      }}
+                    />
+                    <Bar dataKey="avgTime" fill="#3b82f6" name="Actual Time" radius={[2, 2, 0, 0]} />
+                    <Bar dataKey="target" fill="#10b981" name="Target Time" radius={[2, 2, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : visualData?.type === 'bottleneck_bar' ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={visualData.data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis 
+                      dataKey="name" 
+                      fontSize={11}
+                      tick={{ fill: '#6b7280' }}
+                      tickFormatter={(value) => value.length > 15 ? `${value.substring(0, 15)}...` : value}
+                      angle={-45}
+                      textAnchor="end"
+                      height={60}
+                    />
+                    <YAxis 
+                      fontSize={11}
+                      tick={{ fill: '#6b7280' }}
+                      label={{ value: 'Impact Score', angle: -90, position: 'insideLeft' }}
+                    />
+                    <Tooltip 
+                      formatter={(value: any, name: any, props: any) => {
+                        const severity = value > 50 ? 'Critical' : value > 25 ? 'High' : value > 10 ? 'Medium' : 'Low';
+                        const cases = props.payload.affectedCases || 0;
+                        return [
+                          `${value} (${severity} impact)${cases ? ` - ${cases} cases affected` : ''}`, 
+                          'Impact Score'
+                        ];
+                      }}
+                      labelFormatter={(label: any) => `Bottleneck: ${label}`}
+                      contentStyle={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                      }}
+                    />
+                    <Bar 
+                      dataKey="impact" 
+                      fill="#ef4444" 
+                      name="Impact Score" 
+                      radius={[2, 2, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-gray-500">
+                  No visualization available
+                </div>
+              )}
             </div>
           </div>
         )}
