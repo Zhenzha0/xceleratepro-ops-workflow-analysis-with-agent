@@ -206,6 +206,13 @@ export default function DetailedAnomalyView({ anomalies, isLoading }: DetailedAn
     );
   }
 
+  // Helper function to extract activity name from anomaly description
+  const extractActivityName = (anomaly: AnomalyAlert): string => {
+    const activityNameMatch = anomaly.description?.match(/^(.+?) operation exceeded expected time$/);
+    const fullActivityName = activityNameMatch ? activityNameMatch[1] : null;
+    return fullActivityName || anomaly.equipment || 'Unknown Activity';
+  };
+
   // Convert anomalies to detailed rows with processing time calculations
   const anomalyRows: AnomalyDetailRow[] = anomalies.map(anomaly => {
     // Parse anomaly details to extract timing information
@@ -218,12 +225,8 @@ export default function DetailedAnomalyView({ anomalies, isLoading }: DetailedAn
     const currentTaskMatch = anomaly.details.match(/Current task: ([^,\n]+)/);
     const currentTask = currentTaskMatch ? currentTaskMatch[1] : undefined;
     
-    // Extract the full activity name from the description (e.g., "/wt/pick_up_and_transport")
-    const activityNameMatch = anomaly.description?.match(/^(.+?) operation exceeded expected time$/);
-    const fullActivityName = activityNameMatch ? activityNameMatch[1] : null;
-    
-    // Use the extracted full activity name, fallback to equipment code
-    const displayActivity = fullActivityName || anomaly.equipment || 'Unknown Activity';
+    // Extract the full activity name using helper function
+    const displayActivity = extractActivityName(anomaly);
     
     return {
       caseId: anomaly.caseId || 'Unknown',
