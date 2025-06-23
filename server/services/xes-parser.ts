@@ -64,39 +64,63 @@ export class XESParser {
       }
     });
 
-    // Calculate IQR for each activity type
-    const anomalyThresholds = new Map<string, { lower: number; upper: number }>();
+    // Calculate IQR for each activity type (need at least 4 data points for meaningful IQR)
+    const anomalyThresholds = new Map<string, { lower: number; upper: number; q1: number; q3: number; iqr: number }>();
     
     activityGroups.forEach((durations, activityType) => {
-      durations.sort((a, b) => a - b);
-      const q1 = durations[Math.floor(durations.length * 0.25)];
-      const q3 = durations[Math.floor(durations.length * 0.75)];
-      const iqr = q3 - q1;
-      
-      anomalyThresholds.set(activityType, {
-        lower: q1 - 1.5 * iqr,
-        upper: q3 + 1.5 * iqr
-      });
+      if (durations.length >= 4) { // Need at least 4 data points for reliable IQR
+        durations.sort((a, b) => a - b);
+        const q1Index = Math.floor(durations.length * 0.25);
+        const q3Index = Math.floor(durations.length * 0.75);
+        const q1 = durations[q1Index];
+        const q3 = durations[q3Index];
+        const iqr = q3 - q1;
+        
+        // Only set thresholds if IQR is meaningful
+        if (iqr > 0) {
+          anomalyThresholds.set(activityType, {
+            q1,
+            q3,
+            iqr,
+            lower: q1 - 1.5 * iqr,
+            upper: q3 + 1.5 * iqr
+          });
+        }
+      }
     });
 
-    // Mark anomalies
+    // Mark anomalies using activity-specific IQR thresholds
     return activities.map(activity => {
-      if (activity.actualDurationS) {
+      if (activity.actualDurationS && activity.actualDurationS > 0) {
         const threshold = anomalyThresholds.get(activity.activity);
         if (threshold) {
           const isAnomaly = activity.actualDurationS < threshold.lower || 
                            activity.actualDurationS > threshold.upper;
           
+          // Calculate anomaly score based on how far outside the IQR boundaries the value is
+          let anomalyScore = 0;
+          if (isAnomaly) {
+            if (activity.actualDurationS < threshold.lower) {
+              anomalyScore = Math.abs(activity.actualDurationS - threshold.lower) / threshold.iqr;
+            } else if (activity.actualDurationS > threshold.upper) {
+              anomalyScore = Math.abs(activity.actualDurationS - threshold.upper) / threshold.iqr;
+            }
+          }
+          
           return {
             ...activity,
             isAnomaly,
-            anomalyScore: isAnomaly ? 
-              Math.abs(activity.actualDurationS - (threshold.upper + threshold.lower) / 2) / 
-              (threshold.upper - threshold.lower) : 0
+            anomalyScore: Math.min(anomalyScore, 5.0) // Cap at 5.0 for extreme outliers
           };
         }
       }
-      return activity;
+      
+      // Return activity without anomaly flags if no threshold available
+      return {
+        ...activity,
+        isAnomaly: false,
+        anomalyScore: 0
+      };
     });
   }
 

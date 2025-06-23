@@ -60,20 +60,28 @@ export default function TimelineAnalysis({ filteredData }: TimelineAnalysisProps
     // Convert activities to timeline data points
     const dataPoints: TimelineDataPoint[] = activities.map(activity => {
       const startTime = activity.startTime ? new Date(activity.startTime) : new Date();
-      const activityKey = `${activity.caseId}_${activity.orgResource || 'unknown'}`;
-      const isAnomaly = anomalyLookup.has(activityKey) || 
-                       (activity.actualDurationS && activity.plannedDurationS && 
-                        Math.abs(activity.actualDurationS - activity.plannedDurationS) > 60);
       
-      // Determine severity based on duration deviation
+      // Use the activity-specific anomaly detection from the database
+      const isAnomaly = activity.isAnomaly || false;
+      const anomalyScore = activity.anomalyScore || 0;
+      
+      // Determine severity based on anomaly score and deviation from planned time
       let severity: 'high' | 'medium' | 'low' = 'low';
-      if (isAnomaly && activity.actualDurationS && activity.plannedDurationS) {
-        const deviation = Math.abs(activity.actualDurationS - activity.plannedDurationS);
-        const deviationPercent = (deviation / activity.plannedDurationS) * 100;
-        if (deviationPercent > 200) {
-          severity = 'high'; // More than 200% deviation = severe (red)
-        } else if (deviationPercent > 50) {
-          severity = 'medium'; // 50-200% deviation = moderate (yellow)
+      if (isAnomaly) {
+        if (activity.actualDurationS && activity.plannedDurationS) {
+          const deviation = Math.abs(activity.actualDurationS - activity.plannedDurationS);
+          const deviationPercent = (deviation / activity.plannedDurationS) * 100;
+          
+          // Use both anomaly score and deviation percentage for severity classification
+          if (anomalyScore > 2.0 || deviationPercent > 200) {
+            severity = 'high'; // High anomaly score or >200% deviation = severe (red)
+          } else if (anomalyScore > 1.0 || deviationPercent > 50) {
+            severity = 'medium'; // Moderate anomaly score or 50-200% deviation = moderate (yellow)
+          }
+        } else if (anomalyScore > 1.5) {
+          severity = 'high'; // High anomaly score without duration data
+        } else {
+          severity = 'medium'; // Lower anomaly score
         }
       }
       
@@ -87,7 +95,7 @@ export default function TimelineAnalysis({ filteredData }: TimelineAnalysisProps
         caseId: activity.caseId,
         equipment: activity.orgResource || 'Unknown',
         duration: activity.actualDurationS || 0,
-        details: `Case: ${activity.caseId}, Equipment: ${activity.orgResource || 'Unknown'}, Duration: ${activity.actualDurationS || 0}s`
+        details: `Case: ${activity.caseId}, Equipment: ${activity.orgResource || 'Unknown'}, Duration: ${activity.actualDurationS || 0}s, ${isAnomaly ? `Anomaly Score: ${anomalyScore.toFixed(2)}` : 'Normal'}`
       };
     });
     

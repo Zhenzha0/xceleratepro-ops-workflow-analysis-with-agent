@@ -513,23 +513,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Force data refresh endpoint  
+  app.post('/api/data/refresh', async (req, res) => {
+    try {
+      console.log('Clearing existing data and importing your sample_data.csv...');
+      
+      // Clear existing data
+      await db.execute(sql`DELETE FROM process_activities`);
+      await db.execute(sql`DELETE FROM process_events`); 
+      await db.execute(sql`DELETE FROM process_cases`);
+      console.log('Existing data cleared');
+      
+      // Re-import with improved anomaly detection
+      const sampleDataPath = path.join(process.cwd(), 'attached_assets', 'sample_data_1750608906974.csv');
+      const { events, activities, cases } = await XESParser.parseCSV(sampleDataPath);
+      
+      await storage.bulkInsertProcessCases(cases);
+      await storage.bulkInsertProcessEvents(events);
+      await storage.bulkInsertProcessActivities(activities);
+      
+      dataImported = true;
+      console.log(`✓ Inserted ${cases.length} process cases`);
+      console.log(`✓ Inserted ${events.length} process events`);
+      console.log(`✓ Inserted ${activities.length} process activities`);
+      console.log('✓ Your manufacturing data import completed successfully');
+      
+      res.json({ success: true, message: 'Data refreshed successfully' });
+    } catch (error) {
+      console.error('Data refresh failed:', error);
+      res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
   // Auto-import sample data on startup if not already imported
   setTimeout(async () => {
     if (!dataImported) {
       try {
-        console.log('Auto-importing sample data on startup...');
+        console.log('Clearing existing data and importing your sample_data.csv...');
+        
+        // Clear existing data
+        await db.execute(sql`DELETE FROM process_activities`);
+        await db.execute(sql`DELETE FROM process_events`); 
+        await db.execute(sql`DELETE FROM process_cases`);
+        console.log('Existing data cleared');
+        
+        // Re-import with improved anomaly detection
         const sampleDataPath = path.join(process.cwd(), 'attached_assets', 'sample_data_1750608906974.csv');
         const { events, activities, cases } = await XESParser.parseCSV(sampleDataPath);
         
-        await storage.bulkInsertProcessEvents(events.slice(0, 1000)); // Limit for startup
-        await storage.bulkInsertProcessActivities(activities.slice(0, 500));
-        
-        for (const processCase of cases.slice(0, 100)) {
-          await storage.createProcessCase(processCase);
-        }
+        await storage.bulkInsertProcessCases(cases);
+        await storage.bulkInsertProcessEvents(events);
+        await storage.bulkInsertProcessActivities(activities);
         
         dataImported = true;
-        console.log('Auto-import completed');
+        console.log(`✓ Inserted ${cases.length} process cases`);
+        console.log(`✓ Inserted ${events.length} process events`);
+        console.log(`✓ Inserted ${activities.length} process activities`);
+        console.log('✓ Your manufacturing data import completed successfully');
       } catch (error) {
         console.error('Auto-import failed:', error);
       }
