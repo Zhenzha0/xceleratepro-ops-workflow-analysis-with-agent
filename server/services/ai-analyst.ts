@@ -40,14 +40,21 @@ export class AIAnalyst {
   static async analyzeQuery(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
     const { query, sessionId, contextData, filters } = request;
     
-    // Determine query type and gather relevant data based on the query
-    const queryType = this.classifyQuery(query);
-    const relevantData = await this.gatherRelevantData(query, queryType, filters);
-    
-    const systemPrompt = this.buildSystemPrompt(queryType, relevantData);
-    const userPrompt = this.buildUserPrompt(query, contextData);
-    
     try {
+      // Validate inputs
+      if (!query || query.trim().length === 0) {
+        return {
+          response: 'Please provide a question about your manufacturing data.',
+          queryType: 'error'
+        };
+      }
+
+      // Determine query type and gather relevant data based on the query
+      const queryType = this.classifyQuery(query);
+      const relevantData = await this.gatherRelevantData(query, queryType, filters);
+      
+      const systemPrompt = this.buildSystemPrompt(queryType, relevantData);
+      const userPrompt = this.buildUserPrompt(query, contextData);
       const response = await openai.chat.completions.create({
         model: this.MODEL,
         messages: [
@@ -94,21 +101,28 @@ export class AIAnalyst {
   private static classifyQuery(query: string): string {
     const queryLower = query.toLowerCase();
     
-    if (queryLower.includes('compare') && queryLower.includes('case')) {
+    // More comprehensive and robust query classification
+    if (queryLower.includes('compare') && (queryLower.includes('case') || queryLower.includes('workflow'))) {
       return 'case_comparison';
-    } else if (queryLower.includes('cluster') || queryLower.includes('group') || queryLower.includes('similar')) {
+    } else if (queryLower.includes('cluster') || queryLower.includes('group') || queryLower.includes('pattern')) {
       return 'clustering_analysis';
-    } else if (queryLower.includes('anomal') || queryLower.includes('abnormal')) {
+    } else if (queryLower.includes('anomal') || queryLower.includes('abnormal') || queryLower.includes('issue') || 
+               queryLower.includes('problem') || queryLower.includes('unusual') || queryLower.includes('deviation')) {
       return 'anomaly_analysis';
-    } else if (queryLower.includes('bottleneck') || queryLower.includes('slow') || queryLower.includes('delay')) {
+    } else if (queryLower.includes('bottleneck') || queryLower.includes('slow') || queryLower.includes('delay') ||
+               queryLower.includes('stuck') || queryLower.includes('wait')) {
       return 'bottleneck_analysis';
-    } else if (queryLower.includes('failure') || queryLower.includes('error') || queryLower.includes('fail')) {
+    } else if (queryLower.includes('failure') || queryLower.includes('error') || queryLower.includes('fail') ||
+               queryLower.includes('search') || queryLower.includes('find') || queryLower.includes('similar')) {
       return 'semantic_search';
-    } else if (queryLower.includes('equipment') || queryLower.includes('machine') || queryLower.includes('resource')) {
+    } else if (queryLower.includes('equipment') || queryLower.includes('machine') || queryLower.includes('resource') ||
+               queryLower.includes('station') || queryLower.includes('hbw') || queryLower.includes('vgr')) {
       return 'equipment_analysis';
-    } else if (queryLower.includes('time') || queryLower.includes('duration') || queryLower.includes('performance')) {
+    } else if (queryLower.includes('time') || queryLower.includes('duration') || queryLower.includes('performance') ||
+               queryLower.includes('efficiency') || queryLower.includes('rate') || queryLower.includes('speed')) {
       return 'performance_analysis';
-    } else if (queryLower.includes('trend') || queryLower.includes('pattern') || queryLower.includes('temporal')) {
+    } else if (queryLower.includes('trend') || queryLower.includes('temporal') || queryLower.includes('over time') ||
+               queryLower.includes('timeline') || queryLower.includes('history')) {
       return 'trend_analysis';
     } else {
       return 'general_analysis';
@@ -119,69 +133,69 @@ export class AIAnalyst {
     const queryLower = query.toLowerCase();
     const data: any = { summary: {}, filters: filters };
 
-    // When filters are applied, use the filtered dataset
-    let scopedActivities = [];
-    let scopedEvents = [];
-    let scopedCases = [];
-    
-    if (filters && (filters.scopeType === 'dataset' && filters.datasetSize === 'range') || 
-        (filters.equipment && filters.equipment !== 'all') || 
-        (filters.status && filters.status !== 'all') ||
-        (filters.caseIds && filters.caseIds.length > 0)) {
-      
-      // Get filtered data based on applied filters
-      let activities = await storage.getProcessActivities();
-      let events = await storage.getProcessEvents();
-      let cases = await storage.getProcessCases();
-      
-      // Apply dataset scope filters
-      if (filters.scopeType === 'dataset' && filters.datasetSize === 'range') {
-        const start = filters.activityRange?.start || 1;
-        const end = filters.activityRange?.end || 100;
-        activities = activities.slice(start - 1, end);
-        const scopedCaseIds = Array.from(new Set(activities.map(a => a.caseId)));
-        events = events.filter(e => scopedCaseIds.includes(e.caseId));
-        cases = cases.filter(c => scopedCaseIds.includes(c.caseId));
-      }
-      
-      // Apply equipment filter
-      if (filters.equipment && filters.equipment !== 'all') {
-        activities = activities.filter(a => a.orgResource === filters.equipment);
-        events = events.filter(e => e.orgResource === filters.equipment);
-      }
-      
-      // Apply status filter
-      if (filters.status && filters.status !== 'all') {
-        activities = activities.filter(a => a.status === filters.status);
-      }
-      
-      // Apply case ID filter
-      if (filters.caseIds && filters.caseIds.length > 0) {
-        activities = activities.filter(a => filters.caseIds.includes(a.caseId));
-        events = events.filter(e => filters.caseIds.includes(e.caseId));
-        cases = cases.filter(c => filters.caseIds.includes(c.caseId));
-      }
-      
-      scopedActivities = activities;
-      scopedEvents = events;
-      scopedCases = cases;
-      
-      data.summary.dataScope = 'filtered';
-      data.summary.totalActivities = scopedActivities.length;
-      data.summary.totalCases = scopedCases.length;
-      data.summary.appliedFilters = filters;
-    } else {
-      // Use full dataset when no filters applied
-      scopedActivities = await storage.getProcessActivities();
-      scopedEvents = await storage.getProcessEvents();
-      scopedCases = await storage.getProcessCases();
-      
-      data.summary.dataScope = 'full';
-      data.summary.totalActivities = scopedActivities.length;
-      data.summary.totalCases = scopedCases.length;
-    }
-
     try {
+      // When filters are applied, use the filtered dataset
+      let scopedActivities = [];
+      let scopedEvents = [];
+      let scopedCases = [];
+      
+      if (filters && (filters.scopeType === 'dataset' && filters.datasetSize === 'range') || 
+          (filters.equipment && filters.equipment !== 'all') || 
+          (filters.status && filters.status !== 'all') ||
+          (filters.caseIds && filters.caseIds.length > 0)) {
+        
+        // Get filtered data based on applied filters
+        let activities = await storage.getProcessActivities();
+        let events = await storage.getProcessEvents();
+        let cases = await storage.getProcessCases();
+        
+        // Apply dataset scope filters
+        if (filters.scopeType === 'dataset' && filters.datasetSize === 'range') {
+          const start = filters.activityRange?.start || 1;
+          const end = filters.activityRange?.end || 100;
+          activities = activities.slice(start - 1, end);
+          const scopedCaseIds = Array.from(new Set(activities.map(a => a.caseId)));
+          events = events.filter(e => scopedCaseIds.includes(e.caseId));
+          cases = cases.filter(c => scopedCaseIds.includes(c.caseId));
+        }
+        
+        // Apply equipment filter
+        if (filters.equipment && filters.equipment !== 'all') {
+          activities = activities.filter(a => a.orgResource === filters.equipment);
+          events = events.filter(e => e.orgResource === filters.equipment);
+        }
+        
+        // Apply status filter
+        if (filters.status && filters.status !== 'all') {
+          activities = activities.filter(a => a.status === filters.status);
+        }
+        
+        // Apply case ID filter
+        if (filters.caseIds && filters.caseIds.length > 0) {
+          activities = activities.filter(a => filters.caseIds.includes(a.caseId));
+          events = events.filter(e => filters.caseIds.includes(e.caseId));
+          cases = cases.filter(c => filters.caseIds.includes(c.caseId));
+        }
+        
+        scopedActivities = activities;
+        scopedEvents = events;
+        scopedCases = cases;
+        
+        data.summary.dataScope = 'filtered';
+        data.summary.totalActivities = scopedActivities.length;
+        data.summary.totalCases = scopedCases.length;
+        data.summary.appliedFilters = filters;
+      } else {
+        // Use full dataset when no filters applied
+        scopedActivities = await storage.getProcessActivities();
+        scopedEvents = await storage.getProcessEvents();
+        scopedCases = await storage.getProcessCases();
+        
+        data.summary.dataScope = 'full';
+        data.summary.totalActivities = scopedActivities.length;
+        data.summary.totalCases = scopedCases.length;
+      }
+
       // Extract case IDs from query
       const caseIdMatches = query.match(/WF_\d+_\d+/g);
       
@@ -313,6 +327,7 @@ export class AIAnalyst {
     } catch (error) {
       console.error('Error gathering relevant data:', String(error));
       data.summary.dataGatheringError = true;
+      data.summary.errorMessage = 'Failed to gather some data, but analysis will continue with available information.';
     }
 
     return data;
