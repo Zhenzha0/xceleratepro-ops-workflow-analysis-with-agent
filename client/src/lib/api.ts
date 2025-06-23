@@ -23,6 +23,7 @@ export interface AIQueryRequest {
   query: string;
   sessionId: string;
   contextData?: any;
+  filters?: any;
 }
 
 export interface AIQueryResponse {

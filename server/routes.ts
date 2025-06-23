@@ -26,7 +26,8 @@ const dashboardFiltersSchema = z.object({
 const aiQuerySchema = z.object({
   query: z.string().min(1).max(1000),
   sessionId: z.string().min(1),
-  contextData: z.any().optional()
+  contextData: z.any().optional(),
+  filters: z.any().optional()
 });
 
 const caseComparisonSchema = z.object({

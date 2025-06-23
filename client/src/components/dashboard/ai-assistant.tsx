@@ -30,7 +30,7 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
     {
       id: 'welcome',
       role: 'assistant',
-      content: "👋 Hello! I'm ProcessGPT, your intelligent manufacturing analyst. I can help you understand production patterns, diagnose workflow issues, and optimize your processes. Ask me anything about your manufacturing data!",
+      content: "👋 Hello! I'm ProcessGPT, your intelligent manufacturing analyst. I can help you understand production patterns, diagnose workflow issues, and optimize your processes. When you apply filters on the dashboard, I'll analyze only your filtered data for more targeted insights!",
       timestamp: new Date()
     }
   ]);
@@ -117,7 +117,15 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
             </div>
             <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-bold">ProcessGPT</span>
           </CardTitle>
-          <p className="text-sm text-gray-600">Your intelligent manufacturing analyst powered by AI</p>
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm text-gray-600">Your intelligent manufacturing analyst powered by AI</p>
+            {appliedFilters && (
+              <div className="flex items-center space-x-1">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-xs text-green-700 font-medium">Analyzing filtered data</span>
+              </div>
+            )}
+          </div>
         </CardHeader>
         
         {/* Chat Messages */}

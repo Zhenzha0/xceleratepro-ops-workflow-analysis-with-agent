@@ -38,11 +38,11 @@ export class AIAnalyst {
   private static readonly MODEL = "gpt-4o";
 
   static async analyzeQuery(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
-    const { query, sessionId, contextData } = request;
+    const { query, sessionId, contextData, filters } = request;
     
     // Determine query type and gather relevant data based on the query
     const queryType = this.classifyQuery(query);
-    const relevantData = await this.gatherRelevantData(query, queryType);
+    const relevantData = await this.gatherRelevantData(query, queryType, filters);
     
     const systemPrompt = this.buildSystemPrompt(queryType, relevantData);
     const userPrompt = this.buildUserPrompt(query, contextData);

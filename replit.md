@@ -138,6 +138,7 @@ The application has a sidebar navigation with different sections:
 - June 23, 2025. Enhanced clustering algorithm to move beyond simple linear sequences to capture true process complexity including concurrent operations, rework loops, and equipment patterns
 - June 23, 2025. Rebranded AI Assistant to "ProcessGPT" - intelligent manufacturing analyst with enhanced branding and user interface improvements
 - June 23, 2025. Enhanced ProcessGPT with advanced analysis integration: now leverages anomaly detection, semantic search, case clustering, and bottleneck analysis functions for much more powerful and accurate manufacturing insights
+- June 23, 2025. Implemented filter-aware ProcessGPT: AI assistant now respects dashboard filters and only analyzes selected data subsets (equipment, time ranges, case IDs) for targeted insights with visual filter status indicator
 
 ## User Preferences
 

@@ -150,7 +150,7 @@ export default function Dashboard() {
             {/* AI Assistant Panel - only show when on dashboard */}
             {activeTab === 'dashboard' && (
               <div className="w-96">
-                <AIAssistant />
+                <AIAssistant appliedFilters={appliedFilters} />
               </div>
             )}
           </div>
