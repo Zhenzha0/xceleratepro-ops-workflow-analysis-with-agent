@@ -99,6 +99,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Process Activities Route - supports case-specific filtering
+  app.get("/api/process/activities", async (req, res) => {
+    try {
+      const caseId = req.query.caseId as string;
+      let activities;
+      
+      if (caseId) {
+        // Get activities for specific case
+        activities = await storage.getProcessActivities(caseId);
+        
+        // Mark anomalous activities for highlighting
+        activities = activities.map(activity => ({
+          ...activity,
+          // Check if this activity has anomalous processing time
+          isAnomaly: activity.isAnomaly || (activity.actualDurationS && activity.plannedDurationS && 
+            Math.abs(activity.actualDurationS - activity.plannedDurationS) > activity.plannedDurationS * 0.5)
+        }));
+      } else {
+        // Get all activities (existing behavior)
+        activities = await storage.getProcessActivities();
+      }
+      
+      res.json(activities);
+    } catch (error) {
+      console.error('Error fetching process activities:', error);
+      res.status(500).json({ message: 'Failed to fetch process activities' });
+    }
+  });
+
   // Dashboard Data Routes
   app.get("/api/dashboard/metrics", async (req, res) => {
     try {

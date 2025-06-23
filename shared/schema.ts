@@ -50,6 +50,7 @@ export const processActivities = pgTable("process_activities", {
   isAnomaly: boolean("is_anomaly").default(false),
   anomalyScore: real("anomaly_score"),
   failureDescription: text("failure_description"),
+  currentTask: text("current_task"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
