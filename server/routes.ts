@@ -58,7 +58,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Existing data cleared');
       
       const sampleDataPath = path.join(process.cwd(), 'attached_assets', 'sample_data_1750608906974.csv');
-      const { events, activities, cases } = await XESParser.parseCSV(sampleDataPath);
+      const { events, activities, cases } = await XESParser.parseXESFromCSV(sampleDataPath);
       
       console.log(`Parsed ${events.length} events, ${activities.length} activities, ${cases.length} cases from your manufacturing data`);
 
@@ -690,7 +690,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Re-import with improved anomaly detection
       const sampleDataPath = path.join(process.cwd(), 'attached_assets', 'sample_data_1750608906974.csv');
-      const { events, activities, cases } = await XESParser.parseCSV(sampleDataPath);
+      const { events, activities, cases } = await XESParser.parseXESFromCSV(sampleDataPath);
       
       await storage.bulkInsertProcessCases(cases);
       await storage.bulkInsertProcessEvents(events);
@@ -723,7 +723,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Re-import with improved anomaly detection
         const sampleDataPath = path.join(process.cwd(), 'attached_assets', 'sample_data_1750608906974.csv');
-        const { events, activities, cases } = await XESParser.parseCSV(sampleDataPath);
+        const { events, activities, cases } = await XESParser.parseXESFromCSV(sampleDataPath);
         
         await storage.bulkInsertProcessCases(cases);
         await storage.bulkInsertProcessEvents(events);
