@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import csv from 'csv-parser';
 import { InsertProcessEvent, InsertProcessActivity, InsertProcessCase } from '@shared/schema';
 
 export interface XESEvent {
@@ -33,33 +34,29 @@ export class XESParser {
     let inQuotes = false;
     let i = 0;
     
-    while (i < row.length) {
-      const char = row[i];
-      const nextChar = row[i + 1];
-      
-      if (char === '"') {
-        if (inQuotes && nextChar === '"') {
-          // Handle escaped quotes
-          current += '"';
-          i += 2;
-          continue;
-        } else {
-          // Toggle quote state
-          inQuotes = !inQuotes;
-        }
-      } else if (char === ',' && !inQuotes) {
-        // End of field
-        result.push(current.trim());
-        current = '';
-      } else {
-        current += char;
-      }
-      i++;
-    }
+    // Split by comma but be careful about quoted content and special structures
+    const parts = [];
+    let temp = '';
+    let quoteCount = 0;
+    let braceDepth = 0;
     
-    // Add the last field
-    result.push(current.trim());
-    return result;
+    for (let j = 0; j < row.length; j++) {
+      const char = row[j];
+      
+      if (char === '"') quoteCount++;
+      if (char === '{') braceDepth++;
+      if (char === '}') braceDepth--;
+      
+      if (char === ',' && quoteCount % 2 === 0 && braceDepth === 0) {
+        parts.push(temp.trim());
+        temp = '';
+      } else {
+        temp += char;
+      }
+    }
+    parts.push(temp.trim()); // Don't forget the last part
+    
+    return parts;
   }
 
   private static parseTimeToSeconds(timeStr: string): number {
@@ -217,6 +214,15 @@ export class XESParser {
         unsatisfiedConditionDescription: eventData.unsatisfied_condition_description,
         processingTimeS: processingTimeS > 0 ? processingTimeS : null,
       };
+
+      // Debug failure descriptions
+      if (eventData['lifecycle:state'] === 'failure' && eventData.unsatisfied_condition_description) {
+        console.log('Found failure with description:', {
+          caseId: eventData.case_id,
+          activity: eventData.activity,
+          description: eventData.unsatisfied_condition_description?.substring(0, 100) + '...'
+        });
+      }
 
       events.push(processEvent);
 
