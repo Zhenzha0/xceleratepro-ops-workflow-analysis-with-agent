@@ -218,9 +218,13 @@ export default function DetailedAnomalyView({ anomalies, isLoading }: DetailedAn
     const currentTaskMatch = anomaly.details.match(/Current task: ([^,\n]+)/);
     const currentTask = currentTaskMatch ? currentTaskMatch[1] : undefined;
     
+    // Extract the full activity name from the description
+    const activityNameMatch = anomaly.description?.match(/^(.+?) operation exceeded expected time$/);
+    const fullActivityName = activityNameMatch ? activityNameMatch[1] : null;
+    
     return {
       caseId: anomaly.caseId || 'Unknown',
-      activity: anomaly.equipment || anomaly.title || 'Unknown Activity',
+      activity: fullActivityName || anomaly.equipment || 'Unknown Activity',
       timestamp: anomaly.timestamp,
       processingTime,
       plannedTime,
