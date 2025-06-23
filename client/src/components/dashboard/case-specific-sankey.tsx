@@ -114,14 +114,15 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
         const nextActivity = caseActivities[i + 1];
         
         // Check if activities are linked based on timing rules:
-        // - nextActivity.startTime - currentActivity.completeTime should be small negative, zero, or small positive
+        // - nextActivity.scheduledTime - currentActivity.completeTime should be small negative, zero, or small positive  
         const currentCompleteTime = new Date(currentActivity.completeTime).getTime();
         const nextStartTime = new Date(nextActivity.startTime).getTime();
         const timeDifference = (nextStartTime - currentCompleteTime) / 1000; // Convert to seconds
         
-        // Only link if timing difference indicates they are related (small negative, zero, or reasonable positive)
-        // Allow up to 60 seconds gap for reasonable workflow transitions, and small negatives for overlaps
-        if (timeDifference >= -30 && timeDifference <= 60) {
+        // Only link if timing difference indicates they are related
+        // Allow small negative (up to -5 seconds for processing overlaps) or positive gaps (up to 30 seconds for realistic transitions)
+        // Large negative differences (like -39 seconds) indicate they are NOT linked
+        if (timeDifference >= -5 && timeDifference <= 30) {
           const sourceIndex = nodeMap.get(currentActivity.activity)!;
           const targetIndex = nodeMap.get(nextActivity.activity)!;
           

@@ -67,8 +67,10 @@ export default function ProcessMap({ filteredData }: { filteredData?: any }) {
         const currentStartTime = new Date(currentActivity.startTime).getTime();
         const timeDiff = (currentStartTime - prevEndTime) / 1000; // seconds
         
-        // Activities are connected if time difference is small (within 60 seconds)
-        if (timeDiff >= -5 && timeDiff <= 60) {
+        // Activities are connected only if timing indicates they are truly linked
+        // Allow small negative (up to -5 seconds) or positive gaps (up to 30 seconds)
+        // Large negative differences indicate they are NOT linked
+        if (timeDiff >= -5 && timeDiff <= 30) {
           connections.push({
             from: prevActivity.activity,
             to: currentActivity.activity,
