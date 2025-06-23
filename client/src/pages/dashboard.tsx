@@ -23,8 +23,17 @@ export default function Dashboard() {
     caseIds: [] as string[]
   });
 
+  // Separate state for actually applied filters
+  const [appliedFilters, setAppliedFilters] = useState<typeof filters | null>(null);
+
   const [activeTab, setActiveTab] = useState('dashboard');
-  const { metrics, anomalies, cases, activities, filteredData, isLoading } = useDashboardData(filters);
+  const { metrics, anomalies, cases, activities, filteredData, isLoading, applyFilters } = useDashboardData(filters, appliedFilters);
+
+  // Handle apply filters button click
+  const handleApplyFilters = () => {
+    setAppliedFilters(filters);
+    applyFilters(filters);
+  };
   
   // Debug filtered data in dashboard
   console.log('Dashboard - filteredData:', filteredData);

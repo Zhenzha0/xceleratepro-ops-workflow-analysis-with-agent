@@ -22,10 +22,11 @@ interface FilterSectionProps {
     _timestamp?: number;
   };
   onFiltersChange: (filters: any) => void;
+  onApplyFilters?: () => void;
   metrics?: DashboardMetrics;
 }
 
-export default function FilterSection({ filters, onFiltersChange, metrics }: FilterSectionProps) {
+export default function FilterSection({ filters, onFiltersChange, onApplyFilters, metrics }: FilterSectionProps) {
   const [availableCases, setAvailableCases] = useState<string[]>([]);
   const [availableEquipment, setAvailableEquipment] = useState<string[]>([]);
   const [totalCaseCount, setTotalCaseCount] = useState<number>(0);
@@ -66,17 +67,8 @@ export default function FilterSection({ filters, onFiltersChange, metrics }: Fil
       [key]: value
     };
     
-    // Auto-apply filters when dataset size or scope type changes to update bottleneck analysis
-    if (key === 'datasetSize' || key === 'scopeType') {
-      // Add timestamp to force refresh
-      const refreshedFilters = { 
-        ...newFilters, 
-        _timestamp: Date.now()
-      };
-      onFiltersChange(refreshedFilters);
-    } else {
-      onFiltersChange(newFilters);
-    }
+    // Only update filter state, don't auto-apply
+    onFiltersChange(newFilters);
   };
 
   const handleApplyFilters = async () => {
@@ -88,21 +80,17 @@ export default function FilterSection({ filters, onFiltersChange, metrics }: Fil
         button.disabled = true;
       }
       
-      // Force a refresh by creating a new filter object with a timestamp to ensure React Query detects the change
-      const refreshedFilters = { 
-        ...filters, 
-        _timestamp: Date.now() // Add timestamp to force query refresh
-      };
+      console.log('Applying filters:', filters);
       
-      console.log('Applying filters:', refreshedFilters);
-      
-      // Apply the filter changes - this will trigger anomaly detection and all analysis to re-run
-      onFiltersChange(refreshedFilters);
+      // Trigger the actual filter application through the parent component
+      if (onApplyFilters) {
+        onApplyFilters();
+      }
       
       // Reset button after a delay
       setTimeout(() => {
         if (button) {
-          button.textContent = 'Apply Filters';
+          button.textContent = 'Apply Filters & Regenerate Analysis';
           button.disabled = false;
         }
       }, 1500);

@@ -15,28 +15,34 @@ interface DashboardFilters {
   _timestamp?: number;
 }
 
-export function useDashboardData(filters: DashboardFilters) {
+export function useDashboardData(filters: DashboardFilters, appliedFilters?: DashboardFilters) {
   const queryClient = useQueryClient();
 
-  // Dashboard metrics query
+  // Use appliedFilters for actual data fetching, or default filters if no applied filters yet
+  const activeFilters = appliedFilters || filters;
+
+  // Dashboard metrics query - only use base data without filters
   const metricsQuery = useQuery({
     queryKey: ['/api/dashboard/metrics'],
     queryFn: () => api.getDashboardMetrics(),
-    refetchInterval: 30000, // Refetch every 30 seconds for real-time updates
+    refetchInterval: 30000,
+    enabled: !appliedFilters, // Disable when using filtered data
   });
 
-  // Anomaly alerts query
+  // Anomaly alerts query - only use base data without filters
   const anomaliesQuery = useQuery({
     queryKey: ['/api/dashboard/anomalies'],
     queryFn: () => api.getAnomalyAlerts(10),
-    refetchInterval: 15000, // Refetch every 15 seconds for real-time anomaly detection
+    refetchInterval: 15000,
+    enabled: !appliedFilters, // Disable when using filtered data
   });
 
-  // Process cases query
+  // Process cases query - only use base data without filters
   const casesQuery = useQuery({
     queryKey: ['/api/process/cases'],
     queryFn: () => api.getProcessCases({ limit: 50 }),
-    refetchInterval: 60000, // Refetch every minute
+    refetchInterval: 60000,
+    enabled: !appliedFilters, // Disable when using filtered data
   });
 
   // Health status query
@@ -46,11 +52,11 @@ export function useDashboardData(filters: DashboardFilters) {
     refetchInterval: 30000,
   });
 
-  // Comprehensive filtered data query - applies to ALL analysis including anomaly detection
+  // Comprehensive filtered data query - only triggered when appliedFilters exist
   const filteredDataQuery = useQuery({
-    queryKey: ['/api/dashboard/filter', filters],
-    queryFn: () => api.filterDashboardData(filters),
-    enabled: true, // Always enabled to get scoped data
+    queryKey: ['/api/dashboard/filter', activeFilters],
+    queryFn: () => api.filterDashboardData(activeFilters),
+    enabled: !!appliedFilters, // Only enabled when appliedFilters exist
   });
 
   // Auto-import sample data if no data exists
@@ -105,7 +111,9 @@ export function useDashboardData(filters: DashboardFilters) {
 
   // Function to apply new filters
   const applyFilters = (newFilters: DashboardFilters) => {
-    queryClient.invalidateQueries({ queryKey: ['/api/dashboard/filter'] });
+    // Invalidate the filter query with the new filters to trigger re-fetch
+    queryClient.invalidateQueries({ queryKey: ['/api/dashboard/filter', newFilters] });
+    return newFilters; // Return the filters so parent can update applied filters state
   };
 
   return {
