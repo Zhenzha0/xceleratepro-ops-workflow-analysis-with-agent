@@ -224,20 +224,45 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
 
-    const width = 800;
+    const width = 1000;
     const height = 500;
-    const margin = { top: 20, right: 30, bottom: 30, left: 20 };
+    const margin = { top: 40, right: 200, bottom: 40, left: 60 };
 
     const { nodes, links } = buildCaseSankeyData(caseActivities);
     if (!nodes.length) return;
 
-    // Create custom layout for manufacturing process flow
-    const nodeWidth = 15;
-    const nodeHeight = 40;
-    const horizontalSpacing = 150;
-    const verticalSpacing = 60;
+    // Calculate proper Sankey layout with node heights based on flow
+    const nodeWidth = 20;
+    const minNodeHeight = 30;
+    const maxNodeHeight = 80;
+    const horizontalSpacing = 200;
+    const verticalPadding = 10;
     
-    // Group nodes by station type
+    // Calculate flow values for each node
+    const nodeFlowIn = new Map<number, number>();
+    const nodeFlowOut = new Map<number, number>();
+    
+    nodes.forEach((node, index) => {
+      nodeFlowIn.set(index, 0);
+      nodeFlowOut.set(index, 0);
+    });
+    
+    // Calculate incoming and outgoing flows
+    links.forEach(link => {
+      const sourceIndex = typeof link.source === 'number' ? link.source : 0;
+      const targetIndex = typeof link.target === 'number' ? link.target : 0;
+      const flow = link.value;
+      
+      nodeFlowOut.set(sourceIndex, (nodeFlowOut.get(sourceIndex) || 0) + flow);
+      nodeFlowIn.set(targetIndex, (nodeFlowIn.get(targetIndex) || 0) + flow);
+    });
+    
+    // Calculate node heights based on max flow (in or out)
+    const maxFlow = Math.max(...nodes.map((_, index) => 
+      Math.max(nodeFlowIn.get(index) || 0, nodeFlowOut.get(index) || 0)
+    ));
+    
+    // Group nodes by station type for horizontal positioning
     const stationGroups = new Map<string, number[]>();
     nodes.forEach((node, index) => {
       const category = node.category;
@@ -247,33 +272,57 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
       stationGroups.get(category)!.push(index);
     });
     
-    // Layout nodes by station groups
+    // Calculate layout
     const stationGroupArray = Array.from(stationGroups.entries());
-    const layoutNodes = nodes.map((node, index) => {
+    let layoutNodes = nodes.map((node, index) => {
       // Find which station group this node belongs to
       let groupIndex = 0;
-      let positionInGroup = 0;
       
       for (let i = 0; i < stationGroupArray.length; i++) {
         const [category, nodeIndices] = stationGroupArray[i];
-        const indexInGroup = nodeIndices.indexOf(index);
-        if (indexInGroup >= 0) {
+        if (nodeIndices.includes(index)) {
           groupIndex = i;
-          positionInGroup = indexInGroup;
           break;
         }
       }
       
+      // Calculate node height based on flow
+      const maxNodeFlow = Math.max(nodeFlowIn.get(index) || 0, nodeFlowOut.get(index) || 0);
+      const heightRatio = maxFlow > 0 ? maxNodeFlow / maxFlow : 0;
+      const nodeHeight = minNodeHeight + (maxNodeHeight - minNodeHeight) * heightRatio;
+      
       const x = margin.left + groupIndex * horizontalSpacing;
-      const y = margin.top + positionInGroup * verticalSpacing;
       
       return {
         ...node,
         x0: x,
         x1: x + nodeWidth,
-        y0: y,
-        y1: y + nodeHeight
+        y0: 0, // Will be calculated below
+        y1: nodeHeight,
+        nodeHeight,
+        groupIndex,
+        flowIn: nodeFlowIn.get(index) || 0,
+        flowOut: nodeFlowOut.get(index) || 0
       };
+    });
+    
+    // Position nodes vertically within each group to center them
+    stationGroupArray.forEach(([category, nodeIndices], groupIndex) => {
+      const groupNodes = nodeIndices.map(i => layoutNodes[i]);
+      const totalHeight = groupNodes.reduce((sum, node) => sum + node.nodeHeight + verticalPadding, -verticalPadding);
+      const availableHeight = height - margin.top - margin.bottom;
+      const startY = margin.top + (availableHeight - totalHeight) / 2;
+      
+      let currentY = Math.max(margin.top, startY);
+      groupNodes.forEach((node, i) => {
+        const nodeIndex = nodeIndices[i];
+        layoutNodes[nodeIndex] = {
+          ...layoutNodes[nodeIndex],
+          y0: currentY,
+          y1: currentY + node.nodeHeight
+        };
+        currentY += node.nodeHeight + verticalPadding;
+      });
     });
 
     const g = svg.append("g");
@@ -283,39 +332,87 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
       .domain(['hbw', 'vgr', 'ov', 'wt', 'pm', 'dm', 'mm', 'unknown'])
       .range(['#06b6d4', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#6366f1', '#ec4899', '#6b7280']);
 
-    // Draw links first (so they appear behind nodes)
+    // Calculate link positions for proper Sankey flow
+    const calculateLinkPositions = () => {
+      // Track vertical positions for each node's links
+      const nodeSourceY = new Map<number, number>();
+      const nodeTargetY = new Map<number, number>();
+      
+      layoutNodes.forEach((node, index) => {
+        nodeSourceY.set(index, node.y0!);
+        nodeTargetY.set(index, node.y0!);
+      });
+      
+      return links.map(link => {
+        const sourceIndex = typeof link.source === 'number' ? link.source : 0;
+        const targetIndex = typeof link.target === 'number' ? link.target : 0;
+        const sourceNode = layoutNodes[sourceIndex];
+        const targetNode = layoutNodes[targetIndex];
+        
+        if (!sourceNode || !targetNode) return null;
+        
+        // Calculate link thickness based on flow value
+        const linkHeight = Math.max(8, link.value * 15);
+        
+        // Get current positions and update for next link
+        const sourceY = nodeSourceY.get(sourceIndex)!;
+        const targetY = nodeTargetY.get(targetIndex)!;
+        
+        nodeSourceY.set(sourceIndex, sourceY + linkHeight + 2);
+        nodeTargetY.set(targetIndex, targetY + linkHeight + 2);
+        
+        return {
+          ...link,
+          sourceIndex,
+          targetIndex,
+          x0: sourceNode.x1,
+          y0: sourceY,
+          x1: targetNode.x0,
+          y1: targetY,
+          linkHeight
+        };
+      }).filter(Boolean);
+    };
+    
+    const linkPositions = calculateLinkPositions();
+
+    // Draw links as filled paths (proper Sankey style)
     const link = g.append("g")
       .selectAll(".link")
-      .data(links)
+      .data(linkPositions)
       .enter().append("path")
       .attr("class", "link")
       .attr("d", (d: any) => {
-        const sourceNode = layoutNodes[typeof d.source === 'number' ? d.source : 0];
-        const targetNode = layoutNodes[typeof d.target === 'number' ? d.target : 0];
+        if (!d) return "";
         
-        if (!sourceNode || !targetNode) return "";
+        const x0 = d.x0;
+        const y0 = d.y0;
+        const x1 = d.x1;
+        const y1 = d.y1;
+        const thickness = d.linkHeight;
         
-        const x0 = sourceNode.x1!;
-        const y0 = sourceNode.y0! + (sourceNode.y1! - sourceNode.y0!) / 2;
-        const x1 = targetNode.x0!;
-        const y1 = targetNode.y0! + (targetNode.y1! - targetNode.y0!) / 2;
-        
-        // Create curved path
+        // Create proper Sankey curve that fills the thickness
         const curvature = 0.5;
         const xi = d3.interpolateNumber(x0, x1);
         const x2 = xi(curvature);
         const x3 = xi(1 - curvature);
         
-        return `M${x0},${y0}C${x2},${y0} ${x3},${y1} ${x1},${y1}`;
+        // Create the path for the filled area
+        return `
+          M${x0},${y0}
+          C${x2},${y0} ${x3},${y1} ${x1},${y1}
+          L${x1},${y1 + thickness}
+          C${x3},${y1 + thickness} ${x2},${y0 + thickness} ${x0},${y0 + thickness}
+          Z
+        `;
       })
-      .style("fill", "none")
-      .style("stroke", "#999")
-      .style("stroke-width", (d: any) => Math.max(1, d.value * 2))
-      .style("stroke-opacity", 0.6)
+      .style("fill", "#94a3b8")
+      .style("fill-opacity", 0.6)
+      .style("stroke", "none")
       .on("mouseover", function(event: any, d: any) {
-        d3.select(this).style("stroke-opacity", 0.8);
-        const sourceNode = layoutNodes[typeof d.source === 'number' ? d.source : 0];
-        const targetNode = layoutNodes[typeof d.target === 'number' ? d.target : 0];
+        d3.select(this).style("fill-opacity", 0.8);
+        const sourceNode = layoutNodes[d.sourceIndex];
+        const targetNode = layoutNodes[d.targetIndex];
         
         setTooltip({
           x: event.pageX,
@@ -324,7 +421,7 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
         });
       })
       .on("mouseout", function(event: any, d: any) {
-        d3.select(this).style("stroke-opacity", 0.6);
+        d3.select(this).style("fill-opacity", 0.6);
         setTooltip(null);
       })
       .on("click", function(event: any, d: any) {
@@ -364,16 +461,30 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
         setSelectedLink(null);
       });
 
-    // Add labels to nodes
+    // Add labels to nodes (positioned to the right)
     node.append("text")
-      .attr("x", (d: any) => (d.x0 + d.x1) / 2)
+      .attr("x", (d: any) => d.x1 + 8)
       .attr("y", (d: any) => (d.y0 + d.y1) / 2)
       .attr("dy", "0.35em")
-      .attr("text-anchor", "middle")
+      .attr("text-anchor", "start")
+      .style("font-size", "12px")
+      .style("fill", "#374151")
+      .style("font-weight", "600")
+      .style("font-family", "system-ui, -apple-system, sans-serif")
+      .text((d: any) => {
+        const name = d.name.replace(/^\//, '');
+        return name.length > 20 ? name.substring(0, 17) + "..." : name;
+      });
+    
+    // Add smaller category labels below the main label
+    node.append("text")
+      .attr("x", (d: any) => d.x1 + 8)
+      .attr("y", (d: any) => (d.y0 + d.y1) / 2 + 14)
+      .attr("text-anchor", "start")
       .style("font-size", "10px")
-      .style("fill", "white")
-      .style("font-weight", "bold")
-      .text((d: any) => d.name.length > 15 ? d.name.substring(0, 12) + "..." : d.name);
+      .style("fill", "#6b7280")
+      .style("font-weight", "400")
+      .text((d: any) => `${d.category} (${d.totalOccurrences}×)`);
   };
 
   useEffect(() => {
@@ -454,7 +565,7 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
               ref={svgRef}
               width="100%"
               height="500"
-              viewBox="0 0 800 500"
+              viewBox="0 0 1000 500"
               style={{ transform: `scale(${zoomLevel})` }}
               className="border rounded"
             />
@@ -464,7 +575,7 @@ export default function CaseSpecificSankey({ activities }: CaseSpecificSankeyPro
               <div
                 className="absolute z-50 px-2 py-1 text-sm bg-black text-white rounded shadow-lg pointer-events-none"
                 style={{
-                  left: tooltip.x - 400,
+                  left: tooltip.x - 500,
                   top: tooltip.y - 200,
                   whiteSpace: 'pre-line'
                 }}
