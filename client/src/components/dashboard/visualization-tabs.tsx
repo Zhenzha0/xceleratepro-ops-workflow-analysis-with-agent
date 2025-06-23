@@ -7,6 +7,7 @@ import ProcessMap from "./process-map";
 import DetailedAnomalyView from "./detailed-anomaly-view";
 import BottleneckAnalysisDetailed from "./bottleneck-analysis-detailed";
 import CaseSpecificSankey from "./case-specific-sankey";
+import TimelineAnalysis from "./timeline-analysis";
 
 export default function VisualizationTabs({ filteredData }: { filteredData?: any }) {
   const [activeTab, setActiveTab] = useState("process-map");
@@ -20,11 +21,6 @@ export default function VisualizationTabs({ filteredData }: { filteredData?: any
   const { data: metrics } = useQuery({
     queryKey: ['/api/dashboard/metrics'],
     queryFn: () => api.getDashboardMetrics(),
-  });
-
-  const { data: processEvents } = useQuery({
-    queryKey: ['/api/process/events'],
-    queryFn: () => api.getProcessEvents({ limit: 1000 }),
   });
 
   return (
@@ -58,48 +54,7 @@ export default function VisualizationTabs({ filteredData }: { filteredData?: any
         </TabsContent>
         
         <TabsContent value="timeline" className="mt-0">
-          <CardContent className="p-6">
-            <div className="bg-white rounded-lg border p-4">
-              <h3 className="text-lg font-semibold mb-4">Timeline Analysis - Process Performance</h3>
-              <div className="h-80 bg-gray-50 rounded p-4 relative">
-                <div className="flex items-end justify-around h-full">
-                  {[
-                    {time: '00:00', height: 60, processing: 12, throughput: 45, color: 'bg-blue-500'},
-                    {time: '04:00', height: 75, processing: 15, throughput: 38, color: 'bg-purple-500'},
-                    {time: '08:00', height: 90, processing: 18, throughput: 42, color: 'bg-red-500'},
-                    {time: '12:00', height: 100, processing: 22, throughput: 35, color: 'bg-yellow-500'},
-                    {time: '16:00', height: 85, processing: 19, throughput: 40, color: 'bg-green-500'},
-                    {time: '20:00', height: 70, processing: 14, throughput: 44, color: 'bg-cyan-500'}
-                  ].map((item, i) => (
-                    <div key={i} className="flex flex-col items-center h-full justify-end">
-                      <div 
-                        className={`w-12 rounded-t ${item.color} border border-white shadow-sm`}
-                        style={{height: `${item.height}%`}}
-                      ></div>
-                      <div className="text-xs mt-2 text-center">
-                        <div className="font-medium">{item.time}</div>
-                        <div className="text-gray-600">{item.processing}s</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">15s</div>
-                  <div className="text-gray-600">Avg Processing Time</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">40</div>
-                  <div className="text-gray-600">Cases/Hour</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-red-600">170</div>
-                  <div className="text-gray-600">Anomalies Detected</div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
+          <TimelineAnalysis filteredData={filteredData} />
         </TabsContent>
         
         <TabsContent value="bottlenecks" className="mt-0">
