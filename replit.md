@@ -132,6 +132,7 @@ The application has a sidebar navigation with different sections:
 - June 23, 2025. Fixed critical activity deduplication issue across all components - each activity now counted once instead of triple-counting from 3 event logs per activity
 - June 23, 2025. Implemented proper timing-based activity linking in Sankey diagram - activities only connected when timing difference between complete/start times indicates actual workflow relationship (allowing -30 to +60 seconds for realistic transitions)
 - June 23, 2025. Fixed dashboard metrics calculations: corrected bottleneck detection thresholds and success rate calculation bug caused by string concatenation in database count operations
+- June 23, 2025. Enhanced Timeline Analysis with comprehensive Y-axis labeling showing all activities and severity-based anomaly classification: blue dots for normal activities, yellow diamonds for moderate anomalies (50-200% deviation), red diamonds for severe anomalies (>200% deviation)
 
 ## User Preferences
 

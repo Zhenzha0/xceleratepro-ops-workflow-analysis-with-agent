@@ -24,6 +24,7 @@ interface TimelineDataPoint {
   activity: string;
   activityIndex: number;
   type: 'normal' | 'anomaly';
+  severity: 'high' | 'medium' | 'low';
   caseId: string;
   equipment: string;
   duration: number;
@@ -64,12 +65,25 @@ export default function TimelineAnalysis({ filteredData }: TimelineAnalysisProps
                        (activity.actualDurationS && activity.plannedDurationS && 
                         Math.abs(activity.actualDurationS - activity.plannedDurationS) > 60);
       
+      // Determine severity based on duration deviation
+      let severity: 'high' | 'medium' | 'low' = 'low';
+      if (isAnomaly && activity.actualDurationS && activity.plannedDurationS) {
+        const deviation = Math.abs(activity.actualDurationS - activity.plannedDurationS);
+        const deviationPercent = (deviation / activity.plannedDurationS) * 100;
+        if (deviationPercent > 200) {
+          severity = 'high'; // More than 200% deviation = severe (red)
+        } else if (deviationPercent > 50) {
+          severity = 'medium'; // 50-200% deviation = moderate (yellow)
+        }
+      }
+      
       return {
         time: startTime.getTime(),
         timeString: format(startTime, 'HH:mm:ss MMM dd'),
         activity: activity.activity,
         activityIndex: activityIndexMap.get(activity.activity) || 0,
         type: isAnomaly ? 'anomaly' : 'normal',
+        severity,
         caseId: activity.caseId,
         equipment: activity.orgResource || 'Unknown',
         duration: activity.actualDurationS || 0,
@@ -77,13 +91,15 @@ export default function TimelineAnalysis({ filteredData }: TimelineAnalysisProps
       };
     });
     
-    // Separate normal and anomaly data for different scatter series
+    // Separate data by type and severity
     const normalData = dataPoints.filter(point => point.type === 'normal');
-    const anomalyData = dataPoints.filter(point => point.type === 'anomaly');
+    const severeAnomalyData = dataPoints.filter(point => point.type === 'anomaly' && point.severity === 'high');
+    const moderateAnomalyData = dataPoints.filter(point => point.type === 'anomaly' && point.severity === 'medium');
     
     return {
       normalData,
-      anomalyData,
+      severeAnomalyData,
+      moderateAnomalyData,
       activityLabels: uniqueActivities
     };
   }, [filteredData]);
@@ -112,7 +128,9 @@ export default function TimelineAnalysis({ filteredData }: TimelineAnalysisProps
   };
 
   const formatYAxisActivity = (tickItem: number) => {
-    return timelineData.activityLabels[tickItem] || '';
+    const activityName = timelineData.activityLabels[tickItem] || '';
+    // Truncate long activity names for better display
+    return activityName.length > 20 ? activityName.substring(0, 20) + '...' : activityName;
   };
 
   if (!filteredData?.activities || filteredData.activities.length === 0) {
@@ -141,8 +159,12 @@ export default function TimelineAnalysis({ filteredData }: TimelineAnalysisProps
               <span>Normal Activities</span>
             </div>
             <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+              <span>Moderate Anomalies</span>
+            </div>
+            <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-              <span>Anomalous Activities</span>
+              <span>Severe Anomalies</span>
             </div>
           </div>
         </CardTitle>
@@ -169,7 +191,9 @@ export default function TimelineAnalysis({ filteredData }: TimelineAnalysisProps
                 tickFormatter={formatYAxisActivity}
                 name="Activity"
                 label={{ value: 'Activities', angle: -90, position: 'insideLeft' }}
-                width={150}
+                width={180}
+                interval={0}
+                ticks={Array.from({ length: timelineData.activityLabels.length }, (_, i) => i)}
               />
               <Tooltip content={customTooltip} />
               <Legend />
@@ -184,10 +208,21 @@ export default function TimelineAnalysis({ filteredData }: TimelineAnalysisProps
                 strokeWidth={1}
               />
               
-              {/* Anomalous activities - red diamonds */}
+              {/* Moderate anomalies - yellow dots */}
               <Scatter
-                name="Anomalous Activities"
-                data={timelineData.anomalyData}
+                name="Moderate Anomalies"
+                data={timelineData.moderateAnomalyData}
+                fill="#eab308"
+                fillOpacity={0.8}
+                stroke="#ca8a04"
+                strokeWidth={2}
+                shape="diamond"
+              />
+              
+              {/* Severe anomalies - red diamonds */}
+              <Scatter
+                name="Severe Anomalies"
+                data={timelineData.severeAnomalyData}
                 fill="#ef4444"
                 fillOpacity={0.8}
                 stroke="#dc2626"
@@ -200,8 +235,8 @@ export default function TimelineAnalysis({ filteredData }: TimelineAnalysisProps
         
         <div className="mt-4 text-sm text-gray-600">
           <p>
-            Showing {timelineData.normalData.length + timelineData.anomalyData.length} activities 
-            ({timelineData.normalData.length} normal, {timelineData.anomalyData.length} anomalous)
+            Showing {timelineData.normalData.length + timelineData.severeAnomalyData.length + timelineData.moderateAnomalyData.length} activities 
+            ({timelineData.normalData.length} normal, {timelineData.moderateAnomalyData.length} moderate anomalies, {timelineData.severeAnomalyData.length} severe anomalies)
           </p>
         </div>
       </CardContent>
