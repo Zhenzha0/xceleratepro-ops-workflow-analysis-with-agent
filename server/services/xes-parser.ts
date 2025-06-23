@@ -29,41 +29,26 @@ export interface XESEvent {
 
 export class XESParser {
   private static parseCSVRow(row: string): string[] {
-    // Parse CSV row handling commas in the last column (failure descriptions)
-    const parts = [];
-    let current = '';
-    let parenDepth = 0;
-    let braceDepth = 0;
-    let quoteDepth = 0;
+    // Simple but effective approach: split by comma but rejoin the last column
+    // since failure descriptions contain commas
+    const parts = row.split(',');
     
-    for (let i = 0; i < row.length; i++) {
-      const char = row[i];
-      
-      // Track nesting levels
-      if (char === '(') parenDepth++;
-      else if (char === ')') parenDepth--;
-      else if (char === '{') braceDepth++;
-      else if (char === '}') braceDepth--;
-      else if (char === "'") quoteDepth = quoteDepth === 0 ? 1 : 0;
-      
-      // Split on comma only if we're not inside nested structures
-      if (char === ',' && parenDepth === 0 && braceDepth === 0 && quoteDepth === 0) {
-        parts.push(current.trim());
-        current = '';
-      } else {
-        current += char;
+    // We expect 21 columns total
+    if (parts.length <= 21) {
+      // Pad with empty strings if we have fewer columns
+      while (parts.length < 21) {
+        parts.push('');
       }
+      return parts;
     }
     
-    // Add the last part
-    parts.push(current.trim());
+    // If we have more than 21 parts, the extra commas are in the failure description
+    // Take first 20 columns as-is, then join the rest as the failure description
+    const result = parts.slice(0, 20);
+    const failureDescription = parts.slice(20).join(',');
+    result.push(failureDescription);
     
-    // Ensure we have exactly 21 columns by padding with empty strings if needed
-    while (parts.length < 21) {
-      parts.push('');
-    }
-    
-    return parts;
+    return result;
   }
 
   private static parseTimeToSeconds(timeStr: string): number {
@@ -223,11 +208,13 @@ export class XESParser {
       };
 
       // Debug failure descriptions
-      if (eventData['lifecycle:state'] === 'failure' && eventData.unsatisfied_condition_description) {
-        console.log('Found failure with description:', {
+      if (eventData['lifecycle:state'] === 'failure') {
+        console.log('Processing failure event:', {
           caseId: eventData.case_id,
           activity: eventData.activity,
-          description: eventData.unsatisfied_condition_description?.substring(0, 100) + '...'
+          hasDescription: !!eventData.unsatisfied_condition_description,
+          descriptionLength: eventData.unsatisfied_condition_description?.length || 0,
+          description: eventData.unsatisfied_condition_description?.substring(0, 50) || 'NONE'
         });
       }
 
