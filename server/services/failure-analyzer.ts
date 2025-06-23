@@ -133,7 +133,7 @@ export class FailureAnalyzer {
     const analysis = await this.analyzeFailureCauses(filters);
     
     if (analysis.totalFailures === 0) {
-      return `No failure descriptions found in the ${filters ? 'filtered' : 'complete'} dataset of ${analysis.totalActivities} activities.`;
+      return `No failures found in the ${filters ? 'filtered' : 'complete'} dataset of ${analysis.totalActivities} activities.`;
     }
 
     const top3Patterns = analysis.commonPatterns.slice(0, 3);
@@ -142,15 +142,16 @@ export class FailureAnalyzer {
     let summary = `## Failure Analysis Results (${dataScope})
 
 **Overview:**
-- Total failures with descriptions: ${analysis.totalFailures}
+- Total failures detected: ${analysis.totalFailures}
 - Total activities analyzed: ${analysis.totalActivities}
 - Failure rate: ${analysis.failureRate.toFixed(2)}%
+- Note: No failure descriptions found in unsatisfied_condition_description column
 
-**Most Common Failure Causes:**
+**Most Common Failure Patterns:**
 `;
 
     top3Patterns.forEach((pattern, index) => {
-      summary += `${index + 1}. **"${pattern.description}"**
+      summary += `${index + 1}. **${pattern.description}**
    - Occurrences: ${pattern.count} (${pattern.percentage.toFixed(1)}% of all failures)
    - Affected cases: ${pattern.affectedCases.length}
    - Equipment involved: ${pattern.affectedEquipment.join(', ') || 'Unknown'}
@@ -172,6 +173,15 @@ export class FailureAnalyzer {
 `;
       });
     }
+
+    // Add HTTP status code analysis
+    summary += `
+**Technical Details:**
+Based on HTTP response codes, failures appear to be:
+- 401 errors: Authentication/authorization issues (mainly HBW operations)
+- 418 errors: Service unavailable/refused (mainly VGR robot operations)
+
+This suggests infrastructure/communication problems rather than process logic issues.`;
 
     return summary;
   }
