@@ -283,14 +283,14 @@ export class AIAnalyst {
 
       if (queryType === 'bottleneck_analysis') {
         const bottleneckData = await storage.getBottleneckAnalysis();
-        const activities = await storage.getProcessActivities();
         
         // Use our anomaly detector for bottleneck identification
-        const bottlenecks = AnomalyDetector.identifyBottlenecks(activities);
+        const { AnomalyDetector } = await import('./anomaly-detector.js');
+        const bottlenecks = AnomalyDetector.identifyBottlenecks(scopedActivities);
         
         data.bottlenecks = bottleneckData;
         data.detailedBottlenecks = bottlenecks;
-        data.summary.bottleneckStations = 0;
+        data.summary.bottleneckStations = Array.isArray(bottlenecks) ? bottlenecks.length : 0;
       }
 
       if (queryType === 'performance_analysis' || queryType === 'general_analysis') {
@@ -364,36 +364,66 @@ SEMANTIC SEARCH RESULTS:
     }
 
     if (queryType === 'bottleneck_analysis' && relevantData.detailedBottlenecks) {
+      const bottleneckCount = Array.isArray(relevantData.detailedBottlenecks) ? relevantData.detailedBottlenecks.length : 0;
       contextualPrompt += `
 
 BOTTLENECK ANALYSIS:
-- Identified bottlenecks: ${relevantData.detailedBottlenecks.activities.length}
+- Identified bottlenecks: ${bottleneckCount}
 - Analysis includes processing time and wait time evaluation
 - Resource utilization patterns analyzed`;
     }
 
+    // Add data scope transparency
+    const dataScope = relevantData?.summary?.dataScope || 'unknown';
+    const totalActivities = relevantData?.summary?.totalActivities || 0;
+    const totalCases = relevantData?.summary?.totalCases || 0;
+    const appliedFilters = relevantData?.summary?.appliedFilters;
+    
     contextualPrompt += `
 
+DATA ANALYSIS SCOPE:
+- Dataset: ${dataScope} (${totalActivities} activities, ${totalCases} cases)
+${appliedFilters ? `- Applied filters: ${JSON.stringify(appliedFilters, null, 2)}` : '- No filters applied (full dataset)'}
+
+REQUIRED RESPONSE FORMAT:
+Structure your analysis using these exact markdown sections:
+
+## Executive Summary
+Brief overview of key findings from the ${dataScope} dataset analysis
+
+## Key Performance Metrics
+• Total activities analyzed: ${totalActivities}
+• Total cases analyzed: ${totalCases}
+• [Include actual calculated metrics from the data]
+
+## Critical Issues Identified
+• [List specific issues with case IDs and equipment details]
+
+## Data Quality Assessment
+• Data completeness: [assessment based on actual data]
+• Analysis confidence: [high/medium/low with reasoning]
+• Scope limitations: [any constraints from filtering]
+
+## Visual Analysis
+• [Key patterns observed in the filtered/full dataset]
+
+## Recommendations
+• [Specific actionable steps with priorities]
+
 Instructions:
-1. Provide data-driven insights using the advanced analysis results
+1. Use the advanced analysis results from the ${dataScope} dataset
 2. Reference specific case IDs, equipment, and calculated metrics
-3. Explain patterns found through clustering, anomaly detection, or semantic analysis
-4. Offer actionable recommendations based on statistical findings
-5. Format response as JSON with these fields:
-   - response: Your detailed analysis (string)
+3. Show transparency about what data subset was analyzed
+4. Format response as JSON with:
+   - response: Your structured analysis (string with markdown)
    - suggestedActions: Array of recommended actions (array of strings)
-   - visualizationHint: Suggest relevant charts or visualizations (string)
-   - contextData: Any additional structured data for the frontend (object)
+   - visualizationHint: Suggest relevant charts (string)
 
-5. For manufacturing context:
-   - HBW = High Bay Warehouse (storage/retrieval)
-   - VGR = Robot for transport/manipulation  
-   - OV = Oven for heating/processing
-   - MM = Milling Machine for precision machining
-   - SM = Sorting Machine for quality control
-   - Activities follow: scheduled → start → complete lifecycle
+Manufacturing context:
+- HBW = High Bay Warehouse, VGR = Robot, OV = Oven, MM = Mill, SM = Sort
+- Activities: scheduled → start → complete lifecycle
 
-Be precise, professional, and focus on manufacturing process optimization insights.`;
+Be precise, data-driven, and transparent about analysis scope.`;
     
     return contextualPrompt;
   }
