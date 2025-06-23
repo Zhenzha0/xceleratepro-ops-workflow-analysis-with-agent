@@ -185,8 +185,8 @@ export default function CaseClustering({ filters }: CaseClusteringProps) {
                     </div>
 
                     <div className="mb-3">
-                      <p className="text-sm text-gray-700 font-medium">Process Flow:</p>
-                      <p className="text-sm bg-white p-2 rounded border mt-1 font-mono">
+                      <p className="text-sm text-gray-700 font-medium">Workflow Pattern:</p>
+                      <p className="text-sm bg-white p-2 rounded border mt-1">
                         {cluster.processSignature}
                       </p>
                     </div>

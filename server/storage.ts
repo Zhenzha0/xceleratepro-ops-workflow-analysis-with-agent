@@ -488,19 +488,74 @@ export class DatabaseStorage implements IStorage {
         return acc;
       }, {} as Record<string, ProcessActivity[]>);
 
-      // Create process signatures for each case
+      // Create process signatures for each case using advanced pattern analysis
       const caseSignatures = Object.entries(caseActivitiesMap).map(([caseId, activities]) => {
-        // Sort activities by start time to create process flow signature
         const sortedActivities = activities
           .filter(a => a.startTime) // Only include activities with timing data
           .sort((a, b) => new Date(a.startTime!).getTime() - new Date(b.startTime!).getTime());
         
-        const signature = sortedActivities.map(a => a.activity).join(' -> ');
+        // Extract process pattern components
+        const activitySet = new Set(sortedActivities.map(a => a.activity));
+        const activitySequence = sortedActivities.map(a => a.activity);
+        const resourcePattern = sortedActivities.map(a => a.orgResource || 'unknown').filter((r, i, arr) => arr.indexOf(r) === i);
+        
+        // Detect parallel activities (activities with overlapping time windows)
+        const parallelGroups = [];
+        for (let i = 0; i < sortedActivities.length; i++) {
+          const current = sortedActivities[i];
+          const currentStart = new Date(current.startTime!).getTime();
+          const currentEnd = new Date(current.completeTime || current.startTime!).getTime();
+          
+          const parallel = sortedActivities.filter((other, j) => {
+            if (i === j) return false;
+            const otherStart = new Date(other.startTime!).getTime();
+            const otherEnd = new Date(other.completeTime || other.startTime!).getTime();
+            
+            // Check for time overlap (allowing 30 second tolerance)
+            return (otherStart <= currentEnd + 30000) && (otherEnd >= currentStart - 30000);
+          });
+          
+          if (parallel.length > 0) {
+            parallelGroups.push([current.activity, ...parallel.map(p => p.activity)]);
+          }
+        }
+        
+        // Detect loops (repeated activities)
+        const activityCounts = activitySequence.reduce((acc, activity) => {
+          acc[activity] = (acc[activity] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+        const repeatedActivities = Object.entries(activityCounts).filter(([_, count]) => count > 1);
+        
+        // Create multi-dimensional signature
+        const signature = {
+          // Core activity set (unordered)
+          activitySet: Array.from(activitySet).sort().join('|'),
+          // Sequential pattern (preserving order)
+          sequence: activitySequence.join('->'),
+          // Resource utilization pattern
+          resources: resourcePattern.sort().join('|'),
+          // Parallel execution patterns
+          parallelism: parallelGroups.length > 0 ? parallelGroups.map(g => g.sort().join('+')).join('||') : 'linear',
+          // Loop patterns
+          loops: repeatedActivities.length > 0 ? repeatedActivities.map(([act, count]) => `${act}x${count}`).join('|') : 'none'
+        };
+        
+        // Create composite signature for clustering
+        const compositeSignature = `${signature.activitySet}#${signature.parallelism}#${signature.loops}`;
         
         return {
           caseId,
-          signature,
-          activities: sortedActivities
+          signature: compositeSignature,
+          detailedSignature: signature,
+          activities: sortedActivities,
+          flowComplexity: {
+            activityCount: activitySet.size,
+            sequenceLength: activitySequence.length,
+            parallelGroups: parallelGroups.length,
+            repeatedActivities: repeatedActivities.length,
+            resourceTypes: resourcePattern.length
+          }
         };
       });
 
@@ -517,6 +572,9 @@ export class DatabaseStorage implements IStorage {
       const clusters: CaseCluster[] = Object.entries(signatureGroups)
         .map(([signature, cases], index) => {
           const allActivitiesInCluster = cases.flatMap(c => c.activities);
+          
+          // Get detailed signature for display
+          const detailedSig = cases[0].detailedSignature;
           
           // Calculate cluster metrics
           const avgProcessingTime = allActivitiesInCluster.length > 0
@@ -561,9 +619,14 @@ export class DatabaseStorage implements IStorage {
             }
           });
 
+          // Create human-readable process signature
+          const readableSignature = `${detailedSig.activitySet.split('|').length} activities` +
+            (detailedSig.parallelism !== 'linear' ? ` (${detailedSig.parallelism.split('||').length} parallel groups)` : '') +
+            (detailedSig.loops !== 'none' ? ` with loops: ${detailedSig.loops}` : '');
+
           return {
             clusterId: index + 1,
-            processSignature: signature,
+            processSignature: readableSignature,
             caseCount: cases.length,
             caseIds: cases.map(c => c.caseId),
             avgProcessingTime,
