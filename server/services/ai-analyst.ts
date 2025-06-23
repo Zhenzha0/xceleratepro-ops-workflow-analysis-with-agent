@@ -1,6 +1,8 @@
 import OpenAI from "openai";
 import { ProcessEvent, ProcessActivity, ProcessCase, AnomalyAlert } from '@shared/schema';
 import { storage } from '../storage';
+import { AnomalyDetector } from './anomaly-detector';
+import { SemanticSearch } from './semantic-search';
 
 const openai = new OpenAI({ 
   apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || "default_key"
@@ -83,12 +85,14 @@ export class AIAnalyst {
     
     if (queryLower.includes('compare') && queryLower.includes('case')) {
       return 'case_comparison';
+    } else if (queryLower.includes('cluster') || queryLower.includes('group') || queryLower.includes('similar')) {
+      return 'clustering_analysis';
     } else if (queryLower.includes('anomal') || queryLower.includes('abnormal')) {
       return 'anomaly_analysis';
     } else if (queryLower.includes('bottleneck') || queryLower.includes('slow') || queryLower.includes('delay')) {
       return 'bottleneck_analysis';
     } else if (queryLower.includes('failure') || queryLower.includes('error') || queryLower.includes('fail')) {
-      return 'failure_analysis';
+      return 'semantic_search';
     } else if (queryLower.includes('equipment') || queryLower.includes('machine') || queryLower.includes('resource')) {
       return 'equipment_analysis';
     } else if (queryLower.includes('time') || queryLower.includes('duration') || queryLower.includes('performance')) {
@@ -114,10 +118,58 @@ export class AIAnalyst {
         data.summary.casesCompared = caseIdMatches;
       }
 
+      if (queryType === 'clustering_analysis') {
+        const clusteringData = await storage.getCaseClusterAnalysis({
+          mode: 'advanced',
+          maxClusters: 10,
+          start: 0,
+          n: 100
+        });
+        data.clustering = clusteringData;
+        data.summary.clustersFound = clusteringData.clusters.length;
+        data.summary.totalPatterns = clusteringData.totalPatterns;
+      }
+
       if (queryType === 'anomaly_analysis') {
-        const anomalies = await storage.getAnomalyAlerts(10);
+        const anomalies = await storage.getAnomalyAlerts(15);
+        const activities = await storage.getProcessActivities();
+        
+        // Use our anomaly detector for deeper analysis
+        const recentActivities = activities.slice(0, 50);
+        const anomalyAnalysis = recentActivities.map(activity => {
+          const timeAnomaly = AnomalyDetector.analyzeProcessingTimeAnomaly(
+            activity,
+            activities.filter(a => a.activity === activity.activity)
+          );
+          return { activity, anomaly: timeAnomaly };
+        }).filter(result => result.anomaly.isAnomaly);
+
         data.anomalies = anomalies;
+        data.detailedAnomalies = anomalyAnalysis;
         data.summary.anomalyCount = anomalies.length;
+        data.summary.detectedAnomalies = anomalyAnalysis.length;
+      }
+
+      if (queryType === 'semantic_search') {
+        // Use semantic search for failure analysis
+        const searchResults = await SemanticSearch.searchWithContext(
+          query,
+          { caseId: caseIdMatches?.[0] }
+        );
+        data.semanticResults = searchResults;
+        data.summary.similarFailures = Array.isArray(searchResults) ? searchResults.length : searchResults.results?.length || 0;
+      }
+
+      if (queryType === 'bottleneck_analysis') {
+        const bottleneckData = await storage.getBottleneckAnalysis();
+        const activities = await storage.getProcessActivities();
+        
+        // Use our anomaly detector for bottleneck identification
+        const bottlenecks = AnomalyDetector.identifyBottlenecks(activities);
+        
+        data.bottlenecks = bottleneckData;
+        data.detailedBottlenecks = bottlenecks;
+        data.summary.bottleneckStations = bottlenecks.activities.length;
       }
 
       if (queryType === 'performance_analysis' || queryType === 'general_analysis') {
@@ -147,25 +199,67 @@ export class AIAnalyst {
   }
 
   private static buildSystemPrompt(queryType: string, relevantData: any): string {
-    return `You are an AI Process Mining Analyst specializing in manufacturing workflow analysis. You have access to real manufacturing process data from an IoT-enriched smart factory.
+    let contextualPrompt = `You are ProcessGPT, an intelligent manufacturing analyst specializing in process mining and workflow optimization. You have access to real manufacturing data and powerful analysis tools.
 
-Your expertise includes:
-- Manufacturing process mining and workflow analysis
-- Anomaly detection in production lines
-- Equipment performance analysis (High Bay Warehouse, VGR Robot, Oven, Milling Machine, Sorting Machine)
-- Case-by-case comparison and bottleneck identification
-- Failure pattern analysis and root cause investigation
+Your advanced capabilities include:
+- Real-time anomaly detection using IQR and statistical analysis
+- Semantic similarity search for failure pattern matching
+- Multi-dimensional case clustering for workflow pattern discovery
+- Bottleneck identification with processing time analysis
+- Equipment performance monitoring (HBW, VGR, Oven, Mill, Sort stations)
+- Case-by-case comparison with detailed activity mapping
 
-Current data context:
+Current analysis context:
 ${JSON.stringify(relevantData.summary, null, 2)}
 
-Query type: ${queryType}
+Query classification: ${queryType}`;
+
+    // Add specialized context based on analysis type
+    if (queryType === 'clustering_analysis' && relevantData.clustering) {
+      contextualPrompt += `
+
+CLUSTERING ANALYSIS DATA:
+- Found ${relevantData.clustering.clusters.length} distinct workflow patterns
+- Coverage: ${(relevantData.clustering.coverage * 100).toFixed(1)}%
+- Anomaly rate: ${(relevantData.clustering.anomalyRate * 100).toFixed(1)}%
+- Top patterns: ${relevantData.clustering.clusters.slice(0, 3).map(c => c.processSignature).join(', ')}`;
+    }
+
+    if (queryType === 'anomaly_analysis' && relevantData.detailedAnomalies) {
+      contextualPrompt += `
+
+ANOMALY DETECTION RESULTS:
+- Statistical anomalies detected: ${relevantData.detailedAnomalies.length}
+- Analysis method: IQR-based time deviation detection
+- Alert threshold: Activities exceeding normal processing time ranges`;
+    }
+
+    if (queryType === 'semantic_search' && relevantData.semanticResults) {
+      contextualPrompt += `
+
+SEMANTIC SEARCH RESULTS:
+- Similar failure patterns found: ${relevantData.semanticResults.length}
+- Using AI embedding similarity matching
+- Context-aware failure description analysis`;
+    }
+
+    if (queryType === 'bottleneck_analysis' && relevantData.detailedBottlenecks) {
+      contextualPrompt += `
+
+BOTTLENECK ANALYSIS:
+- Identified bottlenecks: ${relevantData.detailedBottlenecks.activities.length}
+- Analysis includes processing time and wait time evaluation
+- Resource utilization patterns analyzed`;
+    }
+
+    contextualPrompt += `
 
 Instructions:
-1. Provide accurate, data-driven analysis based on the provided manufacturing data
-2. Use specific case IDs, equipment names, and metrics when available
-3. Offer actionable insights and recommendations
-4. Format your response as JSON with these fields:
+1. Provide data-driven insights using the advanced analysis results
+2. Reference specific case IDs, equipment, and calculated metrics
+3. Explain patterns found through clustering, anomaly detection, or semantic analysis
+4. Offer actionable recommendations based on statistical findings
+5. Format response as JSON with these fields:
    - response: Your detailed analysis (string)
    - suggestedActions: Array of recommended actions (array of strings)
    - visualizationHint: Suggest relevant charts or visualizations (string)
