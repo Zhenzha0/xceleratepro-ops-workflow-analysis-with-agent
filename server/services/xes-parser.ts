@@ -27,6 +27,41 @@ export interface XESEvent {
 }
 
 export class XESParser {
+  private static parseCSVRow(row: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    let i = 0;
+    
+    while (i < row.length) {
+      const char = row[i];
+      const nextChar = row[i + 1];
+      
+      if (char === '"') {
+        if (inQuotes && nextChar === '"') {
+          // Handle escaped quotes
+          current += '"';
+          i += 2;
+          continue;
+        } else {
+          // Toggle quote state
+          inQuotes = !inQuotes;
+        }
+      } else if (char === ',' && !inQuotes) {
+        // End of field
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+      i++;
+    }
+    
+    // Add the last field
+    result.push(current.trim());
+    return result;
+  }
+
   private static parseTimeToSeconds(timeStr: string): number {
     if (!timeStr || timeStr.trim() === '') return 0;
     
@@ -141,7 +176,7 @@ export class XESParser {
       const line = lines[i].trim();
       if (!line) continue;
       
-      const values = line.split(',');
+      const values = this.parseCSVRow(line);
       const eventData: any = {};
       
       headers.forEach((header, index) => {
