@@ -523,6 +523,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Case Clustering Analysis Route
+  app.get("/api/case-clustering", async (req, res) => {
+    try {
+      const { 
+        mode = 'dataset', 
+        maxClusters = 10, 
+        start = 0, 
+        n = 100,
+        startTime,
+        endTime 
+      } = req.query;
+
+      const clusters = await storage.getCaseClusterAnalysis({
+        mode: mode as string,
+        maxClusters: parseInt(maxClusters as string),
+        start: parseInt(start as string),
+        n: parseInt(n as string),
+        startTime: startTime as string,
+        endTime: endTime as string
+      });
+
+      res.json(clusters);
+    } catch (error) {
+      console.error("Case clustering error:", error);
+      res.status(500).json({ error: "Failed to perform case clustering analysis" });
+    }
+  });
+
   // Health Check Route
   app.get("/api/health", async (req, res) => {
     try {

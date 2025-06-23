@@ -201,3 +201,36 @@ export interface SemanticSearchResult {
   activity: string;
   similarity: number;
 }
+
+export interface CaseCluster {
+  clusterId: number;
+  processSignature: string;
+  caseCount: number;
+  caseIds: string[];
+  avgProcessingTime: number;
+  avgDuration: number;
+  totalDuration: number;
+  anomalyCount: number;
+  bottleneckActivity: string;
+  bottleneckAvgTime: number;
+  coverage: number;
+  anomalyRate: number;
+}
+
+export interface CaseClusterAnalysis {
+  totalCases: number;
+  totalPatterns: number;
+  coverage: number;
+  anomalyRate: number;
+  clusters: CaseCluster[];
+  timelineData: TimelineActivity[];
+}
+
+export interface TimelineActivity {
+  caseId: string;
+  activity: string;
+  timestamp: Date;
+  duration: number;
+  isAnomaly: boolean;
+  clusterId: number;
+}

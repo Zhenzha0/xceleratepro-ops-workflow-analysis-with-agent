@@ -74,6 +74,16 @@ export interface IStorage {
   bulkInsertProcessEvents(events: InsertProcessEvent[]): Promise<void>;
   bulkInsertProcessActivities(activities: InsertProcessActivity[]): Promise<void>;
   bulkInsertProcessCases(cases: InsertProcessCase[]): Promise<void>;
+  
+  // Case clustering methods
+  getCaseClusterAnalysis(params: {
+    mode: string;
+    maxClusters: number;
+    start: number;
+    n: number;
+    startTime?: string;
+    endTime?: string;
+  }): Promise<CaseClusterAnalysis>;
 }
 
 export class DatabaseStorage implements IStorage {
