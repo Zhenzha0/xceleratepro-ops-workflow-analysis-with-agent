@@ -218,7 +218,7 @@ export default function DetailedAnomalyView({ anomalies, isLoading }: DetailedAn
     const currentTaskMatch = anomaly.details.match(/Current task: ([^,\n]+)/);
     const currentTask = currentTaskMatch ? currentTaskMatch[1] : undefined;
     
-    // Extract the full activity name from the description
+    // Extract the full activity name from the description (e.g., "/wt/pick_up_and_transport")
     const activityNameMatch = anomaly.description?.match(/^(.+?) operation exceeded expected time$/);
     const fullActivityName = activityNameMatch ? activityNameMatch[1] : null;
     
@@ -251,7 +251,7 @@ export default function DetailedAnomalyView({ anomalies, isLoading }: DetailedAn
     return acc;
   }, {} as Record<string, AnomalyDetailRow[]>);
 
-  // Find most problematic activities
+  // Find most problematic activities (using extracted full activity names)
   const problematicActivities = Object.entries(activityPatterns)
     .map(([activity, rows]) => ({
       activity,
