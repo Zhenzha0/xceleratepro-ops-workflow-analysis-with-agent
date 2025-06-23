@@ -23,6 +23,131 @@ interface AIAssistantProps {
   appliedFilters?: any;
 }
 
+// Component to format assistant messages with proper React elements
+function FormattedMessage({ content }: { content: string }) {
+  const formatContent = () => {
+    const lines = content.split('\n');
+    const elements: React.ReactNode[] = [];
+    let currentSection: React.ReactNode[] = [];
+    
+    lines.forEach((line, index) => {
+      // Headers
+      if (line.startsWith('## ')) {
+        if (currentSection.length > 0) {
+          elements.push(<div key={`section-${elements.length}`} className="mb-4">{currentSection}</div>);
+          currentSection = [];
+        }
+        elements.push(
+          <div key={`header-${index}`} className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-3 mt-4 first:mt-0 pb-2 border-b border-gray-200 dark:border-gray-600">
+            {line.substring(3)}
+          </div>
+        );
+      }
+      // Subheaders
+      else if (line.startsWith('### ')) {
+        currentSection.push(
+          <div key={`subheader-${index}`} className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-2 mt-3">
+            {line.substring(4)}
+          </div>
+        );
+      }
+      // Bullet points
+      else if (line.startsWith('• ')) {
+        const bulletContent = line.substring(2);
+        const formattedBullet = formatInlineContent(bulletContent);
+        currentSection.push(
+          <div key={`bullet-${index}`} className="flex items-start space-x-2 mb-2 ml-4">
+            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+            <span className="text-sm">{formattedBullet}</span>
+          </div>
+        );
+      }
+      // Regular content
+      else if (line.trim()) {
+        const formattedLine = formatInlineContent(line);
+        currentSection.push(
+          <div key={`line-${index}`} className="text-sm leading-relaxed mb-2">
+            {formattedLine}
+          </div>
+        );
+      }
+      // Empty lines
+      else {
+        currentSection.push(<br key={`br-${index}`} />);
+      }
+    });
+    
+    if (currentSection.length > 0) {
+      elements.push(<div key={`section-final`} className="mb-4">{currentSection}</div>);
+    }
+    
+    return elements;
+  };
+  
+  const formatInlineContent = (text: string): React.ReactNode => {
+    const parts: React.ReactNode[] = [];
+    let remaining = text;
+    let key = 0;
+    
+    // Process bold text
+    remaining = remaining.replace(/\*\*(.*?)\*\*/g, (match, content) => {
+      const placeholder = `__BOLD_${key}__`;
+      parts.push(<strong key={`bold-${key}`} className="font-semibold text-gray-900 dark:text-gray-100">{content}</strong>);
+      key++;
+      return placeholder;
+    });
+    
+    // Process equipment/activity names
+    remaining = remaining.replace(/(\/[\w\/]+)/g, (match) => {
+      const placeholder = `__CODE_${key}__`;
+      parts.push(<code key={`code-${key}`} className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded text-xs font-mono">{match}</code>);
+      key++;
+      return placeholder;
+    });
+    
+    // Process case IDs
+    remaining = remaining.replace(/(WF_\d+(?:_\d+)?)/g, (match) => {
+      const placeholder = `__CASE_${key}__`;
+      parts.push(<span key={`case-${key}`} className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded text-xs font-medium">{match}</span>);
+      key++;
+      return placeholder;
+    });
+    
+    // Process percentages
+    remaining = remaining.replace(/(\b\d+(?:\.\d+)?%)\b/g, (match) => {
+      const placeholder = `__PCT_${key}__`;
+      parts.push(<span key={`pct-${key}`} className="font-medium text-blue-600 dark:text-blue-400">{match}</span>);
+      key++;
+      return placeholder;
+    });
+    
+    // Process numbers with units
+    remaining = remaining.replace(/(\b\d+(?:\.\d+)?\s*(?:cases?|activities?|failures?|seconds?)\b)/gi, (match) => {
+      const placeholder = `__NUM_${key}__`;
+      parts.push(<span key={`num-${key}`} className="font-medium text-green-600 dark:text-green-400">{match}</span>);
+      key++;
+      return placeholder;
+    });
+    
+    // Split by placeholders and reconstruct
+    const tokens = remaining.split(/(__[A-Z]+_\d+__)/);
+    const result: React.ReactNode[] = [];
+    
+    tokens.forEach((token, index) => {
+      if (token.startsWith('__') && token.endsWith('__')) {
+        const partIndex = parseInt(token.match(/\d+/)?.[0] || '0');
+        result.push(parts[partIndex]);
+      } else if (token) {
+        result.push(token);
+      }
+    });
+    
+    return result.length === 1 ? result[0] : result;
+  };
+  
+  return <div>{formatContent()}</div>;
+}
+
 
 
 export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
@@ -37,33 +162,6 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
     }
   ]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-
-  // Format assistant messages with better HTML styling
-  const formatAssistantMessage = (content: string): string => {
-    return content
-      // Headers
-      .replace(/## (.*?)$/gm, '<h3 class="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2 mt-4 first:mt-0">$1</h3>')
-      .replace(/### (.*?)$/gm, '<h4 class="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1 mt-3">$1</h4>')
-      
-      // Bold text
-      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-gray-900 dark:text-gray-100">$1</strong>')
-      
-      // Bullet points
-      .replace(/^• (.*?)$/gm, '<div class="flex items-start space-x-2 mb-1"><div class="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div><span>$1</span></div>')
-      
-      // Numbers/metrics highlighting
-      .replace(/(\d+(?:\.\d+)?%?)/g, '<span class="font-medium text-blue-600 dark:text-blue-400">$1</span>')
-      
-      // Equipment/activity names (starting with /)
-      .replace(/(\/\w+(?:\/\w+)*)/g, '<code class="px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs font-mono">$1</code>')
-      
-      // Case IDs (WF_xxx format)
-      .replace(/(WF_\d+(?:_\d+)?)/g, '<span class="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded text-xs font-medium">$1</span>')
-      
-      // Line breaks
-      .replace(/\n\n/g, '<br><br>')
-      .replace(/\n/g, '<br>');
-  };
 
   // Fetch conversation history
   const { data: conversationHistory } = useQuery({
@@ -182,12 +280,56 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
                 } rounded-2xl p-4`}>
                   <div className="prose prose-sm max-w-none dark:prose-invert">
                     {message.role === 'assistant' ? (
-                      <div 
-                        className="text-sm leading-relaxed whitespace-pre-wrap"
-                        dangerouslySetInnerHTML={{
-                          __html: formatAssistantMessage(message.content)
-                        }}
-                      />
+                      <div className="text-sm leading-relaxed">
+                        {message.content.split('\n').map((line, lineIndex) => {
+                          // Headers
+                          if (line.startsWith('## ')) {
+                            return (
+                              <div key={lineIndex} className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-3 mt-4 first:mt-0 pb-2 border-b border-gray-200 dark:border-gray-600">
+                                {line.substring(3)}
+                              </div>
+                            );
+                          }
+                          // Subheaders
+                          if (line.startsWith('### ')) {
+                            return (
+                              <div key={lineIndex} className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-2 mt-3">
+                                {line.substring(4)}
+                              </div>
+                            );
+                          }
+                          // Bullet points
+                          if (line.startsWith('• ')) {
+                            const content = line.substring(2);
+                            // Simple highlighting for common patterns
+                            const highlightedContent = content
+                              .replace(/(\/[\w\/]+)/g, '<code class="px-1 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded text-xs font-mono">$1</code>')
+                              .replace(/(WF_\d+(?:_\d+)?)/g, '<span class="px-1 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded text-xs font-medium">$1</span>')
+                              .replace(/(\d+(?:\.\d+)?%)/g, '<span class="font-medium text-blue-600 dark:text-blue-400">$1</span>');
+                            
+                            return (
+                              <div key={lineIndex} className="flex items-start space-x-2 mb-2">
+                                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                                <span className="text-sm" dangerouslySetInnerHTML={{ __html: highlightedContent }}></span>
+                              </div>
+                            );
+                          }
+                          // Regular lines
+                          if (line.trim()) {
+                            const highlightedLine = line
+                              .replace(/(\/[\w\/]+)/g, '<code class="px-1 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded text-xs font-mono">$1</code>')
+                              .replace(/(WF_\d+(?:_\d+)?)/g, '<span class="px-1 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded text-xs font-medium">$1</span>')
+                              .replace(/(\d+(?:\.\d+)?%)/g, '<span class="font-medium text-blue-600 dark:text-blue-400">$1</span>')
+                              .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>');
+                            
+                            return (
+                              <div key={lineIndex} className="mb-2" dangerouslySetInnerHTML={{ __html: highlightedLine }}></div>
+                            );
+                          }
+                          // Empty lines
+                          return <br key={lineIndex} />;
+                        })}
+                      </div>
                     ) : (
                       <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
                     )}
