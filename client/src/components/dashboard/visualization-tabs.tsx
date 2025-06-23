@@ -23,6 +23,12 @@ export default function VisualizationTabs({ filteredData }: { filteredData?: any
     queryFn: () => api.getDashboardMetrics(),
   });
 
+  // Fetch anomaly data for detailed analysis
+  const { data: anomalies, isLoading: anomaliesLoading } = useQuery({
+    queryKey: ['/api/dashboard/anomalies'],
+    queryFn: () => api.getAnomalyAlerts(),
+  });
+
   return (
     <Card className="mb-6">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -63,7 +69,10 @@ export default function VisualizationTabs({ filteredData }: { filteredData?: any
 
         <TabsContent value="anomaly-details" className="mt-0">
           <CardContent className="p-6">
-            <DetailedAnomalyView anomalies={[]} isLoading={false} />
+            <DetailedAnomalyView 
+              anomalies={filteredData?.anomalies || anomalies || []} 
+              isLoading={anomaliesLoading} 
+            />
           </CardContent>
         </TabsContent>
       </Tabs>
