@@ -153,144 +153,127 @@ export class XESParser {
     activities: InsertProcessActivity[];
     cases: InsertProcessCase[];
   }> {
-    const csvContent = await fs.promises.readFile(csvPath, 'utf-8');
-    const lines = csvContent.split('\n');
-    const headers = lines[0].split(',');
-    
     const events: InsertProcessEvent[] = [];
     const activityMap = new Map<string, Map<string, Partial<InsertProcessActivity>>>();
     const caseMap = new Map<string, Partial<InsertProcessCase>>();
 
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-      
-      const values = this.parseCSVRow(line);
-      const eventData: any = {};
-      
-      headers.forEach((header, index) => {
-        eventData[header] = values[index] || null;
-      });
+    // Use proper CSV parser to handle complex failure descriptions
+    const csvData: any[] = [];
+    
+    return new Promise((resolve, reject) => {
+      fs.createReadStream(csvPath)
+        .pipe(csv())
+        .on('data', (eventData) => {
 
-      // Parse timestamps
-      const timestamp = new Date(eventData.timestamp);
-      const operationEndTime = eventData.operation_end_time ? new Date(eventData.operation_end_time) : null;
-      
-      // Calculate processing time if available
-      let processingTimeS = 0;
-      if (eventData.complete_service_time) {
-        processingTimeS = this.parseTimeToSeconds(eventData.complete_service_time);
-      }
+            // Parse timestamps
+            const timestamp = new Date(eventData.timestamp);
+            const operationEndTime = eventData.operation_end_time ? new Date(eventData.operation_end_time) : null;
+            
+            // Calculate processing time if available
+            let processingTimeS = 0;
+            if (eventData.complete_service_time) {
+              processingTimeS = this.parseTimeToSeconds(eventData.complete_service_time);
+            }
 
-      // Create process event
-      const processEvent: InsertProcessEvent = {
-        caseId: eventData.case_id,
-        timestamp,
-        operationEndTime,
-        lifecycleTransition: eventData['lifecycle:transition'],
-        lifecycleState: eventData['lifecycle:state'],
-        eventId: eventData.event_id && !isNaN(parseInt(eventData.event_id)) ? parseInt(eventData.event_id) : 0,
-        identifierId: eventData['identifier:id'],
-        processModelId: eventData.process_model_id,
-        activity: eventData.activity,
-        requestedServiceUrl: eventData.requested_service_url,
-        orgResource: eventData['org:resource'],
-        plannedOperationTime: eventData.planned_operation_time,
-        parameters: eventData.parameters,
-        caseConceptName: eventData['case:concept:name'],
-        subProcessId: eventData.SubProcessID,
-        currentTask: eventData.current_task,
-        responseStatusCode: eventData.response_status_code && !isNaN(parseInt(eventData.response_status_code)) ? parseInt(eventData.response_status_code) : null,
-        completeServiceTime: eventData.complete_service_time,
-        humanWorkstationGreenButtonPressed: eventData.human_workstation_green_button_pressed === '1',
-        unsatisfiedConditionDescription: eventData.unsatisfied_condition_description,
-        processingTimeS: processingTimeS > 0 ? processingTimeS : null,
-      };
+            // Create process event
+            const processEvent: InsertProcessEvent = {
+              caseId: eventData.case_id,
+              timestamp,
+              operationEndTime,
+              lifecycleTransition: eventData['lifecycle:transition'],
+              lifecycleState: eventData['lifecycle:state'],
+              eventId: eventData.event_id && !isNaN(parseInt(eventData.event_id)) ? parseInt(eventData.event_id) : 0,
+              identifierId: eventData['identifier:id'],
+              processModelId: eventData.process_model_id,
+              activity: eventData.activity,
+              requestedServiceUrl: eventData.requested_service_url,
+              orgResource: eventData['org:resource'],
+              plannedOperationTime: eventData.planned_operation_time,
+              parameters: eventData.parameters,
+              caseConceptName: eventData['case:concept:name'],
+              subProcessId: eventData.SubProcessID,
+              currentTask: eventData.current_task,
+              responseStatusCode: eventData.response_status_code && !isNaN(parseInt(eventData.response_status_code)) ? parseInt(eventData.response_status_code) : null,
+              completeServiceTime: eventData.complete_service_time,
+              humanWorkstationGreenButtonPressed: eventData.human_workstation_green_button_pressed === '1',
+              unsatisfiedConditionDescription: eventData.unsatisfied_condition_description,
+              processingTimeS: processingTimeS > 0 ? processingTimeS : null,
+            };
 
-      // Debug failure descriptions
-      if (eventData['lifecycle:state'] === 'failure') {
-        console.log('Processing failure event:', {
-          caseId: eventData.case_id,
-          activity: eventData.activity,
-          hasDescription: !!eventData.unsatisfied_condition_description,
-          descriptionLength: eventData.unsatisfied_condition_description?.length || 0,
-          description: eventData.unsatisfied_condition_description?.substring(0, 50) || 'NONE'
-        });
-      }
+            events.push(processEvent);
 
-      events.push(processEvent);
+            // Build activities by merging lifecycle events
+            const caseId = eventData.case_id;
+            const activityKey = `${caseId}_${eventData.activity}_${eventData.event_id}`;
+            
+            if (!activityMap.has(caseId)) {
+              activityMap.set(caseId, new Map());
+            }
+            
+            if (!activityMap.get(caseId)!.has(activityKey)) {
+              activityMap.get(caseId)!.set(activityKey, {
+                caseId,
+                activity: eventData.activity,
+                orgResource: eventData['org:resource'],
+              });
+            }
 
-      // Build activities by merging lifecycle events
-      const caseId = eventData.case_id;
-      const activityKey = `${caseId}_${eventData.activity}_${eventData.event_id}`;
-      
-      if (!activityMap.has(caseId)) {
-        activityMap.set(caseId, new Map());
-      }
-      
-      if (!activityMap.get(caseId)!.has(activityKey)) {
-        activityMap.get(caseId)!.set(activityKey, {
-          caseId,
-          activity: eventData.activity,
-          orgResource: eventData['org:resource'],
-        });
-      }
+            const activity = activityMap.get(caseId)!.get(activityKey)!;
+            
+            // Map lifecycle events to activity timestamps
+            switch (eventData['lifecycle:transition']) {
+              case 'scheduled':
+                activity.scheduledTime = timestamp;
+                break;
+              case 'start':
+                activity.startTime = timestamp;
+                break;
+              case 'complete':
+                activity.completeTime = timestamp;
+                activity.status = eventData['lifecycle:state'];
+                if (processingTimeS > 0 && !isNaN(processingTimeS)) {
+                  activity.actualDurationS = processingTimeS;
+                }
+                if (eventData.unsatisfied_condition_description) {
+                  activity.failureDescription = eventData.unsatisfied_condition_description;
+                }
+                break;
+            }
 
-      const activity = activityMap.get(caseId)!.get(activityKey)!;
-      
-      // Map lifecycle events to activity timestamps
-      switch (eventData['lifecycle:transition']) {
-        case 'scheduled':
-          activity.scheduledTime = timestamp;
-          break;
-        case 'start':
-          activity.startTime = timestamp;
-          break;
-        case 'complete':
-          activity.completeTime = timestamp;
-          activity.status = eventData['lifecycle:state'];
-          if (processingTimeS > 0 && !isNaN(processingTimeS)) {
-            activity.actualDurationS = processingTimeS;
-          }
-          if (eventData.unsatisfied_condition_description) {
-            activity.failureDescription = eventData.unsatisfied_condition_description;
-          }
-          break;
-      }
+            // Calculate planned duration
+            if (eventData.planned_operation_time) {
+              const plannedDuration = this.parseTimeToSeconds(eventData.planned_operation_time);
+              activity.plannedDurationS = isNaN(plannedDuration) ? null : plannedDuration;
+            }
 
-      // Calculate planned duration
-      if (eventData.planned_operation_time) {
-        const plannedDuration = this.parseTimeToSeconds(eventData.planned_operation_time);
-        activity.plannedDurationS = isNaN(plannedDuration) ? null : plannedDuration;
-      }
+            // Track case-level information
+            if (!caseMap.has(caseId)) {
+              caseMap.set(caseId, {
+                caseId,
+                processModelId: eventData.process_model_id,
+                startTime: timestamp,
+                status: 'inProgress',
+                activityCount: 0,
+                failureCount: 0,
+                anomalyCount: 0,
+              });
+            }
 
-      // Track case-level information
-      if (!caseMap.has(caseId)) {
-        caseMap.set(caseId, {
-          caseId,
-          processModelId: eventData.process_model_id,
-          startTime: timestamp,
-          status: 'inProgress',
-          activityCount: 0,
-          failureCount: 0,
-          anomalyCount: 0,
-        });
-      }
-
-      const caseInfo = caseMap.get(caseId)!;
-      if (eventData['lifecycle:transition'] === 'complete') {
-        caseInfo.endTime = timestamp;
-        if (eventData['lifecycle:state'] === 'success') {
-          caseInfo.status = 'success';
-        } else if (eventData['lifecycle:state'] === 'failed') {
-          caseInfo.status = 'failed';
-          caseInfo.failureCount = (caseInfo.failureCount || 0) + 1;
-        }
-      }
-    }
-
-    // Convert activities map to array and calculate durations
-    const activities: InsertProcessActivity[] = [];
+            const caseInfo = caseMap.get(caseId)!;
+            if (eventData['lifecycle:transition'] === 'complete') {
+              caseInfo.endTime = timestamp;
+              if (eventData['lifecycle:state'] === 'success') {
+                caseInfo.status = 'success';
+              } else if (eventData['lifecycle:state'] === 'failed') {
+                caseInfo.status = 'failed';
+                caseInfo.failureCount = (caseInfo.failureCount || 0) + 1;
+              }
+            }
+        })
+        .on('end', () => {
+          try {
+            // Convert activities map to array and calculate durations
+            const activities: InsertProcessActivity[] = [];
     activityMap.forEach(caseActivities => {
       caseActivities.forEach(activity => {
         if (activity.startTime && activity.completeTime && !activity.actualDurationS) {
