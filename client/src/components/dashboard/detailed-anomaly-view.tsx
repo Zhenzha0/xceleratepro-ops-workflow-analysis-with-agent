@@ -222,9 +222,12 @@ export default function DetailedAnomalyView({ anomalies, isLoading }: DetailedAn
     const activityNameMatch = anomaly.description?.match(/^(.+?) operation exceeded expected time$/);
     const fullActivityName = activityNameMatch ? activityNameMatch[1] : null;
     
+    // Use the extracted full activity name, fallback to equipment code
+    const displayActivity = fullActivityName || anomaly.equipment || 'Unknown Activity';
+    
     return {
       caseId: anomaly.caseId || 'Unknown',
-      activity: fullActivityName || anomaly.equipment || 'Unknown Activity',
+      activity: displayActivity,
       timestamp: anomaly.timestamp,
       processingTime,
       plannedTime,

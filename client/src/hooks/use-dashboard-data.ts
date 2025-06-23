@@ -21,28 +21,25 @@ export function useDashboardData(filters: DashboardFilters, appliedFilters?: Das
   // Use appliedFilters for actual data fetching, or default filters if no applied filters yet
   const activeFilters = appliedFilters || filters;
 
-  // Dashboard metrics query - only use base data without filters
+  // Dashboard metrics query - always fetch base data
   const metricsQuery = useQuery({
     queryKey: ['/api/dashboard/metrics'],
     queryFn: () => api.getDashboardMetrics(),
     refetchInterval: 30000,
-    enabled: !appliedFilters, // Disable when using filtered data
   });
 
-  // Anomaly alerts query - only use base data without filters
+  // Anomaly alerts query - always fetch base data
   const anomaliesQuery = useQuery({
     queryKey: ['/api/dashboard/anomalies'],
     queryFn: () => api.getAnomalyAlerts(10),
     refetchInterval: 15000,
-    enabled: !appliedFilters, // Disable when using filtered data
   });
 
-  // Process cases query - only use base data without filters
+  // Process cases query - always fetch base data
   const casesQuery = useQuery({
     queryKey: ['/api/process/cases'],
     queryFn: () => api.getProcessCases({ limit: 50 }),
     refetchInterval: 60000,
-    enabled: !appliedFilters, // Disable when using filtered data
   });
 
   // Health status query
@@ -73,7 +70,7 @@ export function useDashboardData(filters: DashboardFilters, appliedFilters?: Das
           return { imported: true };
         } catch (error) {
           console.warn('Auto-import failed:', error);
-          return { imported: false, error: error.message };
+          return { imported: false, error: (error as Error).message || 'Unknown error' };
         }
       }
       return { imported: false, reason: 'Data already exists' };
