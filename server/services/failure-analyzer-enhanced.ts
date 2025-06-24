@@ -161,7 +161,7 @@ export class EnhancedFailureAnalyzer {
     console.log(`Found ${allFailureEvents.length} total failure events, ${failureEventsWithDescriptions.length} with root cause descriptions`);
 
     // Analyze actual failure causes from descriptions
-    const failureCauses = EnhancedFailureAnalyzer.categorizeFailureCauses(failureEventsWithDescriptions);
+    const failureCauses = this.categorizeFailureCauses(failureEventsWithDescriptions);
     
     // Create patterns prioritizing failure causes over activities
     const causePatterns = Object.entries(failureCauses)

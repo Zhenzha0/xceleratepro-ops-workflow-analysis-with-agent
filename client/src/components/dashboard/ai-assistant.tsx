@@ -11,6 +11,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { AIMessage } from './ai-message';
 
 interface ChatMessage {
   id: string;
@@ -474,12 +475,18 @@ export function AIAssistant({ appliedFilters }: AIAssistantProps) {
                     <div className={`rounded-lg p-3 ${
                       message.role === 'user' 
                         ? 'bg-blue-600 text-white' 
-                        : 'bg-gray-100 text-gray-900'
+                        : 'bg-transparent'
                     }`}>
-                      <div className="whitespace-pre-wrap text-sm">{message.content}</div>
-                      <div className="text-xs opacity-70 mt-1">
-                        {message.timestamp.toLocaleTimeString()}
-                      </div>
+                      {message.role === 'user' ? (
+                        <div>
+                          <div className="whitespace-pre-wrap text-sm">{message.content}</div>
+                          <div className="text-xs opacity-70 mt-1">
+                            {message.timestamp.toLocaleTimeString()}
+                          </div>
+                        </div>
+                      ) : (
+                        <AIMessage content={message.content} timestamp={message.timestamp} />
+                      )}
                     </div>
                   </div>
                 </div>
