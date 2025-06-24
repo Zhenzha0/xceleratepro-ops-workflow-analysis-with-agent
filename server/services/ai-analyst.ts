@@ -142,36 +142,38 @@ export class AIAnalyst {
                queryLower.includes('stuck') || queryLower.includes('wait')) {
       return 'bottleneck_analysis';
     } else if (queryLower.includes('failure') || queryLower.includes('error') || queryLower.includes('fail')) {
-      // Enhanced failure analysis classification with nuanced understanding
+      // Enhanced failure analysis classification with precise understanding
       
-      // 1. Activity failure rate analysis: "which activity has the most failures", "highest failure rate"
+      console.log('Classifying failure query:', query);
+      
+      // 1. ACTIVITY FAILURE RATE ANALYSIS: Questions about WHICH activities fail most
+      // "which activity has the most failures", "what activity has highest failure rate", "which activity fails most"
       if ((queryLower.includes('which') || queryLower.includes('what')) && 
           queryLower.includes('activit') && 
-          (queryLower.includes('most') || queryLower.includes('highest') || queryLower.includes('rate')) &&
+          (queryLower.includes('most') || queryLower.includes('highest') || queryLower.includes('rate') || queryLower.includes('fail')) &&
           !queryLower.includes('cause') && !queryLower.includes('reason') && !queryLower.includes('why')) {
+        console.log('→ Classified as: activity_failure_rate_analysis');
         return 'activity_failure_rate_analysis';
       }
       
-      // 2. Root cause analysis: "what causes failures", "most common causes"
-      if ((queryLower.includes('cause') || queryLower.includes('reason') || queryLower.includes('why') ||
-           queryLower.includes('root')) && 
-          !queryLower.includes('which activit') && !queryLower.includes('what activit')) {
+      // 2. ROOT CAUSE ANALYSIS: Questions about WHY failures happen
+      // "what causes failures", "most common causes", "what are the failure causes", "why do failures occur"
+      if (queryLower.includes('cause') || queryLower.includes('reason') || queryLower.includes('why') ||
+          (queryLower.includes('most') && queryLower.includes('common') && !queryLower.includes('activit')) ||
+          (queryLower.includes('what') && (queryLower.includes('most') || queryLower.includes('common')) && 
+           queryLower.includes('failure') && !queryLower.includes('activit'))) {
+        console.log('→ Classified as: activity_failure_cause_analysis');
         return 'activity_failure_cause_analysis';
       }
       
       // 3. Case-level failure analysis
       if (queryLower.includes('case') && !queryLower.includes('activit')) {
+        console.log('→ Classified as: case_failure_analysis');
         return 'case_failure_analysis';
       }
       
-      // 4. General activity failure questions with "most" or "common"
-      if ((queryLower.includes('most') || queryLower.includes('common')) && 
-          queryLower.includes('activit') &&
-          (queryLower.includes('cause') || queryLower.includes('reason'))) {
-        return 'activity_failure_cause_analysis';
-      }
-      
-      // 5. Default failure analysis
+      // 4. Default failure analysis
+      console.log('→ Classified as: failure_analysis (default)');
       return 'failure_analysis';
     } else if (queryLower.includes('search') || queryLower.includes('find') || queryLower.includes('similar')) {
       return 'semantic_search';
