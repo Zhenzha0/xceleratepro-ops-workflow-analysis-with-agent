@@ -28,6 +28,7 @@ interface AIAssistantProps {
 // Dynamic visualization component that generates charts based on AI response content
 function ContextualVisualization({ message, appliedFilters }: { message: ChatMessage; appliedFilters?: any }) {
   const [visualData, setVisualData] = useState<any>(null);
+  const [visualHistory, setVisualHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Analyze message content to determine what visualizations would be helpful
@@ -114,13 +115,16 @@ function ContextualVisualization({ message, appliedFilters }: { message: ChatMes
         }
         
         const peakHour = anomalyData.find(d => d.isTarget);
-        setVisualData({
+        const newVisual = {
+          id: Date.now() + Math.random(),
           type: 'anomaly_time_chart',
           title: 'Anomaly Concentration by Hour',
           subtitle: `Peak hour: ${peakHour?.hour || '14:00'} (${peakHour?.anomalies || 7} anomalies)`,
           data: anomalyData,
           methodology: 'Analyzed temporal patterns of anomalous activities to identify peak occurrence times'
-        });
+        };
+        setVisualData(newVisual);
+        setVisualHistory(prev => [...prev, newVisual]);
         setLoading(false);
         return;
       }
@@ -168,13 +172,16 @@ function ContextualVisualization({ message, appliedFilters }: { message: ChatMes
           }));
         }
         
-        setVisualData({
+        const newVisual = {
+          id: Date.now() + Math.random(),
           type: 'time_chart',
           title: 'Failure Concentration by Hour',
           subtitle: `Peak hour: ${timeData.find(d => d.isTarget)?.hour || '14:00'} (${timeData.find(d => d.isTarget)?.failures || 25} failures)`,
           data: timeData,
           methodology: 'Analyzed temporal patterns across all manufacturing activities to identify peak failure times'
-        });
+        };
+        setVisualData(newVisual);
+        setVisualHistory(prev => [...prev, newVisual]);
         setLoading(false);
         return;
       }
@@ -220,13 +227,16 @@ function ContextualVisualization({ message, appliedFilters }: { message: ChatMes
         
         // Only show visualization if we found actual cause data
         if (failureCauseData.length > 0) {
-          setVisualData({
+          const newVisual = {
+            id: Date.now() + Math.random(),
             type: 'failure_cause_pie',
             title: 'Failure Root Causes Analysis',
             subtitle: `Top Cause: ${failureCauseData[0]?.cause} (${failureCauseData[0]?.percentage}%)`,
             data: failureCauseData,
             methodology: 'Analyzed failure descriptions in unsatisfied_condition_description to categorize root causes'
-          });
+          };
+          setVisualData(newVisual);
+          setVisualHistory(prev => [...prev, newVisual]);
           setLoading(false);
           return;
         } else {
@@ -622,52 +632,52 @@ function ContextualVisualization({ message, appliedFilters }: { message: ChatMes
                     <Legend />
                   </RechartsPieChart>
                 </ResponsiveContainer>
-              ) : visualData?.type === 'anomaly_time_chart' ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={visualData.data} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis 
-                      dataKey="hour" 
-                      fontSize={10}
-                      tick={{ fill: '#6b7280' }}
-                      angle={-45}
-                      textAnchor="end"
-                      height={40}
-                      interval={1}
-                    />
-                    <YAxis 
-                      fontSize={11}
-                      tick={{ fill: '#6b7280' }}
-                      label={{ value: 'Anomalies', angle: -90, position: 'insideLeft' }}
-                    />
-                    <Tooltip 
-                      formatter={(value: any, name: any, props: any) => {
-                        const isTarget = props.payload.isTarget;
-                        return [
-                          `${value} anomalies${isTarget ? ' (Peak hour)' : ''}`, 
-                          'Anomaly Count'
-                        ];
-                      }}
-                      labelFormatter={(label: any) => `Time: ${label}`}
-                      contentStyle={{
-                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '8px',
-                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                      }}
-                    />
-                    <Bar 
-                      dataKey="anomalies" 
-                      fill={(entry: any) => entry.isTarget ? '#f59e0b' : '#3b82f6'} 
-                      name="Anomalies" 
-                      radius={[2, 2, 0, 0]}
-                    >
-                      {visualData.data.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={entry.isTarget ? '#f59e0b' : '#3b82f6'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                    ) : visual?.type === 'anomaly_time_chart' ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={visual.data} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis 
+                            dataKey="hour" 
+                            fontSize={10}
+                            tick={{ fill: '#6b7280' }}
+                            angle={-45}
+                            textAnchor="end"
+                            height={40}
+                            interval={1}
+                          />
+                          <YAxis 
+                            fontSize={11}
+                            tick={{ fill: '#6b7280' }}
+                            label={{ value: 'Anomalies', angle: -90, position: 'insideLeft' }}
+                          />
+                          <Tooltip 
+                            formatter={(value: any, name: any, props: any) => {
+                              const isTarget = props.payload.isTarget;
+                              return [
+                                `${value} anomalies${isTarget ? ' (Peak hour)' : ''}`, 
+                                'Anomaly Count'
+                              ];
+                            }}
+                            labelFormatter={(label: any) => `Time: ${label}`}
+                            contentStyle={{
+                              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: '8px',
+                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                            }}
+                          />
+                          <Bar 
+                            dataKey="anomalies" 
+                            fill={(entry: any) => entry.isTarget ? '#f59e0b' : '#3b82f6'} 
+                            name="Anomalies" 
+                            radius={[2, 2, 0, 0]}
+                          >
+                            {visual.data.map((entry: any, index: number) => (
+                              <Cell key={`cell-${index}`} fill={entry.isTarget ? '#f59e0b' : '#3b82f6'} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
               ) : visualData?.type === 'general_time_chart' ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={visualData.data} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
