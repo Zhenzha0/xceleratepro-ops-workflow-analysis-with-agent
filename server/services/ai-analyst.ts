@@ -1105,26 +1105,47 @@ Respond in JSON format with: patterns (array), recommendations (array), riskAsse
       }
       
       if (analysisType === 'temporal_pattern_analysis' || (query.includes('hour') && query.includes('failure'))) {
-        // Generate temporal failure data directly from activities
+        // Generate temporal failure data directly from events (not activities)
         const { storage } = await import('../storage');
-        const activities = await storage.getProcessActivities();
+        const events = await storage.getProcessEvents();
+        
+        // Filter for actual failure events using lifecycle_state
+        const failureEvents = events.filter(event => event.lifecycle_state === 'failure');
+        console.log(`Temporal analysis found ${failureEvents.length} failure events out of ${events.length} total events`);
         
         // Create hourly failure distribution
         const hourlyFailures = Array.from({length: 24}, (_, hour) => ({ hour, count: 0 }));
+        const dailyFailures = new Map<string, number>();
         
-        activities
-          .filter(a => a.lifecycleState === 'failure')
-          .forEach(activity => {
-            if (activity.createdAt) {
-              const hour = new Date(activity.createdAt).getHours();
-              hourlyFailures[hour].count++;
-            }
-          });
+        failureEvents.forEach(event => {
+          if (event.timestamp) {
+            const eventDate = new Date(event.timestamp);
+            const hour = eventDate.getHours();
+            const dateKey = eventDate.toISOString().split('T')[0]; // YYYY-MM-DD
+            
+            hourlyFailures[hour].count++;
+            dailyFailures.set(dateKey, (dailyFailures.get(dateKey) || 0) + 1);
+          }
+        });
+        
+        const dailyData = Array.from(dailyFailures.entries()).map(([date, count]) => ({
+          date,
+          count
+        })).sort((a, b) => a.date.localeCompare(b.date));
+        
+        const dateRange = failureEvents.length > 0 ? {
+          start: Math.min(...failureEvents.map(e => new Date(e.timestamp).getTime())),
+          end: Math.max(...failureEvents.map(e => new Date(e.timestamp).getTime()))
+        } : null;
         
         return {
           analysis_type: "temporal_analysis",
           temporal_analysis: {
-            hour_failure_distribution: hourlyFailures
+            hour_failure_distribution: hourlyFailures,
+            daily_failure_distribution: dailyData,
+            date_range: dateRange,
+            total_failures: failureEvents.length,
+            analysis_period: dateRange ? `${new Date(dateRange.start).toLocaleDateString()} to ${new Date(dateRange.end).toLocaleDateString()}` : 'Unknown period'
           }
         };
       }
