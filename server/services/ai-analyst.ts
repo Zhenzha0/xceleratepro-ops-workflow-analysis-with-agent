@@ -1016,59 +1016,137 @@ Respond in JSON format with: patterns (array), recommendations (array), riskAsse
       console.log(`Generating structured data for analysis type: ${analysisType}`);
       
       if (analysisType === 'failure_cause_analysis') {
-        // Get actual failure cause data from Enhanced Failure Analyzer
-        const { EnhancedFailureAnalyzer } = await import('./failure-analyzer-enhanced');
-        const failureCauses = await EnhancedFailureAnalyzer.analyzeFailureCauses();
+        // Get actual failure cause data directly from storage
+        const { storage } = await import('../storage');
+        const events = await storage.getProcessEvents();
+        
+        // Get failure events with descriptions
+        const failureEvents = events.filter(e => 
+          e.lifecycleState === 'failure' && 
+          e.unsatisfiedConditionDescription && 
+          e.unsatisfiedConditionDescription.trim()
+        );
+        
+        // Categorize failures by description patterns
+        const categories = {
+          'Other Technical Issues': 0,
+          'RFID/NFC Issues': 0,
+          'Network Issues': 0,
+          'Sensor Failures': 0,
+          'Inventory Issues': 0
+        };
+        
+        failureEvents.forEach(event => {
+          const desc = event.unsatisfiedConditionDescription.toLowerCase();
+          if (desc.includes('rfid') || desc.includes('nfc')) {
+            categories['RFID/NFC Issues']++;
+          } else if (desc.includes('network') || desc.includes('connection')) {
+            categories['Network Issues']++;
+          } else if (desc.includes('sensor')) {
+            categories['Sensor Failures']++;
+          } else if (desc.includes('inventory') || desc.includes('stock')) {
+            categories['Inventory Issues']++;
+          } else {
+            categories['Other Technical Issues']++;
+          }
+        });
+        
+        const total = failureEvents.length;
+        const failureCategories = Object.entries(categories)
+          .filter(([_, count]) => count > 0)
+          .map(([category, count]) => ({
+            cause: category,
+            count,
+            percentage: ((count / total) * 100).toFixed(1)
+          }));
         
         return {
           analysis_type: "failure_analysis",
-          failure_categories: failureCauses.map(cause => ({
-            cause: cause.category,
-            count: cause.count,
-            percentage: cause.percentage,
-            examples: cause.examples.slice(0, 3)
-          }))
+          failure_categories: failureCategories
         };
       }
       
       if (analysisType === 'activity_failure_rate_analysis') {
-        // Get actual activity failure rates
-        const { EnhancedFailureAnalyzer } = await import('./failure-analyzer-enhanced');
-        const activityRates = await EnhancedFailureAnalyzer.analyzeActivityFailureRates();
+        // Get actual activity failure rates directly from storage
+        const { storage } = await import('../storage');
+        const events = await storage.getProcessEvents();
+        
+        // Group events by activity
+        const activityGroups: Record<string, { total: number; failures: number }> = {};
+        
+        events.forEach(event => {
+          const activity = event.activity;
+          if (!activityGroups[activity]) {
+            activityGroups[activity] = { total: 0, failures: 0 };
+          }
+          activityGroups[activity].total++;
+          if (event.lifecycleState === 'failure') {
+            activityGroups[activity].failures++;
+          }
+        });
+        
+        // Calculate failure rates and sort by failure rate
+        const activityFailureRates = Object.entries(activityGroups)
+          .map(([activity, data]) => ({
+            activity,
+            failure_rate: `${((data.failures / data.total) * 100).toFixed(2)}%`,
+            failed_count: data.failures,
+            total_count: data.total,
+            failure_percentage: (data.failures / data.total) * 100
+          }))
+          .filter(item => item.failed_count > 0)
+          .sort((a, b) => b.failure_percentage - a.failure_percentage)
+          .slice(0, 10); // Top 10
         
         return {
           analysis_type: "activity_failure_analysis", 
-          activities_with_most_failures: activityRates.map(rate => ({
-            activity: rate.activity,
-            failure_rate: rate.failureRate,
-            failed_count: rate.failedCount,
-            total_count: rate.totalCount,
-            failure_percentage: parseFloat(rate.failureRate.replace('%', ''))
-          }))
+          activities_with_most_failures: activityFailureRates
         };
       }
       
       if (analysisType === 'temporal_pattern_analysis' || (query.includes('hour') && query.includes('failure'))) {
-        // Get temporal failure data from relevant data
-        const { TrendAnalyzer } = await import('./trend-analyzer');
-        const temporalData = await TrendAnalyzer.analyzeTemporalPatterns(relevantData);
+        // Generate temporal failure data directly from activities
+        const { storage } = await import('../storage');
+        const activities = await storage.getProcessActivities();
+        
+        // Create hourly failure distribution
+        const hourlyFailures = Array.from({length: 24}, (_, hour) => ({ hour, count: 0 }));
+        
+        activities
+          .filter(a => a.lifecycleState === 'failure')
+          .forEach(activity => {
+            if (activity.createdAt) {
+              const hour = new Date(activity.createdAt).getHours();
+              hourlyFailures[hour].count++;
+            }
+          });
         
         return {
           analysis_type: "temporal_analysis",
           temporal_analysis: {
-            hour_failure_distribution: temporalData.hourly_failures || []
+            hour_failure_distribution: hourlyFailures
           }
         };
       }
       
       if (analysisType === 'anomaly_analysis' || (query.includes('hour') && query.includes('anomal'))) {
-        // Get temporal anomaly data
-        const { TrendAnalyzer } = await import('./trend-analyzer');
-        const temporalData = await TrendAnalyzer.analyzeTemporalPatterns(relevantData);
+        // Generate temporal anomaly data directly from anomaly alerts
+        const { storage } = await import('../storage');
+        const anomalies = await storage.getAnomalyAlerts(100);
+        
+        // Create hourly anomaly distribution
+        const hourlyAnomalies = Array.from({length: 24}, (_, hour) => ({ hour, count: 0 }));
+        
+        anomalies.forEach(anomaly => {
+          if (anomaly.timestamp) {
+            const hour = new Date(anomaly.timestamp).getHours();
+            hourlyAnomalies[hour].count++;
+          }
+        });
         
         return {
-          analysis_type: "anomaly_detection", 
-          activities_with_most_anomalies: temporalData.hourly_anomalies || []
+          analysis_type: "anomaly_detection",
+          activities_with_most_anomalies: hourlyAnomalies
         };
       }
       
