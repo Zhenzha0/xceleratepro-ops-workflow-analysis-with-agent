@@ -315,6 +315,7 @@ export class AIAnalyst {
   }
 
   private static async gatherRelevantData(query: string, queryType: string, filters?: any): Promise<any> {
+    console.log(`Gathering data for ${queryType} with filters:`, filters);
     const queryLower = query.toLowerCase();
     const data: any = { summary: {}, filters: filters };
 
