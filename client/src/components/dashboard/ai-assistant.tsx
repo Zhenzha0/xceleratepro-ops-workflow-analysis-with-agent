@@ -105,44 +105,45 @@ function ContextualVisualization({ message, appliedFilters }: { message: ChatMes
       }
       
       // FAILURE CAUSE ANALYSIS: "most common failure", "what causes failures"
-      if (queryType === 'failure_cause_analysis' || 
-          (content.includes('common') && content.includes('failure')) ||
-          (content.includes('cause') && content.includes('failure'))) {
+      if (queryType === 'failure_cause_analysis') {
         
-        // Extract failure causes from ProcessGPT response
-        const causeMatches = content.match(/sensor failure[s]?[^\d]*(\d+)[%]?/gi) ||
-                            content.match(/inventory issue[s]?[^\d]*(\d+)[%]?/gi) ||
-                            content.match(/(\w+\s+\w+)[^\d]*(\d+)[%]/gi);
+        // Extract failure causes (NOT activities) from ProcessGPT response
+        const causePatterns = [
+          /sensor failure[s]?\s*[^\d]*(\d+)[%]/gi,
+          /inventory issue[s]?\s*[^\d]*(\d+)[%]/gi,
+          /network issue[s]?\s*[^\d]*(\d+)[%]/gi,
+          /rfid.*issue[s]?\s*[^\d]*(\d+)[%]/gi,
+          /technical issue[s]?\s*[^\d]*(\d+)[%]/gi
+        ];
         
         let failureCauseData = [];
         
-        if (causeMatches && causeMatches.length > 0) {
-          failureCauseData = causeMatches.slice(0, 5).map((match, index) => {
-            const causeMatch = match.match(/(\w+\s+\w+|\w+)/);
-            const percentMatch = match.match(/(\d+)%?/);
+        // Try each pattern to extract cause data
+        for (const pattern of causePatterns) {
+          const matches = [...content.matchAll(pattern)];
+          matches.forEach((match, index) => {
+            const fullMatch = match[0];
+            const percentage = parseInt(match[1]) || 0;
             
-            const cause = causeMatch ? causeMatch[1] : `Cause ${index + 1}`;
-            const percentage = percentMatch ? parseInt(percentMatch[1]) : 0;
+            let cause = 'Unknown Cause';
+            if (fullMatch.toLowerCase().includes('sensor')) cause = 'Sensor Failures';
+            else if (fullMatch.toLowerCase().includes('inventory')) cause = 'Inventory Issues'; 
+            else if (fullMatch.toLowerCase().includes('network')) cause = 'Network Issues';
+            else if (fullMatch.toLowerCase().includes('rfid')) cause = 'RFID/NFC Issues';
+            else if (fullMatch.toLowerCase().includes('technical')) cause = 'Technical Issues';
             
-            return {
-              cause: cause,
-              percentage: percentage,
-              count: Math.floor(percentage * 0.95), // Approximate count from percentage
-              color: index === 0 ? '#dc2626' : index === 1 ? '#ea580c' : index === 2 ? '#d97706' : '#f59e0b'
-            };
-          }).filter(item => item.percentage > 0);
+            if (percentage > 0 && !failureCauseData.find(item => item.cause === cause)) {
+              failureCauseData.push({
+                cause,
+                percentage,
+                count: Math.floor(percentage * 0.95),
+                color: ['#dc2626', '#ea580c', '#d97706', '#f59e0b', '#65a30d'][failureCauseData.length]
+              });
+            }
+          });
         }
         
-        if (failureCauseData.length === 0) {
-          // Extract from specific content patterns
-          if (content.includes('sensor') && content.includes('40%')) {
-            failureCauseData.push({ cause: 'Sensor Failures', percentage: 40, count: 38, color: '#dc2626' });
-          }
-          if (content.includes('inventory') && content.includes('30%')) {
-            failureCauseData.push({ cause: 'Inventory Issues', percentage: 30, count: 28, color: '#ea580c' });
-          }
-        }
-        
+        // Only show visualization if we found actual cause data
         if (failureCauseData.length > 0) {
           setVisualData({
             type: 'failure_cause_pie',

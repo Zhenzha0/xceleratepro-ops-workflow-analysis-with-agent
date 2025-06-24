@@ -392,6 +392,46 @@ export class AIAnalyst {
           queryLower.includes('issue') || queryLower.includes('error')) {
         
         // Enhanced logic to distinguish between different types of failure analysis
+        if (queryType === 'failure_cause_analysis') {
+          // Get failure causes from unsatisfied_condition_description
+          console.log('Getting failure causes from unsatisfied_condition_description');
+          try {
+            const failureCauses = await EnhancedFailureAnalyzer.categorizeFailureCauses();
+            data.failureCauses = failureCauses;
+            data.summary.analysisType = 'failure_causes';
+            data.totalFailures = failureCauses.reduce((sum: number, cause: any) => sum + cause.count, 0);
+          } catch (error) {
+            console.error('Error getting failure causes:', error);
+            // Fallback: Get failures and analyze descriptions manually
+            const failures = await storage.getProcessEvents({
+              status: 'failure',
+              limit: 1000
+            });
+            
+            // Extract failure causes from descriptions
+            const causeMap = new Map<string, number>();
+            failures.forEach(failure => {
+              const desc = failure.unsatisfiedConditionDescription?.toLowerCase() || '';
+              if (desc.includes('sensor')) causeMap.set('Sensor Failures', (causeMap.get('Sensor Failures') || 0) + 1);
+              else if (desc.includes('inventory') || desc.includes('stock')) causeMap.set('Inventory Issues', (causeMap.get('Inventory Issues') || 0) + 1);
+              else if (desc.includes('network') || desc.includes('connection')) causeMap.set('Network Issues', (causeMap.get('Network Issues') || 0) + 1);
+              else if (desc.includes('rfid') || desc.includes('nfc')) causeMap.set('RFID/NFC Issues', (causeMap.get('RFID/NFC Issues') || 0) + 1);
+              else causeMap.set('Other Technical Issues', (causeMap.get('Other Technical Issues') || 0) + 1);
+            });
+            
+            const failureCauses = Array.from(causeMap.entries()).map(([cause, count]) => ({
+              cause,
+              count,
+              percentage: (count / failures.length * 100).toFixed(1)
+            }));
+            
+            data.failureCauses = failureCauses;
+            data.totalFailures = failures.length;
+            data.sampleFailures = failures.slice(0, 10);
+            data.summary.analysisType = 'failure_causes_fallback';
+          }
+        }
+        
         if (queryType === 'activity_failure_rate_analysis') {
           // Analyze which activities have the highest failure rates
           const activityFailureRates = await this.analyzeActivityFailureRates(filters);
