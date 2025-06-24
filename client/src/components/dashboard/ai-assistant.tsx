@@ -77,10 +77,7 @@ export function AIAssistant({ appliedFilters }: AIAssistantProps) {
 
   const analyzeMutation = useMutation({
     mutationFn: async (data: { query: string; sessionId: string; filters: any }) => {
-      return apiRequest('/api/ai/analyze', {
-        method: 'POST',
-        body: JSON.stringify(data)
-      });
+      return apiRequest('/api/ai/analyze', 'POST', data);
     },
     onSuccess: (data) => {
       const assistantMessage: ChatMessage = {
