@@ -20,7 +20,7 @@ export interface FailureAnalysisResult {
 
 export class FailureAnalyzer {
   /**
-   * Analyze actual failure data from lifecycle_state = 'failure'
+   * Analyze actual failure causes from unsatisfied_condition_description
    */
   static async analyzeFailureCauses(filters?: any): Promise<FailureAnalysisResult> {
     // Get all events
@@ -36,15 +36,18 @@ export class FailureAnalyzer {
       }
     }
 
-    // Filter to only actual failure events
+    // Filter to only actual failure events with descriptions
     const failureEvents = events.filter(event => 
-      event.lifecycleState === 'failure'
+      event.lifecycleState === 'failure' && event.unsatisfiedConditionDescription
     );
 
     console.log(`Found ${failureEvents.length} actual failure events out of ${events.length} total events`);
 
-    // Group failures by activity + equipment combination
-    const failureGroups: Record<string, {
+    // Analyze actual failure causes from descriptions
+    const failureCauses = this.categorizeFailureCauses(failureEvents);
+    
+    // Also get activity-based failures for context
+    const activityFailures: Record<string, {
       count: number;
       cases: Set<string>;
       equipment: Set<string>;
@@ -53,11 +56,14 @@ export class FailureAnalyzer {
       activity: string;
     }> = {};
 
-    failureEvents.forEach(event => {
+    // Get all failure events for activity analysis
+    const allFailureEvents = events.filter(event => event.lifecycleState === 'failure');
+    
+    allFailureEvents.forEach(event => {
       const key = `${event.activity} on ${event.orgResource || 'unknown equipment'}`;
       
-      if (!failureGroups[key]) {
-        failureGroups[key] = {
+      if (!activityFailures[key]) {
+        activityFailures[key] = {
           count: 0,
           cases: new Set(),
           equipment: new Set(),
@@ -67,15 +73,14 @@ export class FailureAnalyzer {
         };
       }
       
-      failureGroups[key].count++;
-      failureGroups[key].cases.add(event.caseId);
+      activityFailures[key].count++;
+      activityFailures[key].cases.add(event.caseId);
       if (event.orgResource) {
-        failureGroups[key].equipment.add(event.orgResource);
+        activityFailures[key].equipment.add(event.orgResource);
       }
       
-      // Store a few examples of case IDs
-      if (failureGroups[key].examples.length < 3) {
-        failureGroups[key].examples.push(event.caseId);
+      if (activityFailures[key].examples.length < 3) {
+        activityFailures[key].examples.push(event.caseId);
       }
     });
 
