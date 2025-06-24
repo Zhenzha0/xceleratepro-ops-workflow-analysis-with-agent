@@ -3,6 +3,10 @@ import { ProcessEvent, ProcessActivity, ProcessCase, AnomalyAlert } from '@share
 import { storage } from '../storage';
 import { AnomalyDetector } from './anomaly-detector';
 import { SemanticSearch } from './semantic-search';
+import { EnhancedFailureAnalyzer } from './failure-analyzer-enhanced';
+import { TimingAnalyzer } from './timing-analyzer';
+import { TrendAnalyzer } from './trend-analyzer';
+import { CaseAnalyzer } from './case-analyzer';
 
 const openai = new OpenAI({ 
   apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || "default_key"
