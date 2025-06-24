@@ -286,22 +286,17 @@ function ContextualVisualization({ message, appliedFilters }: { message: ChatMes
                     <h4 className="font-medium text-sm text-gray-900 dark:text-gray-100">{visual.title}</h4>
                   </div>
                   
-                  <div className="h-64 mb-4">
-                    {visual.type === 'failure_cause_pie' ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartsPieChart>
-                          <Pie
-                            data={visual.data}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={40}
-                            outerRadius={80}
-                            paddingAngle={5}
-                            dataKey="percentage"
-                          >
-                            {visual.data.map((entry: any, index: number) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
+                  <div className="h-48 mb-4">
+                    {insight.chart}
+                  </div>
+                  
+                  {insight.description && (
+                    <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
+                      <div className="text-xs text-blue-700 dark:text-blue-300 font-medium mb-1">
+                        {insight.description}
+                      </div>
+                    </div>
+                  )}
                           </Pie>
                           <Tooltip 
                             formatter={(value: any, name: any, props: any) => [
@@ -613,6 +608,127 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
     }
   };
 
+  // Create failure analysis charts
+  const createFailureAnalysisCharts = (data: any) => {
+    const chartData = data.failure_categories.map((category: any, index: number) => ({
+      name: category.cause,
+      value: parseInt(category.count),
+      percentage: category.percentage
+    }));
+
+    const colors = ['#dc2626', '#ea580c', '#d97706', '#65a30d', '#3b82f6'];
+
+    const pieChart = (
+      <ResponsiveContainer width="100%" height="100%">
+        <RechartsPieChart>
+          <Pie
+            data={chartData}
+            cx="50%"
+            cy="50%"
+            innerRadius={40}
+            outerRadius={80}
+            paddingAngle={5}
+            dataKey="value"
+            label={({ name, percentage }) => `${name}: ${percentage}%`}
+          >
+            {chartData.map((entry: any, index: number) => (
+              <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+            ))}
+          </Pie>
+          <Tooltip formatter={(value: any, name: any) => [`${value} failures`, name]} />
+        </RechartsPieChart>
+      </ResponsiveContainer>
+    );
+
+    const newInsight: Insight = {
+      id: Date.now().toString(),
+      title: 'Failure Root Causes Analysis',
+      chart: pieChart,
+      icon: BarChart3,
+      description: `Primary Cause: ${chartData[0]?.name} (${chartData[0]?.percentage}%) - Analyzed failure descriptions in unsatisfied_condition_description to categorize root causes`
+    };
+
+    setInsights(prev => [...prev, newInsight]);
+  };
+
+  // Create activity failure charts
+  const createActivityFailureCharts = (data: any) => {
+    const chartData = data.activities_with_most_failures.slice(0, 5).map((activity: any, index: number) => ({
+      name: activity.activity_name || activity.activity,
+      value: parseFloat(activity.failure_rate || activity.rate || 0),
+      failures: activity.failure_count || activity.failures || 0,
+      total: activity.total_count || activity.total || 0
+    }));
+
+    const colors = ['#dc2626', '#ea580c', '#d97706', '#65a30d', '#3b82f6'];
+
+    const barChart = (
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="name" fontSize={10} angle={-45} textAnchor="end" height={40} />
+          <YAxis fontSize={11} label={{ value: 'Failure Rate %', angle: -90, position: 'insideLeft' }} />
+          <Tooltip formatter={(value: any, name: any, props: any) => [`${value}% (${props.payload.failures}/${props.payload.total})`, 'Failure Rate']} />
+          <Bar dataKey="value" radius={[2, 2, 0, 0]}>
+            {chartData.map((entry: any, index: number) => (
+              <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    );
+
+    const newInsight: Insight = {
+      id: Date.now().toString(),
+      title: 'Activity Failure Rates Analysis',
+      chart: barChart,
+      icon: BarChart3,
+      description: `Highest Rate: ${chartData[0]?.name} (${chartData[0]?.value}%) - Analyzed failure rates across all manufacturing activities to identify most problematic processes`
+    };
+
+    setInsights(prev => [...prev, newInsight]);
+  };
+
+  // Create anomaly analysis charts
+  const createAnomalyAnalysisCharts = (data: any) => {
+    const chartData = data.activities_with_most_anomalies.map((item: any) => ({
+      hour: `${item.hour.toString().padStart(2, '0')}:00`,
+      anomalies: item.count
+    }));
+
+    const lineChart = (
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="hour" fontSize={10} />
+          <YAxis fontSize={11} label={{ value: 'Anomalies', angle: -90, position: 'insideLeft' }} />
+          <Tooltip />
+          <Bar dataKey="anomalies" fill="#ef4444" />
+        </BarChart>
+      </ResponsiveContainer>
+    );
+
+    const newInsight: Insight = {
+      id: Date.now().toString(),
+      title: 'Anomaly Concentration by Hour',
+      chart: lineChart,
+      icon: BarChart3,
+      description: 'Analyzed temporal patterns of anomalous activities to identify peak occurrence times'
+    };
+
+    setInsights(prev => [...prev, newInsight]);
+  };
+
+  // Create temporal analysis charts
+  const createTemporalAnalysisCharts = (data: any) => {
+    // Implementation for temporal analysis
+  };
+
+  // Create bottleneck analysis charts
+  const createBottleneckAnalysisCharts = (data: any) => {
+    // Implementation for bottleneck analysis
+  };
+
   // Create failure cause analysis charts
   const createFailureAnalysisCharts = (data: any) => {
     const pieData = data.failure_categories.map((cat: any, index: number) => ({
@@ -876,15 +992,15 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
       </div>
 
       {/* Live Insights Panel - Automatic Visualization System */}
-      {visualHistory.length > 0 && (
-        <div className="w-80 border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex flex-col">
+      {insights.length > 0 && (
+        <div className="w-96 border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex flex-col">
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-purple-500" />
               <h3 className="font-semibold text-gray-900 dark:text-gray-100">Live Insights</h3>
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              Auto-generated visualizations ({visualHistory.length})
+              Auto-generated visualizations ({insights.length})
             </p>
           </div>
           
