@@ -19,139 +19,24 @@ export interface FailureAnalysisResult {
 }
 
 export class EnhancedFailureAnalyzer {
-  
-  /**
-   * Enhanced activity failure rate analysis with proper data handling
-   * IMPORTANT: This function must respect activity range filters to analyze only subset data
-   */
-  static async analyzeActivityFailureRates(filters?: any): Promise<any> {
-    try {
-      console.log('EnhancedFailureAnalyzer: Starting activity failure analysis with filters:', filters);
-      
-      // Step 1: Get activities and apply filtering if specified
-      const allActivities = await storage.getProcessActivities();
-      let filteredActivities = allActivities;
-      
-      if (filters && filters.activityRange && filters.activityRange.start && filters.activityRange.end) {
-        console.log(`EnhancedFailureAnalyzer: Applying activity range filter - activities ${filters.activityRange.start}-${filters.activityRange.end}`);
-        
-        // Sort by start time and take the specified range
-        filteredActivities = allActivities
-          .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
-          .slice(filters.activityRange.start - 1, filters.activityRange.end); // Convert to 0-based indexing
-        
-        console.log(`EnhancedFailureAnalyzer: Filtered to ${filteredActivities.length} activities from original ${allActivities.length}`);
-      }
-      
-      console.log(`EnhancedFailureAnalyzer: Analyzing ${filteredActivities.length} activities for failure rates`);
-      
-      // Step 2: Group activities by name and count failures vs successes
-      const activityStats = new Map<string, { total: number; failed: number }>();
-
-      filteredActivities.forEach(activity => {
-        const activityName = activity.activity;
-        const current = activityStats.get(activityName) || { total: 0, failed: 0 };
-        
-        current.total++;
-        if (activity.status === 'failed') {
-          current.failed++;
-        }
-        
-        activityStats.set(activityName, current);
-      });
-
-      // Step 3: Convert to sorted array with failure rates
-      const sortedActivities = Array.from(activityStats.entries())
-        .map(([activity, stats]) => ({
-          activity,
-          failed_count: stats.failed,
-          total_count: stats.total,
-          failure_rate: stats.total > 0 ? ((stats.failed / stats.total) * 100).toFixed(2) + '%' : '0%',
-          failure_percentage: stats.total > 0 ? (stats.failed / stats.total) * 100 : 0
-        }))
-        .filter(item => item.failed_count > 0) // Only show activities that have failures
-        .sort((a, b) => b.failure_percentage - a.failure_percentage);
-
-      const totalFailed = Array.from(activityStats.values()).reduce((sum, stats) => sum + stats.failed, 0);
-
-      // Step 4: Create analysis scope description
-      let analysisScope = '';
-      if (filters && filters.activityRange) {
-        analysisScope = `Analyzed activities ${filters.activityRange.start}-${filters.activityRange.end} (${filteredActivities.length} activities from filtered dataset)`;
-      } else {
-        analysisScope = `Analyzed all ${filteredActivities.length} activities (full dataset)`;
-      }
-
-      return {
-        activities_with_most_failures: sortedActivities,
-        total_activities_analyzed: filteredActivities.length,
-        total_failed_activities: totalFailed,
-        overall_failure_rate: filteredActivities.length > 0 ? ((totalFailed / filteredActivities.length) * 100).toFixed(2) + '%' : '0%',
-        analysis_scope: analysisScope,
-        filter_applied: filters ? true : false
-      };
-    } catch (error) {
-      console.error('Error in enhanced activity failure rate analysis:', error);
-      return {
-        activities_with_most_failures: [],
-        total_activities_analyzed: 0,
-        total_failed_activities: 0,
-        overall_failure_rate: '0%',
-        analysis_scope: 'Error analyzing filtered data'
-      };
-    }
-  }
-
   /**
    * Analyze actual failure causes from unsatisfied_condition_description
-   * IMPORTANT: This function must respect activity range filters to analyze only subset data
    */
   static async analyzeFailureCauses(filters?: any): Promise<FailureAnalysisResult> {
-    console.log('EnhancedFailureAnalyzer.analyzeFailureCauses: Starting with filters:', filters);
+    let events = await storage.getProcessEvents();
     
-    // Step 1: Apply activity range filtering first if specified
-    let filteredEvents: any[] = [];
-    
-    if (filters && filters.activityRange && filters.activityRange.start && filters.activityRange.end) {
-      console.log(`EnhancedFailureAnalyzer: Applying activity range filter - activities ${filters.activityRange.start}-${filters.activityRange.end}`);
-      
-      // Get activities first, then get their corresponding events
-      const activities = await storage.getProcessActivities();
-      
-      // Sort activities by start time and take the specified range
-      const sortedActivities = activities
-        .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
-        .slice(filters.activityRange.start - 1, filters.activityRange.end); // Convert to 0-based indexing
-      
-      console.log(`EnhancedFailureAnalyzer: Filtered to ${sortedActivities.length} activities from ${activities.length} total`);
-      
-      // Get case IDs from filtered activities
-      const filteredCaseIds = [...new Set(sortedActivities.map(a => a.caseId))];
-      console.log(`EnhancedFailureAnalyzer: Activities span ${filteredCaseIds.length} cases`);
-      
-      // Get events only for those cases
-      const allEvents = await storage.getProcessEvents();
-      filteredEvents = allEvents.filter(event => filteredCaseIds.includes(event.caseId));
-      
-      console.log(`EnhancedFailureAnalyzer: Retrieved ${filteredEvents.length} events from filtered cases`);
-    } else {
-      // No activity filtering, get all events
-      filteredEvents = await storage.getProcessEvents();
-      console.log(`EnhancedFailureAnalyzer: Retrieved ${filteredEvents.length} events (no activity filtering)`);
-    }
-    
-    // Step 2: Apply additional filters if provided
+    // Apply filters if provided
     if (filters) {
       if (filters.equipment && filters.equipment !== 'all') {
-        filteredEvents = filteredEvents.filter(e => e.orgResource === filters.equipment);
+        events = events.filter(e => e.orgResource === filters.equipment);
       }
       if (filters.caseIds && Array.isArray(filters.caseIds) && filters.caseIds.length > 0) {
-        filteredEvents = filteredEvents.filter(e => filters.caseIds.includes(e.caseId));
+        events = events.filter(e => filters.caseIds.includes(e.caseId));
       }
     }
 
-    // Get all failure events from filtered data
-    const allFailureEvents = filteredEvents.filter(event => event.lifecycleState === 'failure');
+    // Get all failure events
+    const allFailureEvents = events.filter(event => event.lifecycleState === 'failure');
     
     // Get failure events with descriptions for root cause analysis
     const failureEventsWithDescriptions = allFailureEvents.filter(event => 
@@ -161,7 +46,7 @@ export class EnhancedFailureAnalyzer {
     console.log(`Found ${allFailureEvents.length} total failure events, ${failureEventsWithDescriptions.length} with root cause descriptions`);
 
     // Analyze actual failure causes from descriptions
-    const failureCauses = this.categorizeFailureCauses(failureEventsWithDescriptions);
+    const failureCauses = EnhancedFailureAnalyzer.categorizeFailureCauses(failureEventsWithDescriptions);
     
     // Create patterns prioritizing failure causes over activities
     const causePatterns = Object.entries(failureCauses)
@@ -190,23 +75,13 @@ export class EnhancedFailureAnalyzer {
       }
     });
 
-    // Step 4: Create analysis scope description
-    let analysisScope = '';
-    if (filters && filters.activityRange) {
-      analysisScope = `Analyzed activities ${filters.activityRange.start}-${filters.activityRange.end} (${filteredEvents.length} events from filtered dataset)`;
-    } else {
-      analysisScope = `Analyzed all ${filteredEvents.length} events (full dataset)`;
-    }
-
     return {
       totalFailures: allFailureEvents.length,
-      totalActivities: filteredEvents.length,
-      failureRate: filteredEvents.length > 0 ? (allFailureEvents.length / filteredEvents.length) * 100 : 0,
+      totalActivities: events.length,
+      failureRate: (allFailureEvents.length / events.length) * 100,
       commonPatterns: allPatterns.slice(0, 10),
       equipmentFailures,
-      timeDistribution: { 'Total failures': allFailureEvents.length },
-      analysis_scope: analysisScope,
-      filter_applied: filters ? true : false
+      timeDistribution: { 'Total failures': allFailureEvents.length }
     };
   }
 

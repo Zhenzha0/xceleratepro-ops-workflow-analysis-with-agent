@@ -431,21 +431,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI Analysis Routes
   app.post("/api/ai/analyze", async (req, res) => {
     try {
-      const { query, sessionId, contextData, filters } = req.body;
-      
-      console.log('AI Analysis Route: Received filters:', filters);
-      
-      if (!query) {
-        return res.status(400).json({ error: 'Query is required' });
-      }
-
-      const request = {
-        query,
-        sessionId: sessionId || `session_${Date.now()}`,
-        contextData,
-        filters: filters || {}
-      };
-      
+      const request = aiQuerySchema.parse(req.body);
       const response = await AIAnalyst.analyzeQuery(request);
       res.json(response);
     } catch (error) {
