@@ -821,105 +821,19 @@ function ContextualVisualization({ message, appliedFilters }: { message: ChatMes
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
-              ) : visualData?.type === 'time_chart' ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={visualData.data} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis 
-                      dataKey="hour" 
-                      fontSize={10}
-                      tick={{ fill: '#6b7280' }}
-                      angle={-45}
-                      textAnchor="end"
-                      height={40}
-                      interval={1}
-                    />
-                    <YAxis 
-                      fontSize={11}
-                      tick={{ fill: '#6b7280' }}
-                      label={{ value: 'Failures', angle: -90, position: 'insideLeft' }}
-                    />
-                    <Tooltip 
-                      formatter={(value: any, name: any, props: any) => {
-                        const isTarget = props.payload.isTarget;
-                        return [
-                          `${value} failures${isTarget ? ' (Peak hour)' : ''}`, 
-                          'Failure Count'
-                        ];
-                      }}
-                      labelFormatter={(label: any) => `Time: ${label}`}
-                      contentStyle={{
-                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '8px',
-                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                      }}
-                    />
-                    <Bar 
-                      dataKey="failures" 
-                      fill={(entry: any) => entry.isTarget ? '#dc2626' : '#3b82f6'} 
-                      name="Failures" 
-                      radius={[2, 2, 0, 0]}
-                    >
-                      {visualData.data.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={entry.isTarget ? '#dc2626' : '#3b82f6'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : visualData?.type === 'bottleneck_bar' ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={visualData.data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis 
-                      dataKey="name" 
-                      fontSize={11}
-                      tick={{ fill: '#6b7280' }}
-                      tickFormatter={(value) => value.length > 15 ? `${value.substring(0, 15)}...` : value}
-                      angle={-45}
-                      textAnchor="end"
-                      height={60}
-                    />
-                    <YAxis 
-                      fontSize={11}
-                      tick={{ fill: '#6b7280' }}
-                      label={{ value: 'Impact Score', angle: -90, position: 'insideLeft' }}
-                    />
-                    <Tooltip 
-                      formatter={(value: any, name: any, props: any) => {
-                        const severity = value > 50 ? 'Critical' : value > 25 ? 'High' : value > 10 ? 'Medium' : 'Low';
-                        const cases = props.payload.affectedCases || 0;
-                        return [
-                          `${value} (${severity} impact)${cases ? ` - ${cases} cases affected` : ''}`, 
-                          'Impact Score'
-                        ];
-                      }}
-                      labelFormatter={(label: any) => `Bottleneck: ${label}`}
-                      contentStyle={{
-                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '8px',
-                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                      }}
-                    />
-                    <Bar 
-                      dataKey="impact" 
-                      fill="#ef4444" 
-                      name="Impact Score" 
-                      radius={[2, 2, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-full flex items-center justify-center text-gray-500">
-                  No visualization available
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-gray-500">
+                        No visualization available for {visual.type}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
+              ))}
             </div>
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -931,7 +845,6 @@ function FormattedMessage({ content }: { content: string }) {
     let currentSection: React.ReactNode[] = [];
     
     lines.forEach((line, index) => {
-      // Headers
       if (line.startsWith('## ')) {
         if (currentSection.length > 0) {
           elements.push(<div key={`section-${elements.length}`} className="mb-4">{currentSection}</div>);
@@ -942,113 +855,94 @@ function FormattedMessage({ content }: { content: string }) {
             {line.substring(3)}
           </div>
         );
-      }
-      // Subheaders
-      else if (line.startsWith('### ')) {
+      } else if (line.startsWith('### ')) {
         currentSection.push(
           <div key={`subheader-${index}`} className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-2 mt-3">
             {line.substring(4)}
           </div>
         );
-      }
-      // Bullet points
-      else if (line.startsWith('• ')) {
-        const bulletContent = line.substring(2);
-        const formattedBullet = formatInlineContent(bulletContent);
-        currentSection.push(
-          <div key={`bullet-${index}`} className="flex items-start space-x-2 mb-2 ml-4">
-            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-            <span className="text-sm">{formattedBullet}</span>
-          </div>
-        );
-      }
-      // Regular content
-      else if (line.trim()) {
-        const formattedLine = formatInlineContent(line);
-        currentSection.push(
-          <div key={`line-${index}`} className="text-sm leading-relaxed mb-2">
-            {formattedLine}
-          </div>
-        );
-      }
-      // Empty lines
-      else {
+      } else if (line.trim() === '') {
         currentSection.push(<br key={`br-${index}`} />);
+      } else {
+        currentSection.push(
+          <div key={`text-${index}`} className="text-sm leading-relaxed mb-2">
+            <FormattedText text={line} />
+          </div>
+        );
       }
     });
     
     if (currentSection.length > 0) {
-      elements.push(<div key={`section-final`} className="mb-4">{currentSection}</div>);
+      elements.push(<div key={`section-${elements.length}`} className="mb-4">{currentSection}</div>);
     }
     
     return elements;
   };
-  
-  const formatInlineContent = (text: string): React.ReactNode => {
-    const parts: React.ReactNode[] = [];
-    let remaining = text;
-    let key = 0;
-    
-    // Process bold text
-    remaining = remaining.replace(/\*\*(.*?)\*\*/g, (match, content) => {
-      const placeholder = `__BOLD_${key}__`;
-      parts.push(<strong key={`bold-${key}`} className="font-semibold text-gray-900 dark:text-gray-100">{content}</strong>);
-      key++;
-      return placeholder;
-    });
-    
-    // Process equipment/activity names
-    remaining = remaining.replace(/(\/[\w\/]+)/g, (match) => {
-      const placeholder = `__CODE_${key}__`;
-      parts.push(<code key={`code-${key}`} className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded text-xs font-mono">{match}</code>);
-      key++;
-      return placeholder;
-    });
-    
-    // Process case IDs
-    remaining = remaining.replace(/(WF_\d+(?:_\d+)?)/g, (match) => {
-      const placeholder = `__CASE_${key}__`;
-      parts.push(<span key={`case-${key}`} className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded text-xs font-medium">{match}</span>);
-      key++;
-      return placeholder;
-    });
-    
-    // Process percentages
-    remaining = remaining.replace(/(\b\d+(?:\.\d+)?%)\b/g, (match) => {
-      const placeholder = `__PCT_${key}__`;
-      parts.push(<span key={`pct-${key}`} className="font-medium text-blue-600 dark:text-blue-400">{match}</span>);
-      key++;
-      return placeholder;
-    });
-    
-    // Process numbers with units
-    remaining = remaining.replace(/(\b\d+(?:\.\d+)?\s*(?:cases?|activities?|failures?|seconds?)\b)/gi, (match) => {
-      const placeholder = `__NUM_${key}__`;
-      parts.push(<span key={`num-${key}`} className="font-medium text-green-600 dark:text-green-400">{match}</span>);
-      key++;
-      return placeholder;
-    });
-    
-    // Split by placeholders and reconstruct
-    const tokens = remaining.split(/(__[A-Z]+_\d+__)/);
-    const result: React.ReactNode[] = [];
-    
-    tokens.forEach((token, index) => {
-      if (token.startsWith('__') && token.endsWith('__')) {
-        const partIndex = parseInt(token.match(/\d+/)?.[0] || '0');
-        result.push(parts[partIndex]);
-      } else if (token) {
-        result.push(token);
-      }
-    });
-    
-    return result.length === 1 ? result[0] : result;
-  };
-  
-  return <div>{formatContent()}</div>;
+
+  return <div className="space-y-2">{formatContent()}</div>;
 }
 
-
+// Helper component to format individual text lines with highlighting
+function FormattedText({ text }: { text: string }) {
+  const parts: React.ReactNode[] = [];
+  let remaining = text;
+  let key = 0;
+  
+  // Process bold text
+  remaining = remaining.replace(/\*\*(.*?)\*\*/g, (match, content) => {
+    const placeholder = `__BOLD_${key}__`;
+    parts.push(<strong key={`bold-${key}`} className="font-semibold text-gray-900 dark:text-gray-100">{content}</strong>);
+    key++;
+    return placeholder;
+  });
+  
+  // Process equipment/activity names
+  remaining = remaining.replace(/(\/[\w\/]+)/g, (match) => {
+    const placeholder = `__CODE_${key}__`;
+    parts.push(<code key={`code-${key}`} className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded text-xs font-mono">{match}</code>);
+    key++;
+    return placeholder;
+  });
+  
+  // Process case IDs
+  remaining = remaining.replace(/(WF_\d+(?:_\d+)?)/g, (match) => {
+    const placeholder = `__CASE_${key}__`;
+    parts.push(<span key={`case-${key}`} className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded text-xs font-medium">{match}</span>);
+    key++;
+    return placeholder;
+  });
+  
+  // Process percentages
+  remaining = remaining.replace(/(\b\d+(?:\.\d+)?%)\b/g, (match) => {
+    const placeholder = `__PCT_${key}__`;
+    parts.push(<span key={`pct-${key}`} className="font-medium text-blue-600 dark:text-blue-400">{match}</span>);
+    key++;
+    return placeholder;
+  });
+  
+  // Process numbers with units
+  remaining = remaining.replace(/(\b\d+(?:\.\d+)?\s*(?:cases?|activities?|failures?|seconds?)\b)/gi, (match) => {
+    const placeholder = `__NUM_${key}__`;
+    parts.push(<span key={`num-${key}`} className="font-medium text-green-600 dark:text-green-400">{match}</span>);
+    key++;
+    return placeholder;
+  });
+  
+  // Split by placeholders and reconstruct
+  const tokens = remaining.split(/(__[A-Z]+_\d+__)/);
+  const result: React.ReactNode[] = [];
+  
+  tokens.forEach((token, index) => {
+    if (token.startsWith('__') && token.endsWith('__')) {
+      const partIndex = parseInt(token.match(/\d+/)?.[0] || '0');
+      result.push(parts[partIndex]);
+    } else if (token.trim()) {
+      result.push(token);
+    }
+  });
+  
+  return <>{result}</>;
+}
 
 export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
   const [currentQuery, setCurrentQuery] = useState('');
@@ -1057,32 +951,174 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
     {
       id: 'welcome',
       role: 'assistant',
-      content: "👋 Hello! I'm ProcessGPT, your intelligent manufacturing analyst. I can help you understand production patterns, diagnose workflow issues, and optimize your processes. When you apply filters on the dashboard, I'll analyze only your filtered data for more targeted insights!",
+      content: "Hello! I'm ProcessGPT, your intelligent manufacturing analyst. I can help you understand production patterns, diagnose workflow issues, and optimize your processes. When you apply filters on the dashboard, I'll analyze only your filtered data for more targeted insights!",
       timestamp: new Date()
     }
   ]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  // Fetch conversation history
-  const { data: conversationHistory } = useQuery({
-    queryKey: [`/api/ai/conversations/${sessionId}`],
-    enabled: false // Only load on demand
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
+    }
+  }, [messages]);
+
+  const analyzeMutation = useMutation({
+    mutationFn: async ({ query, sessionId, filters }: { query: string; sessionId: string; filters: any }) => {
+      const response = await fetch('/api/ai/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, sessionId, filters })
+      });
+      if (!response.ok) throw new Error('Analysis failed');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setMessages(prev => [
+        ...prev,
+        {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: data.response,
+          timestamp: new Date(),
+          queryType: data.queryType
+        }
+      ]);
+    },
+    onError: (error) => {
+      setMessages(prev => [
+        ...prev,
+        {
+          id: `error-${Date.now()}`,
+          role: 'assistant',
+          content: `I apologize, but I encountered an error while analyzing your query: ${error.message}. Please try rephrasing your question or check if the data is available.`,
+          timestamp: new Date()
+        }
+      ]);
+    }
   });
 
-  // AI analysis mutation
-  const aiAnalysisMutation = useMutation({
-    mutationFn: (query: string) => api.analyzeAIQuery({
-      query,
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentQuery.trim() || analyzeMutation.isPending) return;
+
+    // Add user message
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content: currentQuery,
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    
+    // Analyze with applied filters
+    analyzeMutation.mutate({
+      query: currentQuery,
       sessionId,
-      contextData: { timestamp: new Date().toISOString() },
-      filters: appliedFilters
-    }),
-    onSuccess: (response) => {
-      // Generate visualization data based on the response
-      const visualizationData = generateVisualizationFromResponse(response);
-      
-      const assistantMessage: ChatMessage = {
-        id: `assistant_${Date.now()}`,
+      filters: appliedFilters || {}
+    });
+
+    setCurrentQuery('');
+  };
+
+  return (
+    <div className="flex h-full">
+      {/* Chat Section */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Chat messages */}
+        <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
+          <div className="space-y-6">
+            {messages.map((message, index) => (
+              <div key={message.id} className={`flex gap-3 ${
+                message.role === 'user' ? 'justify-end' : ''
+              }`}>
+                {message.role === 'assistant' && (
+                  <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+                    <Bot className="text-white" size={18} />
+                  </div>
+                )}
+                
+                <div className={`max-w-[85%] ${
+                  message.role === 'user' 
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' 
+                    : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-md border border-gray-200 dark:border-gray-700'
+                } rounded-2xl p-4`}>
+                  <div className="prose prose-sm max-w-none dark:prose-invert">
+                    {message.role === 'assistant' ? (
+                      <FormattedMessage content={message.content} />
+                    ) : (
+                      <p className="text-sm leading-relaxed">{message.content}</p>
+                    )}
+                  </div>
+                  
+                  {/* Contextual visualization for assistant messages */}
+                  {message.role === 'assistant' && (
+                    <ContextualVisualization message={message} appliedFilters={appliedFilters} />
+                  )}
+                </div>
+
+                {message.role === 'user' && (
+                  <div className="w-10 h-10 bg-gray-300 dark:bg-gray-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <User className="text-gray-600 dark:text-gray-300" size={18} />
+                  </div>
+                )}
+              </div>
+            ))}
+            
+            {analyzeMutation.isPending && (
+              <div className="flex gap-3">
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+                  <Bot className="text-white" size={18} />
+                </div>
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-md">
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Analyzing your manufacturing data...</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+
+        {/* Input form */}
+        <div className="border-t border-gray-200 dark:border-gray-700 p-4">
+          <form onSubmit={handleSubmit} className="flex gap-3">
+            <div className="flex-1 relative">
+              <Input
+                value={currentQuery}
+                onChange={(e) => setCurrentQuery(e.target.value)}
+                placeholder="Ask me about your manufacturing data... (e.g., 'What activities have the highest failure rates?')"
+                disabled={analyzeMutation.isPending}
+                className="pr-12 py-3 text-sm bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
+              />
+              <Button
+                type="submit"
+                size="sm"
+                disabled={!currentQuery.trim() || analyzeMutation.isPending}
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              >
+                <Send size={14} />
+              </Button>
+            </div>
+          </form>
+          
+          {appliedFilters && Object.keys(appliedFilters).length > 0 && (
+            <div className="flex items-center gap-2 mt-2 text-xs text-gray-600 dark:text-gray-400">
+              <Filter size={12} />
+              <span>Analyzing filtered data subset</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
         role: 'assistant',
         content: response.response,
         timestamp: new Date(),
