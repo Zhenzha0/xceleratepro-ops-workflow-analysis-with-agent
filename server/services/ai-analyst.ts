@@ -450,14 +450,17 @@ export class AIAnalyst {
         }
         
         if (queryType === 'activity_failure_rate_analysis') {
-          // Analyze which activities have the highest failure rates
-          const activityFailureRates = await this.analyzeActivityFailureRates(filters);
+          // Use enhanced analyzer for activity failure rate analysis with filtering
+          const { EnhancedFailureAnalyzer } = await import('./failure-analyzer-enhanced.js');
+          const activityFailureRates = await EnhancedFailureAnalyzer.analyzeActivityFailureRates(filters);
           data.activityFailureRates = activityFailureRates;
           data.summary.analysisType = 'activity_failure_rates';
-          data.summary.topFailingActivities = activityFailureRates.slice(0, 3).map(a => ({
+          data.summary.scopeAnalyzed = activityFailureRates.analysis_scope || 'Full dataset';
+          data.summary.totalAnalyzed = activityFailureRates.total_activities_analyzed;
+          data.summary.topFailingActivities = activityFailureRates.activities_with_most_failures.slice(0, 3).map(a => ({
             activity: a.activity,
-            failureRate: a.failureRate,
-            totalFailures: a.totalFailures
+            failureRate: a.failure_rate,
+            totalFailures: a.failed_count
           }));
         } else if (queryType === 'activity_failure_cause_analysis') {
           // Use enhanced analyzer for activity-level root cause analysis
