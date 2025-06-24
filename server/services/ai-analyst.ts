@@ -35,6 +35,8 @@ export interface AIAnalysisResponse {
   contextData?: any;
   suggestedActions?: string[];
   visualizationHint?: string;
+  data?: any; // Structured data for visualizations
+  analysis_type?: string; // Key field for automatic visualization detection
 }
 
 export class AIAnalyst {

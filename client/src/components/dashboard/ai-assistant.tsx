@@ -574,6 +574,7 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
     }
   ]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const [visualHistory, setVisualHistory] = useState<any[]>([]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -584,6 +585,128 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
       }
     }
   }, [messages]);
+
+  // Automatic visualization creation function (following your previous project architecture)
+  const createAutomaticVisualizations = (data: any, analysisType: string) => {
+    console.log(`Creating automatic visualizations for type: ${analysisType}`, data);
+    
+    if (analysisType === "failure_analysis" && data.failure_categories) {
+      createFailureAnalysisCharts(data);
+    } else if (analysisType === "activity_failure_analysis" && data.activities_with_most_failures) {
+      createActivityFailureCharts(data);
+    } else if (analysisType === "anomaly_detection" && data.activities_with_most_anomalies) {
+      createAnomalyAnalysisCharts(data);
+    } else if (analysisType === "temporal_analysis" && data.temporal_analysis) {
+      createTemporalAnalysisCharts(data);
+    } else if (analysisType === "bottleneck_analysis" && data.bottleneck_activities) {
+      createBottleneckAnalysisCharts(data);
+    }
+  };
+
+  // Create failure cause analysis charts
+  const createFailureAnalysisCharts = (data: any) => {
+    const pieData = data.failure_categories.map((cat: any, index: number) => ({
+      name: cat.cause,
+      value: cat.percentage,
+      count: cat.count,
+      color: ['#dc2626', '#ea580c', '#d97706', '#65a30d', '#7c3aed'][index] || '#6b7280'
+    }));
+
+    const newVisual = {
+      id: Date.now() + Math.random(),
+      type: 'failure_cause_pie',
+      title: 'Failure Root Causes Analysis',
+      subtitle: `Primary Cause: ${pieData[0]?.name} (${pieData[0]?.value}%)`,
+      data: pieData,
+      methodology: 'Analyzed failure descriptions in unsatisfied_condition_description to categorize root causes'
+    };
+
+    setVisualHistory(prev => [...prev, newVisual]);
+  };
+
+  // Create activity failure rate charts
+  const createActivityFailureCharts = (data: any) => {
+    const barData = data.activities_with_most_failures.slice(0, 5).map((activity: any, index: number) => ({
+      activity: activity.activity,
+      rate: activity.failure_percentage,
+      failures: activity.failed_count,
+      total: activity.total_count,
+      label: activity.activity.replace(/^\//, '').replace(/\//g, '/'),
+      color: ['#dc2626', '#ea580c', '#d97706', '#65a30d', '#7c3aed'][index] || '#6b7280'
+    }));
+
+    const newVisual = {
+      id: Date.now() + Math.random(),
+      type: 'activity_failure_bar',
+      title: 'Activity Failure Rates Analysis',
+      subtitle: `Highest Rate: ${barData[0]?.activity} (${barData[0]?.rate}%)`,
+      data: barData,
+      methodology: 'Analyzed failure rates across all manufacturing activities to identify most problematic processes'
+    };
+
+    setVisualHistory(prev => [...prev, newVisual]);
+  };
+
+  // Create temporal analysis charts  
+  const createTemporalAnalysisCharts = (data: any) => {
+    const temporalData = data.temporal_analysis.hour_failure_distribution.map((item: any) => ({
+      hour: `${item.hour.toString().padStart(2, '0')}:00`,
+      failures: item.count,
+      isTarget: item.is_peak || false
+    }));
+
+    const newVisual = {
+      id: Date.now() + Math.random(),
+      type: 'time_chart',
+      title: 'Failure Concentration by Hour',
+      subtitle: `Peak hour: ${temporalData.find((d: any) => d.isTarget)?.hour || '14:00'}`,
+      data: temporalData,
+      methodology: 'Analyzed temporal patterns across all manufacturing activities to identify peak failure times'
+    };
+
+    setVisualHistory(prev => [...prev, newVisual]);
+  };
+
+  // Create anomaly analysis charts
+  const createAnomalyAnalysisCharts = (data: any) => {
+    const anomalyData = data.activities_with_most_anomalies.map((item: any) => ({
+      hour: `${item.hour.toString().padStart(2, '0')}:00`,
+      anomalies: item.count,
+      isTarget: item.is_peak || false
+    }));
+
+    const newVisual = {
+      id: Date.now() + Math.random(),
+      type: 'anomaly_time_chart',
+      title: 'Anomaly Concentration by Hour',
+      subtitle: `Peak hour: ${anomalyData.find((d: any) => d.isTarget)?.hour || '06:00'}`,
+      data: anomalyData,
+      methodology: 'Analyzed temporal patterns of anomalous activities to identify peak occurrence times'
+    };
+
+    setVisualHistory(prev => [...prev, newVisual]);
+  };
+
+  // Create bottleneck analysis charts
+  const createBottleneckAnalysisCharts = (data: any) => {
+    const bottleneckData = data.bottleneck_activities.slice(0, 5).map((item: any, index: number) => ({
+      name: item.activity,
+      impact: item.impact_score,
+      affectedCases: item.affected_cases,
+      color: ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6'][index] || '#6b7280'
+    }));
+
+    const newVisual = {
+      id: Date.now() + Math.random(),
+      type: 'bottleneck_bar',
+      title: 'Process Bottleneck Analysis',
+      subtitle: `Critical Bottleneck: ${bottleneckData[0]?.name}`,
+      data: bottleneckData,
+      methodology: 'Analyzed processing times and case dependencies to identify workflow bottlenecks'
+    };
+
+    setVisualHistory(prev => [...prev, newVisual]);
+  };
 
   const analyzeMutation = useMutation({
     mutationFn: async ({ query, sessionId, filters }: { query: string; sessionId: string; filters: any }) => {
@@ -596,16 +719,23 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
       return response.json();
     },
     onSuccess: (data) => {
-      setMessages(prev => [
-        ...prev,
-        {
-          id: `assistant-${Date.now()}`,
-          role: 'assistant',
-          content: data.response,
-          timestamp: new Date(),
-          queryType: data.queryType
-        }
-      ]);
+      const assistantMessage = {
+        id: `assistant-${Date.now()}`,
+        role: 'assistant' as const,
+        content: data.response,
+        timestamp: new Date(),
+        queryType: data.queryType,
+        analysisData: data.data // Store structured data for automatic visualization
+      };
+      
+      setMessages(prev => [...prev, assistantMessage]);
+      
+      // Automatic visualization creation with 500ms delay (following your previous project pattern)
+      if (data.data && data.analysis_type) {
+        setTimeout(() => {
+          createAutomaticVisualizations(data.data, data.analysis_type);
+        }, 500);
+      }
     },
     onError: (error) => {
       setMessages(prev => [
@@ -674,10 +804,7 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
                     )}
                   </div>
                   
-                  {/* Contextual visualization for assistant messages */}
-                  {message.role === 'assistant' && (
-                    <ContextualVisualization message={message} appliedFilters={appliedFilters} />
-                  )}
+                  {/* No individual message visualizations - all handled by automatic system */}
                 </div>
 
                 {message.role === 'user' && (
@@ -734,6 +861,176 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
           )}
         </div>
       </div>
+
+      {/* Live Insights Panel - Automatic Visualization System */}
+      {visualHistory.length > 0 && (
+        <div className="w-80 border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex flex-col">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-purple-500" />
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Live Insights</h3>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              Auto-generated visualizations ({visualHistory.length})
+            </p>
+          </div>
+          
+          <div className="flex-1 p-4 overflow-y-auto">
+            <div className="space-y-6">
+              {visualHistory.map((visual, index) => (
+                <div key={visual.id || index} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <BarChart3 className="h-4 w-4 text-blue-500" />
+                    <h4 className="font-medium text-sm text-gray-900 dark:text-gray-100">{visual.title}</h4>
+                  </div>
+                  
+                  <div className="h-64 mb-4">
+                    {visual.type === 'failure_cause_pie' ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RechartsPieChart>
+                          <Pie
+                            data={visual.data}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={40}
+                            outerRadius={80}
+                            paddingAngle={5}
+                            dataKey="value"
+                          >
+                            {visual.data.map((entry: any, index: number) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip 
+                            formatter={(value: any, name: any, props: any) => [
+                              `${value}% (${props.payload.count} cases)`, 
+                              props.payload.name
+                            ]}
+                          />
+                          <Legend />
+                        </RechartsPieChart>
+                      </ResponsiveContainer>
+                    ) : visual.type === 'activity_failure_bar' ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={visual.data} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis 
+                            dataKey="label" 
+                            fontSize={10}
+                            tick={{ fill: '#6b7280' }}
+                            angle={-45}
+                            textAnchor="end"
+                            height={40}
+                            interval={0}
+                          />
+                          <YAxis 
+                            fontSize={11}
+                            tick={{ fill: '#6b7280' }}
+                            label={{ value: 'Failure %', angle: -90, position: 'insideLeft' }}
+                          />
+                          <Tooltip 
+                            formatter={(value: any, name: any, props: any) => [
+                              `${value}% (${props.payload.failures}/${props.payload.total})`, 
+                              'Failure Rate'
+                            ]}
+                          />
+                          <Bar dataKey="rate" fill="#dc2626" radius={[2, 2, 0, 0]}>
+                            {visual.data.map((entry: any, index: number) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : visual.type === 'time_chart' || visual.type === 'anomaly_time_chart' ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={visual.data} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis 
+                            dataKey="hour" 
+                            fontSize={10}
+                            tick={{ fill: '#6b7280' }}
+                            angle={-45}
+                            textAnchor="end"
+                            height={40}
+                            interval={1}
+                          />
+                          <YAxis 
+                            fontSize={11}
+                            tick={{ fill: '#6b7280' }}
+                            label={{ value: visual.type === 'anomaly_time_chart' ? 'Anomalies' : 'Failures', angle: -90, position: 'insideLeft' }}
+                          />
+                          <Tooltip 
+                            formatter={(value: any, name: any, props: any) => {
+                              const isTarget = props.payload.isTarget;
+                              const type = visual.type === 'anomaly_time_chart' ? 'anomalies' : 'failures';
+                              return [
+                                `${value} ${type}${isTarget ? ' (Peak hour)' : ''}`, 
+                                `${type.charAt(0).toUpperCase() + type.slice(1)} Count`
+                              ];
+                            }}
+                          />
+                          <Bar 
+                            dataKey={visual.type === 'anomaly_time_chart' ? 'anomalies' : 'failures'}
+                            fill={visual.type === 'anomaly_time_chart' ? '#f59e0b' : '#dc2626'}
+                            radius={[2, 2, 0, 0]}
+                          >
+                            {visual.data.map((entry: any, index: number) => (
+                              <Cell key={`cell-${index}`} fill={entry.isTarget ? (visual.type === 'anomaly_time_chart' ? '#f59e0b' : '#dc2626') : '#3b82f6'} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : visual.type === 'bottleneck_bar' ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={visual.data} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis 
+                            dataKey="name" 
+                            fontSize={10}
+                            tick={{ fill: '#6b7280' }}
+                            angle={-45}
+                            textAnchor="end"
+                            height={40}
+                          />
+                          <YAxis 
+                            fontSize={11}
+                            tick={{ fill: '#6b7280' }}
+                            label={{ value: 'Impact Score', angle: -90, position: 'insideLeft' }}
+                          />
+                          <Tooltip 
+                            formatter={(value: any, name: any, props: any) => [
+                              `${value} impact (${props.payload.affectedCases} cases)`, 
+                              'Impact Score'
+                            ]}
+                          />
+                          <Bar dataKey="impact" fill="#ef4444" radius={[2, 2, 0, 0]}>
+                            {visual.data.map((entry: any, index: number) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-gray-500">
+                        Visualization not available
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
+                    <div className="text-xs text-blue-700 dark:text-blue-300 font-medium mb-1">
+                      {visual.subtitle}
+                    </div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">
+                      {visual.methodology}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
