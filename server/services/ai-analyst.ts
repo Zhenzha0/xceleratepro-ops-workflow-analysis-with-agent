@@ -87,12 +87,17 @@ export class AIAnalyst {
         }
       });
 
+      // Generate structured data for automatic visualizations
+      const structuredData = await this.generateStructuredData(queryType, relevantData, query);
+      
       return {
         response: aiResponse.response || 'I apologize, but I encountered an issue processing your query.',
         queryType,
         contextData: aiResponse.contextData,
         suggestedActions: aiResponse.suggestedActions,
-        visualizationHint: aiResponse.visualizationHint
+        visualizationHint: aiResponse.visualizationHint,
+        data: structuredData,
+        analysis_type: queryType
       };
     } catch (error) {
       console.error('AI Analysis Error:', error);

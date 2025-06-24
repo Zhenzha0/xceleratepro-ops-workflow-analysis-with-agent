@@ -590,16 +590,27 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
   const createAutomaticVisualizations = (data: any, analysisType: string) => {
     console.log(`Creating automatic visualizations for type: ${analysisType}`, data);
     
+    // Map analysis types to visualization functions
     if (analysisType === "failure_analysis" && data.failure_categories) {
+      console.log('Creating failure analysis charts');
       createFailureAnalysisCharts(data);
     } else if (analysisType === "activity_failure_analysis" && data.activities_with_most_failures) {
+      console.log('Creating activity failure charts');
+      createActivityFailureCharts(data);
+    } else if (analysisType === "activity_failure_rate_analysis" && data.activities_with_most_failures) {
+      console.log('Creating activity failure rate charts');
       createActivityFailureCharts(data);
     } else if (analysisType === "anomaly_detection" && data.activities_with_most_anomalies) {
+      console.log('Creating anomaly analysis charts');
       createAnomalyAnalysisCharts(data);
     } else if (analysisType === "temporal_analysis" && data.temporal_analysis) {
+      console.log('Creating temporal analysis charts');
       createTemporalAnalysisCharts(data);
     } else if (analysisType === "bottleneck_analysis" && data.bottleneck_activities) {
+      console.log('Creating bottleneck analysis charts');
       createBottleneckAnalysisCharts(data);
+    } else {
+      console.log('No matching visualization type found for:', analysisType, 'Available data keys:', Object.keys(data || {}));
     }
   };
 
@@ -732,9 +743,12 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
       
       // Automatic visualization creation with 500ms delay (following your previous project pattern)
       if (data.data && data.analysis_type) {
+        console.log('Scheduling automatic visualization creation:', data.analysis_type, data.data);
         setTimeout(() => {
           createAutomaticVisualizations(data.data, data.analysis_type);
         }, 500);
+      } else {
+        console.log('No structured data available for visualization:', data);
       }
     },
     onError: (error) => {
