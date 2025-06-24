@@ -592,25 +592,27 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
     
     // Map analysis types to visualization functions
     if (analysisType === "failure_analysis" && data.failure_categories) {
-      console.log('Creating failure analysis charts');
+      console.log('Creating failure analysis charts with data:', data.failure_categories);
       createFailureAnalysisCharts(data);
     } else if (analysisType === "activity_failure_analysis" && data.activities_with_most_failures) {
-      console.log('Creating activity failure charts');
+      console.log('Creating activity failure charts with data:', data.activities_with_most_failures);
       createActivityFailureCharts(data);
     } else if (analysisType === "activity_failure_rate_analysis" && data.activities_with_most_failures) {
-      console.log('Creating activity failure rate charts');
+      console.log('Creating activity failure rate charts with data:', data.activities_with_most_failures);
       createActivityFailureCharts(data);
     } else if (analysisType === "anomaly_detection" && data.activities_with_most_anomalies) {
-      console.log('Creating anomaly analysis charts');
+      console.log('Creating anomaly analysis charts with data:', data.activities_with_most_anomalies);
       createAnomalyAnalysisCharts(data);
     } else if (analysisType === "temporal_analysis" && data.temporal_analysis) {
-      console.log('Creating temporal analysis charts');
+      console.log('Creating temporal analysis charts with data:', data.temporal_analysis);
       createTemporalAnalysisCharts(data);
     } else if (analysisType === "bottleneck_analysis" && data.bottleneck_activities) {
-      console.log('Creating bottleneck analysis charts');
+      console.log('Creating bottleneck analysis charts with data:', data.bottleneck_activities);
       createBottleneckAnalysisCharts(data);
     } else {
-      console.log('No matching visualization type found for:', analysisType, 'Available data keys:', Object.keys(data || {}));
+      console.log('No matching visualization type found for:', analysisType);
+      console.log('Available data keys:', Object.keys(data || {}));
+      console.log('Full data structure:', JSON.stringify(data, null, 2));
     }
   };
 
@@ -748,7 +750,7 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
           createAutomaticVisualizations(data.data, data.analysis_type);
         }, 500);
       } else {
-        console.log('No structured data available for visualization:', data);
+        console.log('No structured data available for visualization. Full response data:', JSON.stringify(data, null, 2));
       }
     },
     onError: (error) => {
