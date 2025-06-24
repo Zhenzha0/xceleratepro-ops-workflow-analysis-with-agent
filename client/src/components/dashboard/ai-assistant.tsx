@@ -632,7 +632,7 @@ function ContextualVisualization({ message, appliedFilters }: { message: ChatMes
                     <Legend />
                   </RechartsPieChart>
                 </ResponsiveContainer>
-                    ) : visual?.type === 'anomaly_time_chart' ? (
+                    ) : visual.type === 'anomaly_time_chart' ? (
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={visual.data} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -678,7 +678,96 @@ function ContextualVisualization({ message, appliedFilters }: { message: ChatMes
                           </Bar>
                         </BarChart>
                       </ResponsiveContainer>
-              ) : visualData?.type === 'general_time_chart' ? (
+                    ) : visual.type === 'time_chart' ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={visual.data} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis 
+                            dataKey="hour" 
+                            fontSize={10}
+                            tick={{ fill: '#6b7280' }}
+                            angle={-45}
+                            textAnchor="end"
+                            height={40}
+                            interval={1}
+                          />
+                          <YAxis 
+                            fontSize={11}
+                            tick={{ fill: '#6b7280' }}
+                            label={{ value: 'Failures', angle: -90, position: 'insideLeft' }}
+                          />
+                          <Tooltip 
+                            formatter={(value: any, name: any, props: any) => {
+                              const isTarget = props.payload.isTarget;
+                              return [
+                                `${value} failures${isTarget ? ' (Peak hour)' : ''}`, 
+                                'Failure Count'
+                              ];
+                            }}
+                            labelFormatter={(label: any) => `Time: ${label}`}
+                            contentStyle={{
+                              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: '8px',
+                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                            }}
+                          />
+                          <Bar 
+                            dataKey="failures" 
+                            fill={(entry: any) => entry.isTarget ? '#dc2626' : '#3b82f6'} 
+                            name="Failures" 
+                            radius={[2, 2, 0, 0]}
+                          >
+                            {visual.data.map((entry: any, index: number) => (
+                              <Cell key={`cell-${index}`} fill={entry.isTarget ? '#dc2626' : '#3b82f6'} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : visual.type === 'activity_failure_bar' ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={visual.data} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis 
+                            dataKey="label" 
+                            fontSize={10}
+                            tick={{ fill: '#6b7280' }}
+                            angle={-45}
+                            textAnchor="end"
+                            height={40}
+                            interval={0}
+                          />
+                          <YAxis 
+                            fontSize={11}
+                            tick={{ fill: '#6b7280' }}
+                            label={{ value: 'Failure %', angle: -90, position: 'insideLeft' }}
+                          />
+                          <Tooltip 
+                            formatter={(value: any, name: any, props: any) => [
+                              `${value}% (${props.payload.failures}/${props.payload.total})`, 
+                              'Failure Rate'
+                            ]}
+                            labelFormatter={(label: any) => `Activity: ${label}`}
+                            contentStyle={{
+                              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: '8px',
+                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                            }}
+                          />
+                          <Bar 
+                            dataKey="rate" 
+                            fill="#dc2626" 
+                            name="Failure Rate" 
+                            radius={[2, 2, 0, 0]}
+                          >
+                            {visual.data.map((entry: any, index: number) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : visual.type === 'general_time_chart' ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={visualData.data} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -705,7 +794,7 @@ function ContextualVisualization({ message, appliedFilters }: { message: ChatMes
                     />
                   </BarChart>
                 </ResponsiveContainer>
-              ) : visualData?.type === 'general_stats_bar' ? (
+                    ) : visual.type === 'general_stats_bar' ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={visualData.data} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
