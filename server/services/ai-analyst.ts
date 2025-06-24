@@ -1123,16 +1123,22 @@ Respond in JSON format with: patterns (array), recommendations (array), riskAsse
             ORDER BY hour
           `);
           
-          console.log('SQL hourly results:', hourlyResults);
+          console.log('SQL hourly results rows:', hourlyResults.rows);
           
           // Create complete 24-hour array
           const hourlyFailures = Array.from({length: 24}, (_, hour) => ({ hour, count: 0 }));
-          hourlyResults.forEach((row: any) => {
-            const hour = parseInt(row.hour);
-            if (hour >= 0 && hour < 24) {
-              hourlyFailures[hour].count = parseInt(row.count);
-            }
-          });
+          
+          // Process the SQL result rows
+          if (hourlyResults.rows && Array.isArray(hourlyResults.rows)) {
+            hourlyResults.rows.forEach((row: any) => {
+              const hour = parseInt(row.hour);
+              if (hour >= 0 && hour < 24) {
+                hourlyFailures[hour].count = parseInt(row.count);
+              }
+            });
+          }
+          
+          console.log('Processed hourly failures:', hourlyFailures.filter(h => h.count > 0));
           
           // Get daily distribution
           const dailyResults = await db.execute(sql`
@@ -1145,7 +1151,7 @@ Respond in JSON format with: patterns (array), recommendations (array), riskAsse
             ORDER BY date
           `);
           
-          const dailyData = dailyResults.map((row: any) => ({
+          const dailyData = (dailyResults.rows || []).map((row: any) => ({
             date: row.date,
             count: parseInt(row.count)
           }));
@@ -1160,9 +1166,10 @@ Respond in JSON format with: patterns (array), recommendations (array), riskAsse
             WHERE lifecycle_state = 'failure'
           `);
           
-          const totalFailures = dateRangeResult[0]?.total_failures ? parseInt(dateRangeResult[0].total_failures) : 0;
-          const startDate = dateRangeResult[0]?.start_date;
-          const endDate = dateRangeResult[0]?.end_date;
+          const dateRow = dateRangeResult.rows?.[0] || {};
+          const totalFailures = dateRow.total_failures ? parseInt(dateRow.total_failures) : 0;
+          const startDate = dateRow.start_date;
+          const endDate = dateRow.end_date;
           
           console.log(`Temporal analysis found ${totalFailures} failure events using direct SQL query`);
           console.log(`Hourly distribution:`, hourlyFailures.filter(h => h.count > 0));
