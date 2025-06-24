@@ -41,6 +41,7 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
   const [currentQuery, setCurrentQuery] = useState('');
   const sessionId = useRef(Date.now().toString());
   const [insights, setInsights] = useState<Insight[]>([]);
+  const [expandedInsight, setExpandedInsight] = useState<Insight | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
@@ -378,19 +379,7 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
                     <button 
                       className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1"
                       onClick={() => {
-                        const modal = document.createElement('div');
-                        modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50';
-                        modal.innerHTML = `
-                          <div class="bg-white dark:bg-gray-800 p-6 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto">
-                            <div class="flex items-center justify-between mb-4">
-                              <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">${insight.title}</h2>
-                              <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">✕</button>
-                            </div>
-                            <div class="h-96 w-full mb-4"></div>
-                            ${insight.description ? `<div class="p-4 bg-gray-100 dark:bg-gray-700 rounded-lg"><p class="text-sm text-gray-600 dark:text-gray-400">${insight.description}</p></div>` : ''}
-                          </div>
-                        `;
-                        document.body.appendChild(modal);
+                        setExpandedInsight(insight);
                       }}
                     >
                       <Maximize2 className="h-3 w-3" />
@@ -418,6 +407,33 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Expanded Modal */}
+      {expandedInsight && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setExpandedInsight(null)}>
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg max-w-6xl w-full max-h-[90vh] overflow-auto m-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{expandedInsight.title}</h2>
+              <button 
+                onClick={() => setExpandedInsight(null)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2"
+              >
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="h-96 w-full mb-4">
+              {expandedInsight.chart}
+            </div>
+            {expandedInsight.description && (
+              <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                <p className="text-sm text-gray-600 dark:text-gray-400">{expandedInsight.description}</p>
+              </div>
+            )}
           </div>
         </div>
       )}
