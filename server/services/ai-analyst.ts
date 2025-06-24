@@ -178,9 +178,18 @@ export class AIAnalyst {
       return 'temporal_delay_analysis';
     }
     
-    // 🔄 Anomaly Detection
-    if (queryLower.includes('anomaly') || queryLower.includes('anomalous') || queryLower.includes('unusual')) {
+    // 🔄 Anomaly Detection - HIGHEST PRIORITY
+    if (queryLower.includes('anomaly') || queryLower.includes('anomalous') || queryLower.includes('unusual') || queryLower.includes('anomal')) {
+      console.log('→ Classified as: anomaly_analysis');
       return 'anomaly_analysis';
+    }
+    
+    // ⏰ Temporal Analysis - Time-based questions
+    if (queryLower.includes('hour') && queryLower.includes('concentration')) {
+      if (queryLower.includes('failure')) {
+        console.log('→ Classified as: temporal_pattern_analysis (failures by hour)');
+        return 'temporal_pattern_analysis';
+      }
     }
     
     if (queryLower.includes('spike') && queryLower.includes('processing')) {

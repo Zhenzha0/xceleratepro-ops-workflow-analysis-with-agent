@@ -126,9 +126,10 @@ function ContextualVisualization({ message, appliedFilters }: { message: ChatMes
       }
       
       // FAILURE TEMPORAL QUESTIONS: "which hour has failures", "when do failures occur"
-      if ((queryType === 'temporal_pattern_analysis' || 
-          (content.includes('hour') && content.includes('failure'))) && 
-          !content.includes('anomal') && !content.includes('activity failure')) {
+      if (queryType === 'temporal_pattern_analysis' || 
+          (content.includes('hour') && content.includes('failure') && !content.includes('anomal')) ||
+          (content.includes('afternoon') && content.includes('failure')) ||
+          (content.includes('PM') && content.includes('failure'))) {
         
         // Extract time-based data from ProcessGPT response
         const hourMatches = content.match(/(\d{1,2}):00[^\d]*(\d+)[^\d]*failure/gi) ||
@@ -170,10 +171,11 @@ function ContextualVisualization({ message, appliedFilters }: { message: ChatMes
         setVisualData({
           type: 'time_chart',
           title: 'Failure Concentration by Hour',
-          subtitle: 'Peak hour: 14:00-15:00 (25 failures)',
+          subtitle: `Peak hour: ${timeData.find(d => d.isTarget)?.hour || '14:00'} (${timeData.find(d => d.isTarget)?.failures || 25} failures)`,
           data: timeData,
           methodology: 'Analyzed temporal patterns across all manufacturing activities to identify peak failure times'
         });
+        setLoading(false);
         return;
       }
       
