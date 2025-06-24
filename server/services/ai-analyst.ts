@@ -141,8 +141,22 @@ export class AIAnalyst {
     } else if (queryLower.includes('bottleneck') || queryLower.includes('slow') || queryLower.includes('delay') ||
                queryLower.includes('stuck') || queryLower.includes('wait')) {
       return 'bottleneck_analysis';
-    } else if (queryLower.includes('failure') || queryLower.includes('error') || queryLower.includes('fail') ||
-               queryLower.includes('search') || queryLower.includes('find') || queryLower.includes('similar')) {
+    } else if (queryLower.includes('failure') || queryLower.includes('error') || queryLower.includes('fail')) {
+      // Enhanced failure analysis classification with activity vs case distinction
+      if ((queryLower.includes('cause') || queryLower.includes('reason') || queryLower.includes('why') ||
+           queryLower.includes('root') || queryLower.includes('common') || queryLower.includes('most')) &&
+          (queryLower.includes('activit') || queryLower.includes('step') || queryLower.includes('operation') ||
+           !queryLower.includes('case'))) {
+        return 'activity_failure_cause_analysis';
+      } else if (queryLower.includes('case') && !queryLower.includes('activit')) {
+        return 'case_failure_analysis';
+      } else if (queryLower.includes('cause') || queryLower.includes('reason') || queryLower.includes('why') ||
+                 queryLower.includes('root') || queryLower.includes('common') || queryLower.includes('most')) {
+        return 'activity_failure_cause_analysis'; // Default to activity-level for cause analysis
+      } else {
+        return 'failure_analysis';
+      }
+    } else if (queryLower.includes('search') || queryLower.includes('find') || queryLower.includes('similar')) {
       return 'semantic_search';
     } else if (queryLower.includes('equipment') || queryLower.includes('machine') || queryLower.includes('resource') ||
                queryLower.includes('station') || queryLower.includes('hbw') || queryLower.includes('vgr')) {
@@ -251,9 +265,11 @@ export class AIAnalyst {
           queryLower.includes('cause') || queryLower.includes('problem') ||
           queryLower.includes('issue') || queryLower.includes('error')) {
         
-        if (queryLower.includes('cause') || queryLower.includes('reason') || queryLower.includes('why') ||
-            queryLower.includes('root') || queryLower.includes('common') || queryLower.includes('most')) {
-          // Use enhanced analyzer for root cause analysis
+        // Enhanced logic to distinguish between activity and case level analysis
+        if (queryType === 'activity_failure_cause_analysis' || 
+            (queryLower.includes('cause') || queryLower.includes('reason') || queryLower.includes('why') ||
+             queryLower.includes('root') || queryLower.includes('common') || queryLower.includes('most'))) {
+          // Use enhanced analyzer for activity-level root cause analysis
           const { EnhancedFailureAnalyzer } = await import('./failure-analyzer-enhanced.js');
           const failureAnalysis = await EnhancedFailureAnalyzer.analyzeFailureCauses(filters);
           const failureSummary = await EnhancedFailureAnalyzer.getFailureSummary(filters);
@@ -263,6 +279,7 @@ export class AIAnalyst {
           data.summary.actualFailureCount = failureAnalysis.totalFailures;
           data.summary.failureRate = failureAnalysis.failureRate;
           data.summary.topFailureTypes = failureAnalysis.commonPatterns.slice(0, 3).map(p => p.description);
+          data.summary.analysisLevel = 'activity'; // Mark as activity-level analysis
         } else {
           // Use standard analyzer for general failure analysis
           const { FailureAnalyzer } = await import('./failure-analyzer.js');
@@ -274,6 +291,7 @@ export class AIAnalyst {
           data.summary.actualFailureCount = failureAnalysis.totalFailures;
           data.summary.failureRate = failureAnalysis.failureRate;
           data.summary.topFailureTypes = failureAnalysis.commonPatterns.slice(0, 3).map(p => p.description);
+          data.summary.analysisLevel = 'general';
         }
       }
 

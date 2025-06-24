@@ -226,26 +226,28 @@ export class EnhancedFailureAnalyzer {
     const topCause = analysis.commonPatterns[0];
     const failureRate = analysis.failureRate.toFixed(2);
     
-    let summary = `Analysis of ${analysis.totalFailures} failures (${failureRate}% failure rate):\n\n`;
+    let summary = `ACTIVITY-LEVEL FAILURE ANALYSIS: ${analysis.totalFailures} failed activities (${failureRate}% failure rate):\n\n`;
     
     if (topCause && !topCause.description.startsWith('Activity failure:')) {
-      summary += `**Primary Root Cause**: ${topCause.description}\n`;
-      summary += `- Occurred ${topCause.count} times (${topCause.percentage.toFixed(1)}% of failures)\n`;
-      summary += `- Affected ${topCause.affectedCases.length} cases\n`;
+      summary += `**Primary Root Cause (Activity Level)**: ${topCause.description}\n`;
+      summary += `- Occurred in ${topCause.count} failed activities (${topCause.percentage.toFixed(1)}% of all failed activities)\n`;
+      summary += `- Spread across ${topCause.affectedCases.length} different cases\n`;
       summary += `- Equipment involved: ${topCause.affectedEquipment.join(', ')}\n\n`;
       
-      summary += "**Other Common Causes**:\n";
+      summary += "**Other Common Activity Failure Causes**:\n";
       analysis.commonPatterns.slice(1, 4).forEach((pattern, index) => {
         if (!pattern.description.startsWith('Activity failure:')) {
-          summary += `${index + 2}. ${pattern.description}: ${pattern.count} occurrences\n`;
+          summary += `${index + 2}. ${pattern.description}: ${pattern.count} failed activities (${pattern.percentage.toFixed(1)}%)\n`;
         }
       });
     } else {
-      summary += "**Most Affected Activities**:\n";
+      summary += "**Most Common Failed Activity Types**:\n";
       analysis.commonPatterns.slice(0, 5).forEach((pattern, index) => {
-        summary += `${index + 1}. ${pattern.description}: ${pattern.count} failures (${pattern.percentage.toFixed(1)}%)\n`;
+        summary += `${index + 1}. ${pattern.description}: ${pattern.count} failed activities (${pattern.percentage.toFixed(1)}%)\n`;
       });
     }
+    
+    summary += `\n**Key Insight**: This analysis counts each failed activity separately. The root causes shown represent technical issues that cause individual manufacturing activities to fail, providing activity-level failure statistics.`;
     
     return summary;
   }
