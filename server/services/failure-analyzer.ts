@@ -44,7 +44,7 @@ export class FailureAnalyzer {
     console.log(`Found ${failureEvents.length} actual failure events out of ${events.length} total events`);
 
     // Analyze actual failure causes from descriptions
-    const failureCauses = this.categorizeFailureCauses(failureEvents);
+    const failureCauses = FailureAnalyzer.categorizeFailureCauses(failureEvents);
     
     // Also get activity-based failures for context
     const activityFailures: Record<string, {
