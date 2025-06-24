@@ -29,6 +29,18 @@ interface AIAssistantProps {
   appliedFilters?: any;
 }
 
+interface ProcessGPTFilters {
+  scopeType: 'dataset' | 'timerange';
+  datasetSize: 'full' | 'range';
+  datasetOrder: 'first' | 'last';
+  customLimit: number;
+  activityRange: { start: number; end: number };
+  timeRange: { start: string; end: string };
+  equipment: string;
+  status: string;
+  caseIds: string[];
+}
+
 export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -283,12 +295,12 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
 
     setMessages(prev => [...prev, userMessage]);
     
-    // Analyze with applied filters
-    console.log('AI Assistant: Sending filters to backend:', appliedFilters);
+    // Analyze with ProcessGPT-specific filters (not dashboard filters)
+    console.log('AI Assistant: Sending ProcessGPT filters to backend:', processGPTFilters);
     analyzeMutation.mutate({
       query: currentQuery,
       sessionId: sessionId.current,
-      filters: appliedFilters || {}
+      filters: processGPTFilters
     });
 
     setCurrentQuery('');
