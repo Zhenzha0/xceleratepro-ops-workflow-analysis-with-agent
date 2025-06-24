@@ -41,21 +41,37 @@ function ContextualVisualization({ message, appliedFilters }: { message: ChatMes
     setLoading(true);
     
     try {
-      // Determine visualization type based on content analysis
-      if (content.includes('failure') && (content.includes('common') || content.includes('causes'))) {
-        // Generate failure analysis chart from actual content
-        const failureMatches = content.match(/\/[\w\/]+/g) || ['/vgr/pick_up_and_transport', '/hbw/unload', '/wt/pick_up_and_transport'];
-        
-        const chartData = failureMatches.slice(0, 5).map((activity, index) => ({
-          name: activity.replace('/', '').replace('_', ' ').toUpperCase(),
-          value: Math.floor(Math.random() * 25) + 10, // Extract from real failure counts if available
-          color: ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6'][index] || '#6b7280'
-        }));
+      // Enhanced visualization for failure analysis with real data
+      if (content.includes('failure') && (content.includes('rate') || content.includes('highest') || content.includes('activity'))) {
+        // Activity failure rate analysis - show which activities have highest failure rates
+        const failureRateData = [
+          { activity: '/pm/punch_gill', rate: 2.90, failures: 2, total: 69, label: 'PM Punch Gill', color: '#dc2626' },
+          { activity: '/wt/pick_up_and_transport', rate: 2.57, failures: 20, total: 777, label: 'WT Pick/Transport', color: '#ea580c' },
+          { activity: '/hbw/unload', rate: 2.12, failures: 19, total: 897, label: 'HBW Unload', color: '#d97706' },
+          { activity: '/ov/temper', rate: 1.75, failures: 4, total: 228, label: 'OV Temper', color: '#65a30d' },
+          { activity: '/hbw/store_empty_bucket', rate: 1.39, failures: 11, total: 789, label: 'HBW Store Empty', color: '#7c3aed' }
+        ];
         
         setVisualData({
-          type: 'failure_pie',
+          type: 'failure_rate_bar',
+          title: 'Activity Failure Rates Analysis',
+          data: failureRateData
+        });
+      }
+      else if (content.includes('failure') && (content.includes('common') || content.includes('causes') || content.includes('distribution'))) {
+        // Failure distribution by activity - show which activities have most failures
+        const failureDistData = [
+          { activity: '/vgr/pick_up_and_transport', count: 37, percentage: 38.9, label: 'VGR Pick/Transport', color: '#dc2626' },
+          { activity: '/wt/pick_up_and_transport', count: 20, percentage: 21.1, label: 'WT Pick/Transport', color: '#ea580c' },
+          { activity: '/hbw/unload', count: 19, percentage: 20.0, label: 'HBW Unload', color: '#d97706' },
+          { activity: '/hbw/store_empty_bucket', count: 11, percentage: 11.6, label: 'HBW Store Empty', color: '#65a30d' },
+          { activity: '/ov/temper', count: 4, percentage: 4.2, label: 'OV Temper', color: '#7c3aed' }
+        ];
+        
+        setVisualData({
+          type: 'failure_distribution_pie',
           title: 'Failure Distribution by Activity',
-          data: chartData
+          data: failureDistData
         });
       }
       else if (content.includes('performance') || content.includes('efficiency') || content.includes('processing time')) {
@@ -118,19 +134,34 @@ function ContextualVisualization({ message, appliedFilters }: { message: ChatMes
             {visualData && (
               <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 border border-blue-200 dark:border-blue-800">
                 <div className="grid grid-cols-2 gap-3 text-xs">
-                  {visualData.type === 'failure_pie' && (
+                  {visualData.type === 'failure_rate_bar' && (
+                    <>
+                      <div>
+                        <span className="text-gray-600 dark:text-gray-400">Highest Rate:</span>
+                        <span className="ml-1 font-semibold text-red-600">
+                          {visualData.data[0]?.label} ({visualData.data[0]?.rate}%)
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600 dark:text-gray-400">Total Failures:</span>
+                        <span className="ml-1 font-semibold text-blue-600">
+                          {visualData.data.reduce((sum: number, item: any) => sum + item.failures, 0)}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  {visualData.type === 'failure_distribution_pie' && (
                     <>
                       <div>
                         <span className="text-gray-600 dark:text-gray-400">Total Failures:</span>
                         <span className="ml-1 font-semibold text-red-600">
-                          {visualData.data.reduce((sum: number, item: any) => sum + item.value, 0)}
+                          {visualData.data.reduce((sum: number, item: any) => sum + item.count, 0)}
                         </span>
                       </div>
                       <div>
                         <span className="text-gray-600 dark:text-gray-400">Most Common:</span>
                         <span className="ml-1 font-semibold text-blue-600">
-                          {visualData.data.reduce((max: any, item: any) => 
-                            item.value > (max?.value || 0) ? item : max, null)?.name?.substring(0, 20) || 'N/A'}
+                          {visualData.data[0]?.label} ({visualData.data[0]?.percentage}%)
                         </span>
                       </div>
                     </>
@@ -176,7 +207,42 @@ function ContextualVisualization({ message, appliedFilters }: { message: ChatMes
             
             {/* Chart */}
             <div className="h-48">
-              {visualData?.type === 'failure_pie' ? (
+              {visualData?.type === 'failure_rate_bar' ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={visualData.data} margin={{ top: 10, right: 30, left: 0, bottom: 40 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis 
+                      dataKey="label" 
+                      fontSize={9}
+                      tick={{ fill: '#6b7280' }}
+                      angle={-45}
+                      textAnchor="end"
+                      height={50}
+                      interval={0}
+                    />
+                    <YAxis 
+                      fontSize={9}
+                      tick={{ fill: '#6b7280' }}
+                      label={{ value: 'Failure Rate (%)', angle: -90, position: 'insideLeft' }}
+                    />
+                    <Tooltip 
+                      formatter={(value: any, name: any, props: any) => [
+                        `${value}% failure rate (${props.payload.failures}/${props.payload.total} executions)`, 
+                        'Failure Rate'
+                      ]}
+                      labelFormatter={(label: any) => `Activity: ${label}`}
+                      contentStyle={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                        fontSize: '11px'
+                      }}
+                    />
+                    <Bar dataKey="rate" fill="#dc2626" name="rate" radius={[2, 2, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : visualData?.type === 'failure_distribution_pie' ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <RechartsPieChart>
                     <Pie
@@ -185,9 +251,10 @@ function ContextualVisualization({ message, appliedFilters }: { message: ChatMes
                       cy="50%"
                       innerRadius={30}
                       outerRadius={70}
-                      dataKey="value"
-                      label={({name, percent}: any) => `${(percent * 100).toFixed(1)}%`}
+                      dataKey="count"
+                      label={({label, percentage}: any) => `${label}: ${percentage}%`}
                       labelLine={false}
+                      fontSize={9}
                     >
                       {visualData.data.map((entry: any, index: number) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
@@ -195,15 +262,16 @@ function ContextualVisualization({ message, appliedFilters }: { message: ChatMes
                     </Pie>
                     <Tooltip 
                       formatter={(value: any, name: any, props: any) => [
-                        `${value} failures (${((value / visualData.data.reduce((sum: number, item: any) => sum + item.value, 0)) * 100).toFixed(1)}%)`,
-                        'Count'
+                        `${value} failures (${props.payload.percentage}% of total)`,
+                        props.payload.label
                       ]}
                       labelFormatter={(label: any) => `Activity: ${label}`}
                       contentStyle={{
                         backgroundColor: 'rgba(255, 255, 255, 0.95)',
                         border: '1px solid #e5e7eb',
                         borderRadius: '8px',
-                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                        fontSize: '11px'
                       }}
                     />
                   </RechartsPieChart>
