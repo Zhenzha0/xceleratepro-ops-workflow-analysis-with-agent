@@ -167,7 +167,32 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
 
   // Create temporal analysis charts
   const createTemporalAnalysisCharts = (data: any) => {
-    // Implementation for temporal analysis charts
+    const chartData = data.temporal_analysis.hour_failure_distribution.map((item: any) => ({
+      hour: `${item.hour.toString().padStart(2, '0')}:00`,
+      failures: item.count
+    }));
+
+    const lineChart = (
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="hour" fontSize={10} />
+          <YAxis fontSize={11} label={{ value: 'Failures', angle: -90, position: 'insideLeft' }} />
+          <Tooltip />
+          <Bar dataKey="failures" fill="#3b82f6" />
+        </BarChart>
+      </ResponsiveContainer>
+    );
+
+    const newInsight: Insight = {
+      id: Date.now().toString(),
+      title: 'Temporal Failure Distribution',
+      chart: lineChart,
+      icon: BarChart3,
+      description: 'Analyzed temporal patterns of failures across different hours to identify peak occurrence times'
+    };
+
+    setInsights(prev => [...prev, newInsight]);
   };
 
   // Create bottleneck analysis charts
@@ -189,7 +214,7 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
     } else if ((analysisType === "anomaly_detection" || analysisType === "anomaly_analysis") && data.activities_with_most_anomalies) {
       console.log('Creating anomaly analysis charts with data:', data.activities_with_most_anomalies);
       createAnomalyAnalysisCharts(data);
-    } else if (analysisType === "temporal_analysis" && data.temporal_analysis) {
+    } else if ((analysisType === "temporal_analysis" || analysisType === "temporal_pattern_analysis") && data.temporal_analysis) {
       console.log('Creating temporal analysis charts with data:', data.temporal_analysis);
       createTemporalAnalysisCharts(data);
     } else if (analysisType === "bottleneck_analysis" && data.bottleneck_activities) {
@@ -297,6 +322,15 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
                       <p className="text-sm leading-relaxed">{message.content}</p>
                     )}
                   </div>
+                  
+                  {/* Inline visualization for assistant messages */}
+                  {message.role === 'assistant' && message.visualizationData && (
+                    <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+                      <div className="h-64 w-full">
+                        <InlineVisualization data={message.visualizationData} />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {message.role === 'user' && (
@@ -513,4 +547,110 @@ function FormattedText({ text }: { text: string }) {
   };
 
   return <>{formatText(text)}</>;
+}
+
+// Inline visualization component for chat messages
+function InlineVisualization({ data }: { data: any }) {
+  if (!data) return null;
+
+  // Failure analysis
+  if (data.failure_categories) {
+    const chartData = data.failure_categories.map((category: any, index: number) => ({
+      name: category.cause,
+      value: parseInt(category.count),
+      percentage: category.percentage
+    }));
+    const colors = ['#dc2626', '#ea580c', '#d97706', '#65a30d', '#3b82f6'];
+
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <RechartsPieChart>
+          <Pie
+            data={chartData}
+            cx="50%"
+            cy="50%"
+            innerRadius={40}
+            outerRadius={80}
+            paddingAngle={5}
+            dataKey="value"
+            label={({ name, percentage }) => `${name}: ${percentage}%`}
+          >
+            {chartData.map((entry: any, index: number) => (
+              <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+            ))}
+          </Pie>
+          <Tooltip formatter={(value: any, name: any) => [`${value} failures`, name]} />
+        </RechartsPieChart>
+      </ResponsiveContainer>
+    );
+  }
+
+  // Activity failure analysis
+  if (data.activities_with_most_failures) {
+    const chartData = data.activities_with_most_failures.slice(0, 5).map((activity: any, index: number) => ({
+      name: activity.activity.split('/').pop() || activity.activity,
+      value: parseFloat(activity.failure_rate.replace('%', '')),
+      failures: activity.failed_count,
+      total: activity.total_count
+    }));
+    const colors = ['#dc2626', '#ea580c', '#d97706', '#65a30d', '#3b82f6'];
+
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="name" fontSize={10} angle={-45} textAnchor="end" height={40} />
+          <YAxis fontSize={11} label={{ value: 'Failure Rate %', angle: -90, position: 'insideLeft' }} />
+          <Tooltip formatter={(value: any, name: any, props: any) => [`${value}% (${props.payload.failures}/${props.payload.total})`, 'Failure Rate']} />
+          <Bar dataKey="value" radius={[2, 2, 0, 0]}>
+            {chartData.map((entry: any, index: number) => (
+              <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  }
+
+  // Temporal analysis
+  if (data.temporal_analysis) {
+    const chartData = data.temporal_analysis.hour_failure_distribution.map((item: any) => ({
+      hour: `${item.hour.toString().padStart(2, '0')}:00`,
+      failures: item.count
+    }));
+
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="hour" fontSize={10} />
+          <YAxis fontSize={11} label={{ value: 'Failures', angle: -90, position: 'insideLeft' }} />
+          <Tooltip />
+          <Bar dataKey="failures" fill="#3b82f6" />
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  }
+
+  // Anomaly analysis
+  if (data.activities_with_most_anomalies) {
+    const chartData = data.activities_with_most_anomalies.map((item: any) => ({
+      hour: `${item.hour.toString().padStart(2, '0')}:00`,
+      anomalies: item.count
+    }));
+
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="hour" fontSize={10} />
+          <YAxis fontSize={11} label={{ value: 'Anomalies', angle: -90, position: 'insideLeft' }} />
+          <Tooltip />
+          <Bar dataKey="anomalies" fill="#ef4444" />
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  }
+
+  return null;
 }
