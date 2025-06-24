@@ -88,7 +88,7 @@ export class AIAnalyst {
       });
 
       // Generate structured data for automatic visualizations
-      const structuredData = await this.generateStructuredData(queryType, relevantData, query);
+      const structuredData = await AIAnalyst.generateStructuredData(queryType, relevantData, query);
       
       return {
         response: aiResponse.response || 'I apologize, but I encountered an issue processing your query.',
