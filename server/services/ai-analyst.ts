@@ -739,22 +739,23 @@ CRITICAL: This analyzes WHICH ACTIVITIES fail most often, not what causes failur
 Focus on activity names and their failure statistics, not root causes.`;
     }
 
-    // Add activity-level failure cause analysis context
-    if (queryType === 'activity_failure_cause_analysis' && relevantData.actualFailures) {
+    // Add failure cause analysis context
+    if (queryType === 'failure_cause_analysis' && relevantData.failureCauses) {
       contextualPrompt += `
 
-ACTIVITY-LEVEL ROOT CAUSE FAILURE ANALYSIS:
-- Total failure activities: ${relevantData.actualFailures.totalFailures}
-- Activity failure rate: ${relevantData.actualFailures.failureRate?.toFixed(2)}%
-- Analysis level: ACTIVITY-LEVEL (each failed activity counted separately)
+FAILURE ROOT CAUSE ANALYSIS:
+- Total failures analyzed: ${relevantData.totalFailures}
+- Analysis type: ROOT CAUSES from failure descriptions (NOT which activities fail)
 
-TECHNICAL ROOT CAUSES (by activity occurrence):
-${relevantData.actualFailures.commonPatterns?.map((p: any, i: number) => 
-  `${i + 1}. ${p.description}: ${p.count} activity failures (${p.percentage.toFixed(1)}%)`
+TECHNICAL ROOT CAUSES:
+${relevantData.failureCauses?.map((cause: any, i: number) => 
+  `${i + 1}. ${cause.cause}: ${cause.count} failures (${cause.percentage}%)`
 ).join('\n') || 'No root cause patterns found'}
 
-CRITICAL: This analyzes failure causes at the ACTIVITY level, not case level. 
-Focus on technical root causes that cause individual activities to fail.`;
+CRITICAL: This analyzes WHAT CAUSES failures (sensor issues, inventory problems), NOT which activities fail most. 
+Focus on technical root causes from unsatisfied_condition_description field.
+
+Example response: "The most common failure cause is sensor failures accounting for 40% of all failures (38 cases)..."`;
     }
 
     if (queryType === 'case_failure_analysis' && relevantData.actualFailures) {

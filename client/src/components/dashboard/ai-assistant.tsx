@@ -154,6 +154,11 @@ function ContextualVisualization({ message, appliedFilters }: { message: ChatMes
           });
           setLoading(false);
           return;
+        } else {
+          // No visualization for failure cause analysis without specific percentages
+          setVisualData(null);
+          setLoading(false);
+          return;
         }
       }
       
