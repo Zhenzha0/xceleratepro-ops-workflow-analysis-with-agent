@@ -154,12 +154,19 @@ export function AIAssistant({ appliedFilters }: AIAssistantProps) {
   const createAutomaticVisualizations = (data: any, analysisType: string) => {
     console.log('Creating automatic visualizations for type:', analysisType, data);
     
+    // Enhanced mapping to handle various analysis types
     if (analysisType === 'activity_failure_rate_analysis' && data.activityFailureRates) {
       createActivityFailureCharts(data.activityFailureRates.activities_with_most_failures || []);
     } else if (analysisType === 'failure_analysis' && data.actualFailures) {
       createFailureAnalysisCharts(data.actualFailures.commonPatterns || []);
     } else if (analysisType === 'failure_cause_analysis' && data.failure_categories) {
       createFailureCauseCharts(data.failure_categories || []);
+    } else if (analysisType === 'failure_causes' && data) {
+      // Handle direct failure causes data
+      createFailureCauseCharts(data || []);
+    } else if (analysisType === 'fallback' && data.commonPatterns) {
+      // Handle fallback analysis with common patterns
+      createFailureAnalysisCharts(data.commonPatterns || []);
     } else if (analysisType === 'temporal_analysis' && data.temporal_analysis) {
       createTemporalAnalysisCharts(data.temporal_analysis);
     } else if (analysisType === 'temporal_pattern_analysis' && data.temporal_analysis) {
@@ -168,6 +175,8 @@ export function AIAssistant({ appliedFilters }: AIAssistantProps) {
       createAnomalyAnalysisCharts(data.anomalyAnalysis);
     } else if (analysisType === 'bottleneck_analysis' && data.bottleneckAnalysis) {
       createBottleneckAnalysisCharts(data.bottleneckAnalysis);
+    } else {
+      console.log('No matching visualization type found for:', analysisType, 'with data keys:', Object.keys(data || {}));
     }
   };
 
