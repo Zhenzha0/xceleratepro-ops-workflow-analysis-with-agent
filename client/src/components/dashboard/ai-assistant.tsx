@@ -284,6 +284,7 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
     setMessages(prev => [...prev, userMessage]);
     
     // Analyze with applied filters
+    console.log('AI Assistant: Sending filters to backend:', appliedFilters);
     analyzeMutation.mutate({
       query: currentQuery,
       sessionId: sessionId.current,
