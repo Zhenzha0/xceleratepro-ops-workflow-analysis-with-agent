@@ -130,23 +130,127 @@ export class AIAnalyst {
   private static classifyQuery(query: string): string {
     const queryLower = query.toLowerCase();
     
-    // More comprehensive and robust query classification
-    if (queryLower.includes('compare') && (queryLower.includes('case') || queryLower.includes('workflow'))) {
-      return 'case_comparison';
-    } else if (queryLower.includes('cluster') || queryLower.includes('group') || queryLower.includes('pattern')) {
-      return 'clustering_analysis';
-    } else if (queryLower.includes('anomal') || queryLower.includes('abnormal') || queryLower.includes('issue') || 
-               queryLower.includes('problem') || queryLower.includes('unusual') || queryLower.includes('deviation')) {
+    console.log(`Classifying query: ${query}`);
+    
+    // 🔧 Failure Analysis & Diagnosis
+    if (queryLower.includes('cause') || queryLower.includes('reason') || 
+        (queryLower.includes('common') && queryLower.includes('failure'))) {
+      console.log('→ Classified as: failure_cause_analysis');
+      return 'failure_cause_analysis';
+    }
+    
+    if (queryLower.includes('activity') && (queryLower.includes('fail') || queryLower.includes('highest'))) {
+      console.log('→ Classified as: activity_failure_rate_analysis');
+      return 'activity_failure_rate_analysis';
+    }
+    
+    if (queryLower.includes('recurring') || queryLower.includes('pattern') && queryLower.includes('failure')) {
+      return 'recurring_failure_analysis';
+    }
+    
+    if (queryLower.includes('error') && queryLower.includes('activity')) {
+      return 'activity_error_analysis';
+    }
+    
+    // ⏱️ Delay & Timing Issues
+    if (queryLower.includes('longest') && queryLower.includes('processing')) {
+      return 'processing_time_analysis';
+    }
+    
+    if (queryLower.includes('transition') && (queryLower.includes('time') || queryLower.includes('delay'))) {
+      return 'transition_time_analysis';
+    }
+    
+    if (queryLower.includes('wait') && queryLower.includes('time')) {
+      return 'wait_time_analysis';
+    }
+    
+    if (queryLower.includes('abnormal') && queryLower.includes('duration')) {
+      return 'abnormal_duration_analysis';
+    }
+    
+    if ((queryLower.includes('delay') || queryLower.includes('slow')) && 
+        (queryLower.includes('time') || queryLower.includes('period') || queryLower.includes('shift'))) {
+      return 'temporal_delay_analysis';
+    }
+    
+    // 🔄 Anomaly Detection
+    if (queryLower.includes('anomaly') || queryLower.includes('anomalous') || queryLower.includes('unusual')) {
       return 'anomaly_analysis';
-    } else if (queryLower.includes('bottleneck') || queryLower.includes('slow') || queryLower.includes('delay') ||
-               queryLower.includes('stuck') || queryLower.includes('wait')) {
+    }
+    
+    if (queryLower.includes('spike') && queryLower.includes('processing')) {
+      return 'processing_spike_analysis';
+    }
+    
+    // 📈 Trend & Pattern Mining
+    if (queryLower.includes('trend') || queryLower.includes('changed') || queryLower.includes('over time')) {
+      return 'trend_analysis';
+    }
+    
+    if (queryLower.includes('improving') || queryLower.includes('deteriorating')) {
+      return 'activity_trend_analysis';
+    }
+    
+    if (queryLower.includes('emerging') || queryLower.includes('new') && queryLower.includes('failure')) {
+      return 'emerging_failure_analysis';
+    }
+    
+    // 🧩 Root Cause & Correlation
+    if (queryLower.includes('correlation') || queryLower.includes('link') || queryLower.includes('relationship')) {
+      return 'correlation_analysis';
+    }
+    
+    if (queryLower.includes('upstream') || queryLower.includes('lead to')) {
+      return 'upstream_failure_analysis';
+    }
+    
+    // 🛠️ Maintenance & Recommendations
+    if (queryLower.includes('maintenance') || queryLower.includes('repair')) {
+      return 'maintenance_analysis';
+    }
+    
+    if (queryLower.includes('reduce') && (queryLower.includes('failure') || queryLower.includes('downtime'))) {
+      return 'improvement_analysis';
+    }
+    
+    // 🎯 Targeted Case Queries
+    if (queryLower.includes('case') && (queryLower.includes('id') || queryLower.includes('xyz'))) {
+      return 'case_specific_analysis';
+    }
+    
+    if (queryLower.includes('show') && queryLower.includes('case') && queryLower.includes('failure')) {
+      return 'failure_search_analysis';
+    }
+    
+    if (queryLower.includes('summary') && queryLower.includes('last') && queryLower.includes('case')) {
+      return 'recent_case_summary';
+    }
+    
+    // 🌊 Time-based patterns
+    if (queryLower.includes('hour') || queryLower.includes('concentration') || queryLower.includes('when')) {
+      return 'temporal_pattern_analysis';
+    }
+    
+    // Standard classifications
+    if (queryLower.includes('cluster') || queryLower.includes('similar')) {
+      return 'clustering_analysis';
+    }
+    
+    if (queryLower.includes('bottleneck')) {
       return 'bottleneck_analysis';
-    } else if (queryLower.includes('failure') || queryLower.includes('error') || queryLower.includes('fail')) {
-      // Enhanced failure analysis classification with precise understanding
-      
-      console.log('Classifying failure query:', query);
-      
-      // PRECISE CLASSIFICATION LOGIC:
+    }
+    
+    if (queryLower.includes('performance') || queryLower.includes('efficiency')) {
+      return 'performance_analysis';
+    }
+    
+    if (queryLower.includes('equipment') || queryLower.includes('machine') || queryLower.includes('station')) {
+      return 'equipment_analysis';
+    }
+    
+    // Fallback for failure queries
+    if (queryLower.includes('failure') || queryLower.includes('error') || queryLower.includes('fail')) {
       
       // 1. ROOT CAUSE ANALYSIS: "what is the most common failures" -> analyze failure causes
       if (queryLower.includes('cause') || queryLower.includes('reason') || queryLower.includes('why') ||
