@@ -157,6 +157,8 @@ export function AIAssistant({ appliedFilters }: AIAssistantProps) {
       createActivityFailureCharts(data.activityFailureRates.activities_with_most_failures || []);
     } else if (analysisType === 'failure_analysis' && data.actualFailures) {
       createFailureAnalysisCharts(data.actualFailures.commonPatterns || []);
+    } else if (analysisType === 'failure_cause_analysis' && data.failure_categories) {
+      createFailureCauseCharts(data.failure_categories || []);
     } else if (analysisType === 'temporal_analysis' && data.temporal_analysis) {
       createTemporalAnalysisCharts(data.temporal_analysis);
     } else if (analysisType === 'temporal_pattern_analysis' && data.temporal_analysis) {
@@ -254,6 +256,57 @@ export function AIAssistant({ appliedFilters }: AIAssistantProps) {
       title: 'Root Cause Analysis',
       chart: pieChart,
       data: failurePatterns
+    };
+
+    setVisualizations(prev => [newVisualization, ...prev.slice(0, 4)]);
+  };
+
+  const createFailureCauseCharts = (failureCategories: any[]) => {
+    console.log('Creating failure cause charts with data:', failureCategories);
+    
+    if (!failureCategories || failureCategories.length === 0) {
+      console.log('No failure cause data available for charts');
+      return;
+    }
+
+    const chartData = failureCategories.map(item => ({
+      cause: item.cause.slice(0, 20),
+      count: parseInt(item.count) || 0,
+      percentage: parseFloat(item.percentage) || 0
+    }));
+
+    const pieChart = (
+      <ResponsiveContainer width="100%" height={160}>
+        <PieChart>
+          <Pie
+            data={chartData}
+            dataKey="count"
+            nameKey="cause"
+            cx="50%"
+            cy="50%"
+            outerRadius={60}
+            label={({ percentage }) => `${percentage.toFixed(1)}%`}
+          >
+            {chartData.map((_, index) => (
+              <Cell key={`cell-${index}`} fill={`hsl(${index * 120}, 70%, 50%)`} />
+            ))}
+          </Pie>
+          <Tooltip 
+            formatter={(value: any, name: string) => [
+              name === 'count' ? `${value} failures` : `${value}%`,
+              name === 'count' ? 'Count' : 'Percentage'
+            ]}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+    );
+
+    const newVisualization: VisualizationItem = {
+      id: `failure-causes-${Date.now()}`,
+      type: 'failure_cause_analysis',
+      title: 'Failure Root Causes',
+      chart: pieChart,
+      data: failureCategories
     };
 
     setVisualizations(prev => [newVisualization, ...prev.slice(0, 4)]);
@@ -521,6 +574,7 @@ export function AIAssistant({ appliedFilters }: AIAssistantProps) {
                       <div className="mt-2 text-xs text-muted-foreground">
                         {viz.type === 'activity_failure_analysis' && 'Analyzed failure rates across all manufacturing activities to identify most problematic processes'}
                         {viz.type === 'failure_causes' && 'Root cause analysis showing distribution of actual failure types'}
+                        {viz.type === 'failure_cause_analysis' && 'Root cause analysis showing distribution of actual failure categories from filtered data'}
                         {viz.type === 'temporal_failure_distribution' && 'Analyzed temporal patterns of failures across different hours to identify peak occurrence times'}
                       </div>
                     </CardContent>

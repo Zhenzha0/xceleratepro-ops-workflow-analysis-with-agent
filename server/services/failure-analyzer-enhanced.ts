@@ -104,22 +104,54 @@ export class EnhancedFailureAnalyzer {
 
   /**
    * Analyze actual failure causes from unsatisfied_condition_description
+   * IMPORTANT: This function must respect activity range filters to analyze only subset data
    */
   static async analyzeFailureCauses(filters?: any): Promise<FailureAnalysisResult> {
-    let events = await storage.getProcessEvents();
+    console.log('EnhancedFailureAnalyzer.analyzeFailureCauses: Starting with filters:', filters);
     
-    // Apply filters if provided
+    // Step 1: Apply activity range filtering first if specified
+    let filteredEvents: any[] = [];
+    
+    if (filters && filters.activityRange && filters.activityRange.start && filters.activityRange.end) {
+      console.log(`EnhancedFailureAnalyzer: Applying activity range filter - activities ${filters.activityRange.start}-${filters.activityRange.end}`);
+      
+      // Get activities first, then get their corresponding events
+      const activities = await storage.getProcessActivities();
+      
+      // Sort activities by start time and take the specified range
+      const sortedActivities = activities
+        .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+        .slice(filters.activityRange.start - 1, filters.activityRange.end); // Convert to 0-based indexing
+      
+      console.log(`EnhancedFailureAnalyzer: Filtered to ${sortedActivities.length} activities from ${activities.length} total`);
+      
+      // Get case IDs from filtered activities
+      const filteredCaseIds = [...new Set(sortedActivities.map(a => a.caseId))];
+      console.log(`EnhancedFailureAnalyzer: Activities span ${filteredCaseIds.length} cases`);
+      
+      // Get events only for those cases
+      const allEvents = await storage.getProcessEvents();
+      filteredEvents = allEvents.filter(event => filteredCaseIds.includes(event.caseId));
+      
+      console.log(`EnhancedFailureAnalyzer: Retrieved ${filteredEvents.length} events from filtered cases`);
+    } else {
+      // No activity filtering, get all events
+      filteredEvents = await storage.getProcessEvents();
+      console.log(`EnhancedFailureAnalyzer: Retrieved ${filteredEvents.length} events (no activity filtering)`);
+    }
+    
+    // Step 2: Apply additional filters if provided
     if (filters) {
       if (filters.equipment && filters.equipment !== 'all') {
-        events = events.filter(e => e.orgResource === filters.equipment);
+        filteredEvents = filteredEvents.filter(e => e.orgResource === filters.equipment);
       }
       if (filters.caseIds && Array.isArray(filters.caseIds) && filters.caseIds.length > 0) {
-        events = events.filter(e => filters.caseIds.includes(e.caseId));
+        filteredEvents = filteredEvents.filter(e => filters.caseIds.includes(e.caseId));
       }
     }
 
-    // Get all failure events
-    const allFailureEvents = events.filter(event => event.lifecycleState === 'failure');
+    // Get all failure events from filtered data
+    const allFailureEvents = filteredEvents.filter(event => event.lifecycleState === 'failure');
     
     // Get failure events with descriptions for root cause analysis
     const failureEventsWithDescriptions = allFailureEvents.filter(event => 
