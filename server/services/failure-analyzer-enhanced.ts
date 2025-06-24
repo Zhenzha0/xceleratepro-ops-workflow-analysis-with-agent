@@ -46,7 +46,7 @@ export class EnhancedFailureAnalyzer {
     console.log(`Found ${allFailureEvents.length} total failure events, ${failureEventsWithDescriptions.length} with root cause descriptions`);
 
     // Analyze actual failure causes from descriptions
-    const failureCauses = this.categorizeFailureCauses(failureEventsWithDescriptions);
+    const failureCauses = EnhancedFailureAnalyzer.categorizeFailureCauses(failureEventsWithDescriptions);
     
     // Create patterns prioritizing failure causes over activities
     const causePatterns = Object.entries(failureCauses)
@@ -62,7 +62,7 @@ export class EnhancedFailureAnalyzer {
       .sort((a, b) => b.count - a.count);
 
     // If no root causes found, fall back to activity analysis
-    const activityPatterns = this.getActivityFailurePatterns(allFailureEvents);
+    const activityPatterns = EnhancedFailureAnalyzer.getActivityFailurePatterns(allFailureEvents);
     
     // Prioritize root causes, but include activity patterns if no causes available
     const allPatterns = causePatterns.length > 0 ? causePatterns : activityPatterns;
@@ -88,7 +88,7 @@ export class EnhancedFailureAnalyzer {
   /**
    * Categorize failure causes from unsatisfied_condition_description
    */
-  private static categorizeFailureCauses(failureEvents: any[]): Record<string, {
+  static categorizeFailureCauses(failureEvents: any[]): Record<string, {
     count: number;
     cases: Set<string>;
     equipment: Set<string>;
@@ -171,7 +171,7 @@ export class EnhancedFailureAnalyzer {
   /**
    * Get activity-based failure patterns as fallback
    */
-  private static getActivityFailurePatterns(failureEvents: any[]): FailurePattern[] {
+  static getActivityFailurePatterns(failureEvents: any[]): FailurePattern[] {
     const activityGroups: Record<string, {
       count: number;
       cases: Set<string>;

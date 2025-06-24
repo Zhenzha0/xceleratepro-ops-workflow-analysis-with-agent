@@ -246,19 +246,35 @@ export class AIAnalyst {
         data.summary.totalPatterns = clusteringData.totalPatterns;
       }
 
-      // Use actual failure analysis for failure-related queries
+      // Use enhanced failure analysis for failure cause queries
       if (queryLower.includes('failure') || queryLower.includes('fail') || 
           queryLower.includes('cause') || queryLower.includes('problem') ||
           queryLower.includes('issue') || queryLower.includes('error')) {
-        const { FailureAnalyzer } = await import('./failure-analyzer.js');
-        const failureAnalysis = await FailureAnalyzer.analyzeFailureCauses(filters);
-        const failureSummary = await FailureAnalyzer.getFailureSummary(filters);
         
-        data.actualFailures = failureAnalysis;
-        data.failureSummary = failureSummary;
-        data.summary.actualFailureCount = failureAnalysis.totalFailures;
-        data.summary.failureRate = failureAnalysis.failureRate;
-        data.summary.topFailureTypes = failureAnalysis.commonPatterns.slice(0, 3).map(p => p.description);
+        if (queryLower.includes('cause') || queryLower.includes('reason') || queryLower.includes('why') ||
+            queryLower.includes('root') || queryLower.includes('common') || queryLower.includes('most')) {
+          // Use enhanced analyzer for root cause analysis
+          const { EnhancedFailureAnalyzer } = await import('./failure-analyzer-enhanced.js');
+          const failureAnalysis = await EnhancedFailureAnalyzer.analyzeFailureCauses(filters);
+          const failureSummary = await EnhancedFailureAnalyzer.getFailureSummary(filters);
+          
+          data.actualFailures = failureAnalysis;
+          data.failureSummary = failureSummary;
+          data.summary.actualFailureCount = failureAnalysis.totalFailures;
+          data.summary.failureRate = failureAnalysis.failureRate;
+          data.summary.topFailureTypes = failureAnalysis.commonPatterns.slice(0, 3).map(p => p.description);
+        } else {
+          // Use standard analyzer for general failure analysis
+          const { FailureAnalyzer } = await import('./failure-analyzer.js');
+          const failureAnalysis = await FailureAnalyzer.analyzeFailureCauses(filters);
+          const failureSummary = await FailureAnalyzer.getFailureSummary(filters);
+          
+          data.actualFailures = failureAnalysis;
+          data.failureSummary = failureSummary;
+          data.summary.actualFailureCount = failureAnalysis.totalFailures;
+          data.summary.failureRate = failureAnalysis.failureRate;
+          data.summary.topFailureTypes = failureAnalysis.commonPatterns.slice(0, 3).map(p => p.description);
+        }
       }
 
       // Run anomaly detection on scoped data for other issues
