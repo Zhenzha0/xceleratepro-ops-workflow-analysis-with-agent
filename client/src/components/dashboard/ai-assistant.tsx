@@ -82,8 +82,6 @@ function ContextualVisualization({ message, appliedFilters }: { message: ChatMes
             { activity: '/hbw/store_empty_bucket', rate: 1.39, failures: 11, total: 789, label: 'HBW Store Empty', color: '#7c3aed' }
           ];
         }
-
-        ];
         
         setVisualData({
           type: 'failure_rate_bar',
