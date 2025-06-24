@@ -469,26 +469,43 @@ export class AIAnalyst {
         }
       }
 
-      // Run anomaly detection on scoped data for other issues
-      if (queryLower.includes('anomal') || queryLower.includes('unusual') || queryLower.includes('deviation')) {
+      // Enhanced anomaly detection with temporal analysis
+      if (queryType === 'anomaly_analysis' || queryLower.includes('anomal') || queryLower.includes('unusual') || queryLower.includes('deviation')) {
         const { AnomalyDetector } = await import('./anomaly-detector.js');
         const anomalies = [];
         
-        for (const activity of scopedActivities.slice(0, 100)) { // Limit for performance
+        // Analyze temporal patterns for anomalies
+        const anomalyHourMap = new Map<number, number>();
+        
+        for (const activity of scopedActivities.slice(0, 1000)) { // Analyze more for temporal patterns
           const anomalyResult = AnomalyDetector.analyzeProcessingTimeAnomaly(activity, scopedActivities);
           if (anomalyResult.isAnomaly) {
+            const hour = new Date(activity.createdAt).getHours();
+            anomalyHourMap.set(hour, (anomalyHourMap.get(hour) || 0) + 1);
+            
             anomalies.push({
               caseId: activity.caseId,
               activity: activity.activity,
               score: anomalyResult.score,
               reason: anomalyResult.reason,
-              equipment: activity.orgResource
+              equipment: activity.orgResource,
+              hour: hour,
+              timestamp: activity.createdAt
             });
           }
         }
         
+        // Convert hour map to array for analysis
+        const hourlyAnomalies = Array.from({length: 24}, (_, hour) => ({
+          hour,
+          count: anomalyHourMap.get(hour) || 0
+        }));
+        
         data.anomalies = anomalies;
+        data.hourlyAnomalies = hourlyAnomalies;
         data.summary.anomaliesFound = anomalies.length;
+        data.summary.peakAnomalyHour = hourlyAnomalies.reduce((peak, current) => 
+          current.count > peak.count ? current : peak, {hour: 0, count: 0});
       }
 
       // Get performance metrics for scoped data
