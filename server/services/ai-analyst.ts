@@ -1007,4 +1007,88 @@ Respond in JSON format with: patterns (array), recommendations (array), riskAsse
       };
     }
   }
+
+  /**
+   * Generate structured data for automatic visualization creation
+   */
+  static async generateStructuredData(analysisType: string, relevantData: any, query: string): Promise<any> {
+    try {
+      console.log(`Generating structured data for analysis type: ${analysisType}`);
+      
+      if (analysisType === 'failure_cause_analysis') {
+        // Get actual failure cause data from Enhanced Failure Analyzer
+        const { EnhancedFailureAnalyzer } = await import('./failure-analyzer-enhanced');
+        const failureCauses = await EnhancedFailureAnalyzer.analyzeFailureCauses();
+        
+        return {
+          analysis_type: "failure_analysis",
+          failure_categories: failureCauses.map(cause => ({
+            cause: cause.category,
+            count: cause.count,
+            percentage: cause.percentage,
+            examples: cause.examples.slice(0, 3)
+          }))
+        };
+      }
+      
+      if (analysisType === 'activity_failure_rate_analysis') {
+        // Get actual activity failure rates
+        const { EnhancedFailureAnalyzer } = await import('./failure-analyzer-enhanced');
+        const activityRates = await EnhancedFailureAnalyzer.analyzeActivityFailureRates();
+        
+        return {
+          analysis_type: "activity_failure_analysis", 
+          activities_with_most_failures: activityRates.map(rate => ({
+            activity: rate.activity,
+            failure_rate: rate.failureRate,
+            failed_count: rate.failedCount,
+            total_count: rate.totalCount,
+            failure_percentage: parseFloat(rate.failureRate.replace('%', ''))
+          }))
+        };
+      }
+      
+      if (analysisType === 'temporal_pattern_analysis' || (query.includes('hour') && query.includes('failure'))) {
+        // Get temporal failure data from relevant data
+        const { TrendAnalyzer } = await import('./trend-analyzer');
+        const temporalData = await TrendAnalyzer.analyzeTemporalPatterns(relevantData);
+        
+        return {
+          analysis_type: "temporal_analysis",
+          temporal_analysis: {
+            hour_failure_distribution: temporalData.hourly_failures || []
+          }
+        };
+      }
+      
+      if (analysisType === 'anomaly_analysis' || (query.includes('hour') && query.includes('anomal'))) {
+        // Get temporal anomaly data
+        const { TrendAnalyzer } = await import('./trend-analyzer');
+        const temporalData = await TrendAnalyzer.analyzeTemporalPatterns(relevantData);
+        
+        return {
+          analysis_type: "anomaly_detection", 
+          activities_with_most_anomalies: temporalData.hourly_anomalies || []
+        };
+      }
+      
+      if (analysisType === 'bottleneck_analysis') {
+        // Get bottleneck data
+        const { storage } = await import('../storage');
+        const bottleneckData = await storage.getBottleneckAnalysis();
+        
+        return {
+          analysis_type: "bottleneck_analysis",
+          bottleneck_activities: bottleneckData.bottlenecks || []
+        };
+      }
+      
+      // Default: return null for non-visual analysis types
+      return null;
+      
+    } catch (error) {
+      console.error('Error generating structured data:', error);
+      return null;
+    }
+  }
 }
