@@ -1105,53 +1105,97 @@ Respond in JSON format with: patterns (array), recommendations (array), riskAsse
       }
       
       if (analysisType === 'temporal_pattern_analysis' || (query.includes('hour') && query.includes('failure'))) {
-        // Generate temporal failure data directly from events (not activities)
-        const { storage } = await import('../storage');
-        const events = await storage.getProcessEvents();
+        // Use direct database query for temporal failure analysis
+        const { db } = await import('../db');
+        const { sql } = await import('drizzle-orm');
         
-        // Filter for actual failure events - check both lifecycle_state and unsatisfied_condition_description
-        const failureEvents = events.filter(event => 
-          event.lifecycle_state === 'failure' || 
-          (event.unsatisfied_condition_description && event.unsatisfied_condition_description.trim() !== '')
-        );
-        console.log(`Temporal analysis found ${failureEvents.length} failure events out of ${events.length} total events`);
-        console.log(`Sample failure event:`, failureEvents[0]);
-        
-        // Create hourly failure distribution
-        const hourlyFailures = Array.from({length: 24}, (_, hour) => ({ hour, count: 0 }));
-        const dailyFailures = new Map<string, number>();
-        
-        failureEvents.forEach(event => {
-          if (event.timestamp) {
-            const eventDate = new Date(event.timestamp);
-            const hour = eventDate.getHours();
-            const dateKey = eventDate.toISOString().split('T')[0]; // YYYY-MM-DD
-            
-            hourlyFailures[hour].count++;
-            dailyFailures.set(dateKey, (dailyFailures.get(dateKey) || 0) + 1);
-          }
-        });
-        
-        const dailyData = Array.from(dailyFailures.entries()).map(([date, count]) => ({
-          date,
-          count
-        })).sort((a, b) => a.date.localeCompare(b.date));
-        
-        const dateRange = failureEvents.length > 0 ? {
-          start: Math.min(...failureEvents.map(e => new Date(e.timestamp).getTime())),
-          end: Math.max(...failureEvents.map(e => new Date(e.timestamp).getTime()))
-        } : null;
-        
-        return {
-          analysis_type: "temporal_analysis",
-          temporal_analysis: {
-            hour_failure_distribution: hourlyFailures,
-            daily_failure_distribution: dailyData,
-            date_range: dateRange,
-            total_failures: failureEvents.length,
-            analysis_period: dateRange ? `${new Date(dateRange.start).toLocaleDateString()} to ${new Date(dateRange.end).toLocaleDateString()}` : 'Unknown period'
-          }
-        };
+        try {
+          console.log('Starting direct SQL temporal analysis...');
+          
+          // Direct SQL query to get hourly failure distribution
+          const hourlyResults = await db.execute(sql`
+            SELECT 
+              EXTRACT(HOUR FROM timestamp) as hour,
+              COUNT(*) as count
+            FROM process_events 
+            WHERE lifecycle_state = 'failure' 
+            GROUP BY EXTRACT(HOUR FROM timestamp) 
+            ORDER BY hour
+          `);
+          
+          console.log('SQL hourly results:', hourlyResults);
+          
+          // Create complete 24-hour array
+          const hourlyFailures = Array.from({length: 24}, (_, hour) => ({ hour, count: 0 }));
+          hourlyResults.forEach((row: any) => {
+            const hour = parseInt(row.hour);
+            if (hour >= 0 && hour < 24) {
+              hourlyFailures[hour].count = parseInt(row.count);
+            }
+          });
+          
+          // Get daily distribution
+          const dailyResults = await db.execute(sql`
+            SELECT 
+              DATE(timestamp) as date,
+              COUNT(*) as count
+            FROM process_events 
+            WHERE lifecycle_state = 'failure' 
+            GROUP BY DATE(timestamp) 
+            ORDER BY date
+          `);
+          
+          const dailyData = dailyResults.map((row: any) => ({
+            date: row.date,
+            count: parseInt(row.count)
+          }));
+          
+          // Get date range
+          const dateRangeResult = await db.execute(sql`
+            SELECT 
+              MIN(timestamp) as start_date,
+              MAX(timestamp) as end_date,
+              COUNT(*) as total_failures
+            FROM process_events 
+            WHERE lifecycle_state = 'failure'
+          `);
+          
+          const totalFailures = dateRangeResult[0]?.total_failures ? parseInt(dateRangeResult[0].total_failures) : 0;
+          const startDate = dateRangeResult[0]?.start_date;
+          const endDate = dateRangeResult[0]?.end_date;
+          
+          console.log(`Temporal analysis found ${totalFailures} failure events using direct SQL query`);
+          console.log(`Hourly distribution:`, hourlyFailures.filter(h => h.count > 0));
+          
+          return {
+            analysis_type: "temporal_analysis",
+            temporal_analysis: {
+              hour_failure_distribution: hourlyFailures,
+              daily_failure_distribution: dailyData,
+              date_range: startDate && endDate ? {
+                start: new Date(startDate).getTime(),
+                end: new Date(endDate).getTime()
+              } : null,
+              total_failures: totalFailures,
+              analysis_period: startDate && endDate ? 
+                `${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}` : 
+                'Unknown period'
+            }
+          };
+        } catch (error) {
+          console.error('SQL temporal analysis error:', error);
+          // Fallback to empty data
+          return {
+            analysis_type: "temporal_analysis",
+            temporal_analysis: {
+              hour_failure_distribution: Array.from({length: 24}, (_, hour) => ({ hour, count: 0 })),
+              daily_failure_distribution: [],
+              date_range: null,
+              total_failures: 0,
+              analysis_period: 'Error in analysis'
+            }
+          };
+        }
       }
       
       if (analysisType === 'anomaly_analysis' || (query.includes('hour') && query.includes('anomal'))) {
