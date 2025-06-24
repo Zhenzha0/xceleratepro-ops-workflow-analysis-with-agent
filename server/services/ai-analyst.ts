@@ -1109,9 +1109,13 @@ Respond in JSON format with: patterns (array), recommendations (array), riskAsse
         const { storage } = await import('../storage');
         const events = await storage.getProcessEvents();
         
-        // Filter for actual failure events using lifecycle_state
-        const failureEvents = events.filter(event => event.lifecycle_state === 'failure');
+        // Filter for actual failure events - check both lifecycle_state and unsatisfied_condition_description
+        const failureEvents = events.filter(event => 
+          event.lifecycle_state === 'failure' || 
+          (event.unsatisfied_condition_description && event.unsatisfied_condition_description.trim() !== '')
+        );
         console.log(`Temporal analysis found ${failureEvents.length} failure events out of ${events.length} total events`);
+        console.log(`Sample failure event:`, failureEvents[0]);
         
         // Create hourly failure distribution
         const hourlyFailures = Array.from({length: 24}, (_, hour) => ({ hour, count: 0 }));
