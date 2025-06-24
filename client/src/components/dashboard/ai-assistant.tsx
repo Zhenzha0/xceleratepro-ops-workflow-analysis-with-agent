@@ -590,17 +590,14 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
   const createAutomaticVisualizations = (data: any, analysisType: string) => {
     console.log(`Creating automatic visualizations for type: ${analysisType}`, data);
     
-    // Map analysis types to visualization functions
-    if (analysisType === "failure_analysis" && data.failure_categories) {
+    // Map analysis types to visualization functions (match backend analysis_type values)
+    if ((analysisType === "failure_analysis" || analysisType === "failure_cause_analysis") && data.failure_categories) {
       console.log('Creating failure analysis charts with data:', data.failure_categories);
       createFailureAnalysisCharts(data);
-    } else if (analysisType === "activity_failure_analysis" && data.activities_with_most_failures) {
+    } else if ((analysisType === "activity_failure_analysis" || analysisType === "activity_failure_rate_analysis") && data.activities_with_most_failures) {
       console.log('Creating activity failure charts with data:', data.activities_with_most_failures);
       createActivityFailureCharts(data);
-    } else if (analysisType === "activity_failure_rate_analysis" && data.activities_with_most_failures) {
-      console.log('Creating activity failure rate charts with data:', data.activities_with_most_failures);
-      createActivityFailureCharts(data);
-    } else if (analysisType === "anomaly_detection" && data.activities_with_most_anomalies) {
+    } else if ((analysisType === "anomaly_detection" || analysisType === "anomaly_analysis") && data.activities_with_most_anomalies) {
       console.log('Creating anomaly analysis charts with data:', data.activities_with_most_anomalies);
       createAnomalyAnalysisCharts(data);
     } else if (analysisType === "temporal_analysis" && data.temporal_analysis) {
