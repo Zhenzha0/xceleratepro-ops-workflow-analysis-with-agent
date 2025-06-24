@@ -142,20 +142,37 @@ export class AIAnalyst {
                queryLower.includes('stuck') || queryLower.includes('wait')) {
       return 'bottleneck_analysis';
     } else if (queryLower.includes('failure') || queryLower.includes('error') || queryLower.includes('fail')) {
-      // Enhanced failure analysis classification with activity vs case distinction
-      if ((queryLower.includes('cause') || queryLower.includes('reason') || queryLower.includes('why') ||
-           queryLower.includes('root') || queryLower.includes('common') || queryLower.includes('most')) &&
-          (queryLower.includes('activit') || queryLower.includes('step') || queryLower.includes('operation') ||
-           !queryLower.includes('case'))) {
-        return 'activity_failure_cause_analysis';
-      } else if (queryLower.includes('case') && !queryLower.includes('activit')) {
-        return 'case_failure_analysis';
-      } else if (queryLower.includes('cause') || queryLower.includes('reason') || queryLower.includes('why') ||
-                 queryLower.includes('root') || queryLower.includes('common') || queryLower.includes('most')) {
-        return 'activity_failure_cause_analysis'; // Default to activity-level for cause analysis
-      } else {
-        return 'failure_analysis';
+      // Enhanced failure analysis classification with nuanced understanding
+      
+      // 1. Activity failure rate analysis: "which activity has the most failures", "highest failure rate"
+      if ((queryLower.includes('which') || queryLower.includes('what')) && 
+          queryLower.includes('activit') && 
+          (queryLower.includes('most') || queryLower.includes('highest') || queryLower.includes('rate')) &&
+          !queryLower.includes('cause') && !queryLower.includes('reason') && !queryLower.includes('why')) {
+        return 'activity_failure_rate_analysis';
       }
+      
+      // 2. Root cause analysis: "what causes failures", "most common causes"
+      if ((queryLower.includes('cause') || queryLower.includes('reason') || queryLower.includes('why') ||
+           queryLower.includes('root')) && 
+          !queryLower.includes('which activit') && !queryLower.includes('what activit')) {
+        return 'activity_failure_cause_analysis';
+      }
+      
+      // 3. Case-level failure analysis
+      if (queryLower.includes('case') && !queryLower.includes('activit')) {
+        return 'case_failure_analysis';
+      }
+      
+      // 4. General activity failure questions with "most" or "common"
+      if ((queryLower.includes('most') || queryLower.includes('common')) && 
+          queryLower.includes('activit') &&
+          (queryLower.includes('cause') || queryLower.includes('reason'))) {
+        return 'activity_failure_cause_analysis';
+      }
+      
+      // 5. Default failure analysis
+      return 'failure_analysis';
     } else if (queryLower.includes('search') || queryLower.includes('find') || queryLower.includes('similar')) {
       return 'semantic_search';
     } else if (queryLower.includes('equipment') || queryLower.includes('machine') || queryLower.includes('resource') ||
@@ -265,10 +282,18 @@ export class AIAnalyst {
           queryLower.includes('cause') || queryLower.includes('problem') ||
           queryLower.includes('issue') || queryLower.includes('error')) {
         
-        // Enhanced logic to distinguish between activity and case level analysis
-        if (queryType === 'activity_failure_cause_analysis' || 
-            (queryLower.includes('cause') || queryLower.includes('reason') || queryLower.includes('why') ||
-             queryLower.includes('root') || queryLower.includes('common') || queryLower.includes('most'))) {
+        // Enhanced logic to distinguish between different types of failure analysis
+        if (queryType === 'activity_failure_rate_analysis') {
+          // Analyze which activities have the highest failure rates
+          const activityFailureRates = await this.analyzeActivityFailureRates(filters);
+          data.activityFailureRates = activityFailureRates;
+          data.summary.analysisType = 'activity_failure_rates';
+          data.summary.topFailingActivities = activityFailureRates.slice(0, 3).map(a => ({
+            activity: a.activity,
+            failureRate: a.failureRate,
+            totalFailures: a.totalFailures
+          }));
+        } else if (queryType === 'activity_failure_cause_analysis') {
           // Use enhanced analyzer for activity-level root cause analysis
           const { EnhancedFailureAnalyzer } = await import('./failure-analyzer-enhanced.js');
           const failureAnalysis = await EnhancedFailureAnalyzer.analyzeFailureCauses(filters);
@@ -279,7 +304,7 @@ export class AIAnalyst {
           data.summary.actualFailureCount = failureAnalysis.totalFailures;
           data.summary.failureRate = failureAnalysis.failureRate;
           data.summary.topFailureTypes = failureAnalysis.commonPatterns.slice(0, 3).map(p => p.description);
-          data.summary.analysisLevel = 'activity'; // Mark as activity-level analysis
+          data.summary.analysisLevel = 'activity_causes';
         } else {
           // Use standard analyzer for general failure analysis
           const { FailureAnalyzer } = await import('./failure-analyzer.js');
@@ -411,6 +436,73 @@ export class AIAnalyst {
     return data;
   }
 
+  /**
+   * Analyze which activities have the highest failure rates
+   */
+  private static async analyzeActivityFailureRates(filters?: any): Promise<any[]> {
+    try {
+      let events = await storage.getProcessEvents();
+      
+      // Apply filters if provided
+      if (filters) {
+        if (filters.equipment && filters.equipment !== 'all') {
+          events = events.filter(e => e.orgResource === filters.equipment);
+        }
+        if (filters.caseIds && Array.isArray(filters.caseIds) && filters.caseIds.length > 0) {
+          events = events.filter(e => filters.caseIds.includes(e.caseId));
+        }
+      }
+
+      // Group events by activity
+      const activityGroups: Record<string, {
+        total: number;
+        failures: number;
+        equipment: Set<string>;
+        cases: Set<string>;
+      }> = {};
+
+      events.forEach(event => {
+        const key = event.activity;
+        
+        if (!activityGroups[key]) {
+          activityGroups[key] = {
+            total: 0,
+            failures: 0,
+            equipment: new Set(),
+            cases: new Set()
+          };
+        }
+        
+        activityGroups[key].total++;
+        if (event.lifecycleState === 'failure') {
+          activityGroups[key].failures++;
+        }
+        if (event.orgResource) {
+          activityGroups[key].equipment.add(event.orgResource);
+        }
+        activityGroups[key].cases.add(event.caseId);
+      });
+
+      // Calculate failure rates and sort by failure rate
+      const activityFailureRates = Object.entries(activityGroups)
+        .map(([activity, data]) => ({
+          activity,
+          totalExecutions: data.total,
+          totalFailures: data.failures,
+          failureRate: data.total > 0 ? (data.failures / data.total) * 100 : 0,
+          affectedEquipment: Array.from(data.equipment),
+          affectedCases: Array.from(data.cases)
+        }))
+        .filter(item => item.totalFailures > 0) // Only include activities that have failures
+        .sort((a, b) => b.failureRate - a.failureRate);
+
+      return activityFailureRates;
+    } catch (error) {
+      console.error('Error analyzing activity failure rates:', error);
+      return [];
+    }
+  }
+
   private static buildSystemPrompt(queryType: string, relevantData: any): string {
     let contextualPrompt = `You are ProcessGPT, an intelligent manufacturing analyst specializing in process mining and workflow optimization. You have access to real manufacturing data and powerful analysis tools.
 
@@ -481,11 +573,67 @@ BOTTLENECK ANALYSIS:
     const totalCases = relevantData?.summary?.totalCases || 0;
     const appliedFilters = relevantData?.summary?.appliedFilters;
     
+    // Add activity failure rate analysis context
+    if (queryType === 'activity_failure_rate_analysis' && relevantData.activityFailureRates) {
+      contextualPrompt += `
+
+ACTIVITY FAILURE RATE ANALYSIS:
+- Analysis type: Which activities have the highest failure rates
+- Activities with failures: ${relevantData.activityFailureRates.length}
+
+TOP FAILING ACTIVITIES (by failure rate):
+${relevantData.activityFailureRates.slice(0, 10).map((item: any, i: number) => 
+  `${i + 1}. ${item.activity}: ${item.failureRate.toFixed(2)}% failure rate (${item.totalFailures}/${item.totalExecutions} executions)`
+).join('\n') || 'No activity failure rates found'}
+
+CRITICAL: This analyzes WHICH ACTIVITIES fail most often, not what causes failures. 
+Focus on activity names and their failure statistics, not root causes.`;
+    }
+
+    // Add activity-level failure cause analysis context
+    if (queryType === 'activity_failure_cause_analysis' && relevantData.actualFailures) {
+      contextualPrompt += `
+
+ACTIVITY-LEVEL ROOT CAUSE FAILURE ANALYSIS:
+- Total failure activities: ${relevantData.actualFailures.totalFailures}
+- Activity failure rate: ${relevantData.actualFailures.failureRate?.toFixed(2)}%
+- Analysis level: ACTIVITY-LEVEL (each failed activity counted separately)
+
+TECHNICAL ROOT CAUSES (by activity occurrence):
+${relevantData.actualFailures.commonPatterns?.map((p: any, i: number) => 
+  `${i + 1}. ${p.description}: ${p.count} activity failures (${p.percentage.toFixed(1)}%)`
+).join('\n') || 'No root cause patterns found'}
+
+CRITICAL: This analyzes failure causes at the ACTIVITY level, not case level. 
+Focus on technical root causes that cause individual activities to fail.`;
+    }
+
+    if (queryType === 'case_failure_analysis' && relevantData.actualFailures) {
+      contextualPrompt += `
+
+CASE-LEVEL FAILURE ANALYSIS:
+- Cases with failures: ${relevantData.actualFailures.totalFailures}
+- Case failure rate: ${relevantData.actualFailures.failureRate?.toFixed(2)}%
+- Analysis level: CASE-LEVEL (each case counted once)
+
+CASE FAILURE PATTERNS:
+${relevantData.actualFailures.commonPatterns?.map((p: any, i: number) => 
+  `${i + 1}. ${p.description}: affects ${p.affectedCases?.length || 0} cases`
+).join('\n') || 'No case patterns found'}
+
+CRITICAL: This analyzes failure patterns at the CASE level, not activity level.`;
+    }
+
     contextualPrompt += `
 
 DATA ANALYSIS SCOPE:
 - Dataset: ${dataScope} (${totalActivities} activities, ${totalCases} cases)
 ${appliedFilters ? `- Applied filters: ${JSON.stringify(appliedFilters, null, 2)}` : '- No filters applied (full dataset)'}
+
+IMPORTANT DISTINCTIONS:
+- ACTIVITY FAILURE RATE: Which activities have highest failure percentages (hbw/unload: 15% failure rate)
+- ACTIVITY FAILURE CAUSES: What technical issues cause activities to fail (sensor failures, inventory issues)
+- CASE-LEVEL: Counts cases that experience failures (pattern analysis)
 
 REQUIRED RESPONSE FORMAT:
 Structure your analysis using these exact markdown sections:
