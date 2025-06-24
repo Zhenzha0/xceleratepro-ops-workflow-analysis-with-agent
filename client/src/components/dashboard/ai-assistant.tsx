@@ -270,14 +270,26 @@ export function AIAssistant({ appliedFilters }: AIAssistantProps) {
       return;
     }
 
-    const chartData = failureCategories.map(item => ({
-      cause: item.cause.slice(0, 20),
+    const chartData = failureCategories.map((item, index) => ({
+      cause: item.cause.length > 25 ? item.cause.slice(0, 22) + '...' : item.cause,
+      fullCause: item.cause,
       count: parseInt(item.count) || 0,
-      percentage: parseFloat(item.percentage) || 0
+      percentage: parseFloat(item.percentage) || 0,
+      color: `hsl(${index * 60 + 15}, 75%, ${55 + index * 5}%)`
     }));
 
+    // Enhanced color palette for better visual distinction
+    const colors = [
+      '#ef4444', // Red for technical issues
+      '#f97316', // Orange for RFID/NFC
+      '#eab308', // Yellow for network
+      '#22c55e', // Green for inventory
+      '#3b82f6', // Blue for sensors
+      '#8b5cf6'  // Purple for others
+    ];
+
     const pieChart = (
-      <ResponsiveContainer width="100%" height={160}>
+      <ResponsiveContainer width="100%" height={200}>
         <PieChart>
           <Pie
             data={chartData}
@@ -285,28 +297,75 @@ export function AIAssistant({ appliedFilters }: AIAssistantProps) {
             nameKey="cause"
             cx="50%"
             cy="50%"
-            outerRadius={60}
-            label={({ percentage }) => `${percentage.toFixed(1)}%`}
+            outerRadius={75}
+            innerRadius={25}
+            paddingAngle={2}
+            label={({ percentage }) => percentage > 5 ? `${percentage.toFixed(1)}%` : ''}
+            labelLine={false}
           >
-            {chartData.map((_, index) => (
-              <Cell key={`cell-${index}`} fill={`hsl(${index * 120}, 70%, 50%)`} />
+            {chartData.map((entry, index) => (
+              <Cell 
+                key={`cell-${index}`} 
+                fill={colors[index % colors.length]} 
+                stroke="#ffffff"
+                strokeWidth={1}
+              />
             ))}
           </Pie>
           <Tooltip 
             formatter={(value: any, name: string) => [
-              name === 'count' ? `${value} failures` : `${value}%`,
-              name === 'count' ? 'Count' : 'Percentage'
+              `${value} failures (${chartData.find(d => d.cause === name)?.percentage.toFixed(1)}%)`,
+              'Count'
             ]}
+            labelFormatter={(label) => chartData.find(d => d.cause === label)?.fullCause || label}
+            contentStyle={{
+              backgroundColor: '#ffffff',
+              border: '1px solid #e5e7eb',
+              borderRadius: '8px',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+              fontSize: '12px'
+            }}
           />
         </PieChart>
       </ResponsiveContainer>
+    );
+
+    // Add a summary table below the chart
+    const summaryTable = (
+      <div className="mt-3 space-y-1">
+        {chartData.map((item, index) => (
+          <div key={index} className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <div 
+                className="w-3 h-3 rounded-full" 
+                style={{ backgroundColor: colors[index % colors.length] }}
+              />
+              <span className="text-gray-700 font-medium">{item.fullCause}</span>
+            </div>
+            <div className="text-gray-600 font-mono">
+              {item.count} ({item.percentage.toFixed(1)}%)
+            </div>
+          </div>
+        ))}
+        <div className="pt-2 mt-2 border-t border-gray-200">
+          <div className="flex justify-between text-xs font-semibold text-gray-800">
+            <span>Total Failures</span>
+            <span>{chartData.reduce((sum, item) => sum + item.count, 0)}</span>
+          </div>
+        </div>
+      </div>
     );
 
     const newVisualization: VisualizationItem = {
       id: `failure-causes-${Date.now()}`,
       type: 'failure_cause_analysis',
       title: 'Failure Root Causes',
-      chart: pieChart,
+      chart: (
+        <div>
+          {pieChart}
+          {summaryTable}
+        </div>
+      ),
       data: failureCategories
     };
 
