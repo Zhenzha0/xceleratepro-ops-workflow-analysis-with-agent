@@ -190,13 +190,23 @@ export class EnhancedFailureAnalyzer {
       }
     });
 
+    // Step 4: Create analysis scope description
+    let analysisScope = '';
+    if (filters && filters.activityRange) {
+      analysisScope = `Analyzed activities ${filters.activityRange.start}-${filters.activityRange.end} (${filteredEvents.length} events from filtered dataset)`;
+    } else {
+      analysisScope = `Analyzed all ${filteredEvents.length} events (full dataset)`;
+    }
+
     return {
       totalFailures: allFailureEvents.length,
-      totalActivities: events.length,
-      failureRate: (allFailureEvents.length / events.length) * 100,
+      totalActivities: filteredEvents.length,
+      failureRate: filteredEvents.length > 0 ? (allFailureEvents.length / filteredEvents.length) * 100 : 0,
       commonPatterns: allPatterns.slice(0, 10),
       equipmentFailures,
-      timeDistribution: { 'Total failures': allFailureEvents.length }
+      timeDistribution: { 'Total failures': allFailureEvents.length },
+      analysis_scope: analysisScope,
+      filter_applied: filters ? true : false
     };
   }
 
