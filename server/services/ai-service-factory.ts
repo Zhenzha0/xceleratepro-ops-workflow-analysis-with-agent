@@ -69,9 +69,17 @@ export class AIServiceFactory {
    * Get current AI service status
    */
   static getStatus() {
+    let currentService = 'OpenAI GPT-4o';
+    if (this.useGemini) {
+      currentService = 'Google Gemini';
+    } else if (this.useLocalAI) {
+      currentService = 'Gemma 2 (Local)';
+    }
+    
     return {
       useLocalAI: this.useLocalAI,
-      currentService: this.useLocalAI ? 'Local Gemma 2' : 'OpenAI GPT-4o'
+      useGemini: this.useGemini,
+      currentService
     };
   }
 }

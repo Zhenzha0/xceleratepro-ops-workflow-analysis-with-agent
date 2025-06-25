@@ -38,6 +38,35 @@ export function AIServiceControl() {
     }
   }, [aiStatus]);
 
+  // Switch to Gemini AI
+  const switchToGeminiMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/ai/switch-to-gemini', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to switch to Gemini');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "AI Service Switched",
+        description: "Now using Google Gemini model",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/ai/status'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Switch Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
   // Switch to local AI
   const switchToLocalMutation = useMutation({
     mutationFn: async (host: string) => {

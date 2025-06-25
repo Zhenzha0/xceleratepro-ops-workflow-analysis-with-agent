@@ -744,6 +744,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
   // AI Service Control Routes
+  // AI service switching endpoints
+  app.post("/api/ai/switch-to-gemini", async (req, res) => {
+    try {
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(400).json({ 
+          message: "GEMINI_API_KEY is required", 
+          error: "Please configure your Gemini API key" 
+        });
+      }
+      
+      const { AIServiceFactory } = await import('./services/ai-service-factory');
+      AIServiceFactory.enableGemini();
+      
+      process.env.USE_GEMINI = 'true';
+      process.env.USE_LOCAL_AI = 'false';
+      
+      res.json({ 
+        message: "Switched to Google Gemini service", 
+        useGemini: "true",
+        status: "success" 
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        message: "Failed to switch to Gemini", 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+    }
+  });
+
   app.post("/api/ai/switch-to-local", async (req, res) => {
     try {
       const { ollamaHost } = req.body;
@@ -751,7 +780,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'ollamaHost is required' });
       }
       
+      const { AIServiceFactory } = await import('./services/ai-service-factory');
+      AIServiceFactory.enableLocalAI();
+      
       process.env.USE_LOCAL_AI = 'true';
+      process.env.USE_GEMINI = 'false';
       process.env.OLLAMA_HOST = ollamaHost;
       
       // Test the connection
@@ -778,11 +811,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/ai/switch-to-openai", async (req, res) => {
     try {
+      const { AIServiceFactory } = await import('./services/ai-service-factory');
+      AIServiceFactory.enableOpenAI();
+      
       process.env.USE_LOCAL_AI = 'false';
+      process.env.USE_GEMINI = 'false';
       delete process.env.OLLAMA_HOST;
+      
       res.json({ 
         message: 'Switched to OpenAI service',
-        useLocalAI: process.env.USE_LOCAL_AI,
+        useLocalAI: 'false',
         status: 'success'
       });
     } catch (error) {
@@ -794,13 +832,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get current AI service status
   app.get("/api/ai/status", async (req, res) => {
     try {
+      const { AIServiceFactory } = await import('./services/ai-service-factory');
+      const status = AIServiceFactory.getStatus();
+      
       const useLocalAI = process.env.USE_LOCAL_AI === 'true';
+      const useGemini = process.env.USE_GEMINI === 'true';
       const ollamaHost = process.env.OLLAMA_HOST;
       
-      let serviceStatus = 'unknown';
+      let serviceStatus = 'openai';
       let connectionTest = null;
       
-      if (useLocalAI && ollamaHost) {
+      if (useGemini) {
+        serviceStatus = process.env.GEMINI_API_KEY ? 'gemini' : 'gemini_no_key';
+      } else if (useLocalAI && ollamaHost) {
         try {
           const testResponse = await fetch(`${ollamaHost}/health`, { 
             signal: AbortSignal.timeout(5000) 
@@ -819,16 +863,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
           serviceStatus = 'disconnected';
         }
-      } else if (!useLocalAI) {
-        serviceStatus = 'openai';
       }
       
       res.json({
         useLocalAI,
+        useGemini,
         ollamaHost,
         serviceStatus,
         connectionTest,
-        currentService: useLocalAI ? 'Local Gemma 2' : 'OpenAI GPT-4o'
+        currentService: status.currentService
       });
     } catch (error) {
       console.error('Error getting AI status:', error);
