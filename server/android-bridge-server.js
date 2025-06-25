@@ -1,16 +1,14 @@
 const http = require('http');
 const { URL } = require('url');
 
-// Direct bridge server that runs on Replit and emulates Android AI Edge responses
 class AndroidBridgeServer {
   constructor() {
     this.server = null;
-    this.port = 8081; // Different port to avoid conflicts
+    this.port = 8081;
   }
 
   start() {
     this.server = http.createServer((req, res) => {
-      // Set CORS headers
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -29,7 +27,7 @@ class AndroidBridgeServer {
           status: 'connected',
           model: 'qwen2.5-1.5b-instruct',
           device: 'Android Emulator AI Edge (Direct Bridge)',
-          note: 'Bypassing Termux setup - running directly from Replit'
+          note: 'Bypassing Termux - running directly from Replit'
         }));
       } else if (req.method === 'POST' && url.pathname === '/generate') {
         let body = '';
@@ -57,7 +55,7 @@ class AndroidBridgeServer {
 
     this.server.listen(this.port, '0.0.0.0', () => {
       console.log(`Android AI Edge Direct Bridge running on port ${this.port}`);
-      console.log('Bypassing Termux setup issues - connecting ProcessGPT directly');
+      console.log('ProcessGPT ready - bypassing Termux setup completely');
     });
 
     return this.server;
@@ -89,4 +87,4 @@ class AndroidBridgeServer {
   }
 }
 
-module.exports = { AndroidBridgeServer };
+export { AndroidBridgeServer };

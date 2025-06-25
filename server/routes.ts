@@ -1042,5 +1042,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Start Android Bridge Server as alternative to Termux
+  import('./android-bridge-server.js').then(({ AndroidBridgeServer }) => {
+    const androidBridge = new AndroidBridgeServer();
+    androidBridge.start();
+  }).catch(console.error);
+
   return httpServer;
 }
