@@ -13,6 +13,7 @@ export class AIServiceFactory {
   private static useGemini = process.env.USE_GEMINI === 'true';
   private static useTrueLocal = process.env.USE_TRUE_LOCAL_AI === 'true';
   private static useAndroidEmulator = process.env.USE_ANDROID_EMULATOR_AI === 'true';
+  private static useAndroidDirect = process.env.USE_ANDROID_DIRECT_AI === 'true';
   private static localAIService = new LocalAIService();
   
   /**

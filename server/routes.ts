@@ -819,9 +819,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: error.message || "Failed to switch to Android Direct AI"
       });
     }
-  });ge
-      });
-    }
   });
 
   // AI service switching endpoints
