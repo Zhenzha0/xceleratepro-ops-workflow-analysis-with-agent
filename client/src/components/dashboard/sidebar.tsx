@@ -1,4 +1,4 @@
-import { Factory, BarChart3, AlertTriangle, Bot, Search, Clock, GitBranch, Filter, Download, Network } from "lucide-react";
+import { Factory, BarChart3, AlertTriangle, Bot, Search, Clock, GitBranch, Filter, Download, Network, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface SidebarProps {
@@ -21,6 +21,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const settingsItems = [
     { id: 'data-filters', label: 'Data Filters', icon: Filter },
     { id: 'export-data', label: 'Export Data', icon: Download },
+    { id: 'ai-config', label: 'AI Configuration', icon: Settings },
   ];
 
   return (

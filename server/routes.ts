@@ -743,5 +743,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }, 2000);
 
   const httpServer = createServer(app);
+  // AI Service Control Routes
+  app.post("/api/ai/switch-to-local", async (req, res) => {
+    try {
+      const { ollamaHost } = req.body;
+      if (!ollamaHost) {
+        return res.status(400).json({ message: 'ollamaHost is required' });
+      }
+      
+      process.env.USE_LOCAL_AI = 'true';
+      process.env.OLLAMA_HOST = ollamaHost;
+      
+      // Test the connection
+      try {
+        const testResponse = await fetch(`${ollamaHost}/health`);
+        if (!testResponse.ok) {
+          throw new Error('Health check failed');
+        }
+      } catch (testError) {
+        console.warn('Warning: Could not verify local AI connection:', testError.message);
+      }
+      
+      res.json({ 
+        message: 'Switched to local AI service',
+        ollamaHost: process.env.OLLAMA_HOST,
+        useLocalAI: process.env.USE_LOCAL_AI,
+        status: 'success'
+      });
+    } catch (error) {
+      console.error('Error switching to local AI:', error);
+      res.status(500).json({ message: 'Failed to switch to local AI', error: error.message });
+    }
+  });
+
+  app.post("/api/ai/switch-to-openai", async (req, res) => {
+    try {
+      process.env.USE_LOCAL_AI = 'false';
+      delete process.env.OLLAMA_HOST;
+      res.json({ 
+        message: 'Switched to OpenAI service',
+        useLocalAI: process.env.USE_LOCAL_AI,
+        status: 'success'
+      });
+    } catch (error) {
+      console.error('Error switching to OpenAI:', error);
+      res.status(500).json({ message: 'Failed to switch to OpenAI', error: error.message });
+    }
+  });
+
+  // Get current AI service status
+  app.get("/api/ai/status", async (req, res) => {
+    try {
+      const useLocalAI = process.env.USE_LOCAL_AI === 'true';
+      const ollamaHost = process.env.OLLAMA_HOST;
+      
+      let serviceStatus = 'unknown';
+      let connectionTest = null;
+      
+      if (useLocalAI && ollamaHost) {
+        try {
+          const testResponse = await fetch(`${ollamaHost}/health`, { 
+            signal: AbortSignal.timeout(5000) 
+          });
+          connectionTest = {
+            success: testResponse.ok,
+            status: testResponse.status,
+            url: ollamaHost
+          };
+          serviceStatus = testResponse.ok ? 'connected' : 'disconnected';
+        } catch (error) {
+          connectionTest = {
+            success: false,
+            error: error.message,
+            url: ollamaHost
+          };
+          serviceStatus = 'disconnected';
+        }
+      } else if (!useLocalAI) {
+        serviceStatus = 'openai';
+      }
+      
+      res.json({
+        useLocalAI,
+        ollamaHost,
+        serviceStatus,
+        connectionTest,
+        currentService: useLocalAI ? 'Local Gemma 2' : 'OpenAI GPT-4o'
+      });
+    } catch (error) {
+      console.error('Error getting AI status:', error);
+      res.status(500).json({ message: 'Failed to get AI status', error: error.message });
+    }
+  });
+
   return httpServer;
 }

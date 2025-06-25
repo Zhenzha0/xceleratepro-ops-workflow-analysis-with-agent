@@ -8,6 +8,7 @@ import AnomalyDetection from "@/components/dashboard/anomaly-detection";
 import CaseComparison from "@/components/dashboard/case-comparison";
 import AIAssistant from "@/components/dashboard/ai-assistant";
 import CaseClustering from "@/components/dashboard/case-clustering";
+import { AIServiceControl } from "@/components/AIServiceControl";
 
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 
@@ -144,6 +145,10 @@ export default function Dashboard() {
                   <p className="text-gray-600 mb-4">Ask questions about your manufacturing processes in plain English.</p>
                   <AIAssistant />
                 </div>
+              )}
+              
+              {activeTab === 'ai-config' && (
+                <AIServiceControl />
               )}
             </div>
             
