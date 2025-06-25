@@ -501,72 +501,14 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
             <h3 className="font-semibold text-lg">ProcessGPT AI Service</h3>
             <div className="flex gap-2">
               <Button 
-                onClick={switchToGoogleAIEdge}
+                onClick={switchToGemma2}
                 disabled={isConnecting}
-                variant={currentService === "google_ai_edge" ? "default" : "outline"}
+                variant={currentService === "gemma2" ? "default" : "outline"}
                 size="sm"
                 className="flex items-center gap-2"
               >
                 <Cpu className="h-4 w-4" />
-                {isConnecting ? "Connecting..." : "Use Google AI Edge"}
-                {currentService === "google_ai_edge" && connectionStatus?.success && (
-                  <Wifi className="h-3 w-3 text-green-500" />
-                )}
-                {currentService === "google_ai_edge" && !connectionStatus?.success && (
-                  <WifiOff className="h-3 w-3 text-red-500" />
-                )}
-              </Button>
-              <Button 
-                onClick={switchToMediaPipe}
-                disabled={isConnecting}
-                variant={currentService === "mediapipe" ? "default" : "outline"}
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <Target className="h-4 w-4" />
-                {isConnecting ? "Connecting..." : "MediaPipe"}
-                {currentService === "mediapipe" && connectionStatus?.success && (
-                  <Wifi className="h-3 w-3 text-green-500" />
-                )}
-                {currentService === "mediapipe" && !connectionStatus?.success && (
-                  <WifiOff className="h-3 w-3 text-red-500" />
-                )}
-              </Button>
-              <Button 
-                onClick={switchToAndroidDirect}
-                disabled={isConnecting}
-                variant={currentService === "android_direct" ? "default" : "outline"}
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <Smartphone className="h-4 w-4" />
-                {isConnecting ? "Connecting..." : "Android Direct"}
-                {currentService === "android_direct" && connectionStatus?.success && (
-                  <Wifi className="h-3 w-3 text-green-500" />
-                )}
-                {currentService === "android_direct" && !connectionStatus?.success && (
-                  <WifiOff className="h-3 w-3 text-red-500" />
-                )}
-              </Button>
-              <Button 
-                onClick={switchToAndroidEmulator}
-                disabled={isConnecting}
-                variant={currentService === "android_emulator" ? "default" : "outline"}
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <Smartphone className="h-4 w-4" />
-                Android Emulator AI
-              </Button>
-              <Button 
-                onClick={switchToTinyLlama}
-                disabled={isConnecting}
-                variant={currentService === "tinyllama" ? "default" : "outline"}
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <Cpu className="h-4 w-4" />
-                TinyLlama Local
+                Gemma 2B Local
               </Button>
               <Button 
                 onClick={switchToOpenAI}
