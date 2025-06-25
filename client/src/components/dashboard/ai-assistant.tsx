@@ -559,6 +559,16 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
                 Android Emulator AI
               </Button>
               <Button 
+                onClick={switchToTinyLlama}
+                disabled={isConnecting}
+                variant={currentService === "tinyllama" ? "default" : "outline"}
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Cpu className="h-4 w-4" />
+                TinyLlama Local
+              </Button>
+              <Button 
                 onClick={switchToOpenAI}
                 disabled={isConnecting}
                 variant={currentService === "openai" ? "default" : "outline"}

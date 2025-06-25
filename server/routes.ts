@@ -1114,15 +1114,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/ai/switch-to-tinyllama", async (req, res) => {
+    try {
+      process.env.USE_TINYLLAMA = 'true';
+      process.env.USE_LOCAL_AI = 'false';
+      process.env.USE_ANDROID_EMULATOR_AI = 'false';
+      process.env.USE_TRUE_LOCAL_AI = 'false';
+      process.env.USE_GEMINI = 'false';
+      process.env.USE_GOOGLE_AI_EDGE = 'false';
+      process.env.USE_MEDIAPIPE_AI = 'false';
+      process.env.USE_EMULATOR_BRIDGE = 'false';
+      process.env.USE_ANDROID_DIRECT_AI = 'false';
+      
+      res.json({ 
+        message: 'Switched to TinyLlama local model',
+        status: 'success'
+      });
+    } catch (error) {
+      console.error('Error switching to TinyLlama:', error);
+      res.status(500).json({ message: 'Failed to switch to TinyLlama', error: error });
+    }
+  });
+
   app.post("/api/ai/switch-to-openai", async (req, res) => {
     try {
       const { AIServiceFactory } = await import('./services/ai-service-factory');
       AIServiceFactory.enableOpenAI();
       
       process.env.USE_LOCAL_AI = 'false';
+      process.env.USE_TINYLLAMA = 'false';
       process.env.USE_ANDROID_EMULATOR_AI = 'false';
       process.env.USE_TRUE_LOCAL_AI = 'false';
       process.env.USE_GEMINI = 'false';
+      process.env.USE_GOOGLE_AI_EDGE = 'false';
+      process.env.USE_MEDIAPIPE_AI = 'false';
+      process.env.USE_EMULATOR_BRIDGE = 'false';
+      process.env.USE_ANDROID_DIRECT_AI = 'false';
       delete process.env.OLLAMA_HOST;
       
       res.json({ 
