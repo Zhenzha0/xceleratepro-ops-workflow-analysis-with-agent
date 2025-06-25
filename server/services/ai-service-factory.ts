@@ -18,22 +18,20 @@ export class AIServiceFactory {
         console.log('Using Gemma 2B local model for analysis...');
         return await this.gemma2Service.analyzeQuery(request);
       } else {
-        // Default to OpenAI
-        console.log('Using OpenAI for analysis...');
-        const { IntelligentAnalyst } = await import('./intelligent-analyst');
-        const openAIService = new IntelligentAnalyst();
-        return await openAIService.analyzeQuery(request);
+        // Default to ProcessGPT (original system)
+        console.log('Using ProcessGPT for analysis...');
+        const { AIAnalyst } = await import('./ai-analyst');
+        return await AIAnalyst.analyzeQuery(request);
       }
     } catch (error) {
       console.error('AI service error:', error);
       
       // Fallback to OpenAI if Gemma 2B fails
       if (this.useGemma2) {
-        console.log('Gemma 2B failed, falling back to OpenAI...');
-        this.useGemma2 = false; // Switch to OpenAI permanently for this session
-        const { IntelligentAnalyst } = await import('./intelligent-analyst');
-        const openAIService = new IntelligentAnalyst();
-        return await openAIService.analyzeQuery(request);
+        console.log('Gemma 2B failed, falling back to ProcessGPT...');
+        this.useGemma2 = false; // Switch to ProcessGPT permanently for this session
+        const { AIAnalyst } = await import('./ai-analyst');
+        return await AIAnalyst.analyzeQuery(request);
       } else {
         throw error;
       }
