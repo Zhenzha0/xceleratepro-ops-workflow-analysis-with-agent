@@ -254,10 +254,12 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
     } else if (analysisType === "bottleneck_analysis" && data.bottleneck_activities) {
       console.log('Creating bottleneck analysis charts with data:', data.bottleneck_activities);
       createBottleneckAnalysisCharts(data);
+    } else if (analysisType === "recurring_failure_analysis" || analysisType === "failure_pattern_analysis") {
+      console.log('Creating failure pattern analysis charts');
+      createFailurePatternCharts();
     } else {
       console.log('No matching visualization type found for:', analysisType);
       console.log('Available data keys:', Object.keys(data || {}));
-      console.log('Full data structure:', JSON.stringify(data, null, 2));
     }
   };
 
