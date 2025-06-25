@@ -791,6 +791,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
   // AI Service Control Routes
+  // Emulator Bridge AI connection (uses your actual AI Edge Gallery model)
+  app.post("/api/ai/switch-to-emulator-bridge", async (req, res) => {
+    try {
+      const { host, port, model } = req.body;
+      const emulatorHost = host || 'http://10.0.2.2';
+      const emulatorPort = port || 8080;
+      const emulatorModel = model || 'qwen2.5-1.5b-instruct';
+      
+      const { AIServiceFactory } = await import('./services/ai-service-factory');
+      const { EmulatorBridgeService } = await import('./services/emulator-bridge-service');
+      
+      // Configure and test connection to your actual emulator model
+      EmulatorBridgeService.configure(emulatorHost, emulatorPort, emulatorModel);
+      const connectionTest = await EmulatorBridgeService.testConnection();
+      
+      AIServiceFactory.enableEmulatorBridge(emulatorHost, emulatorPort, emulatorModel);
+      
+      // Set environment variables
+      process.env.USE_EMULATOR_BRIDGE = 'true';
+      process.env.USE_MEDIAPIPE_AI = 'false';
+      process.env.USE_ANDROID_DIRECT_AI = 'false';
+      process.env.USE_ANDROID_EMULATOR_AI = 'false';
+      process.env.USE_TRUE_LOCAL_AI = 'false';
+      process.env.USE_GEMINI = 'false';
+      process.env.USE_LOCAL_AI = 'false';
+      
+      res.json({
+        status: "success",
+        message: "Switched to Emulator Bridge",
+        service: "Emulator Bridge (Your AI Edge Gallery Qwen Model)",
+        connectionTest,
+        modelInfo: connectionTest.modelInfo,
+        currentModel: emulatorModel,
+        note: "Attempting to use your actual Qwen model from AI Edge Gallery"
+      });
+    } catch (error: any) {
+      console.error('Emulator Bridge switch error:', error);
+      res.status(500).json({
+        status: "error",
+        message: error.message || "Failed to switch to Emulator Bridge"
+      });
+    }
+  });
+
   // MediaPipe AI connection
   app.post("/api/ai/switch-to-mediapipe", async (req, res) => {
     try {

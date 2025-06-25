@@ -5,6 +5,7 @@ import { TrueLocalAIService } from './true-local-ai-service';
 import { AndroidEmulatorAIService } from './android-emulator-ai-service';
 import { AndroidDirectAIService } from './android-direct-ai-service';
 import { MediaPipeAIService } from './mediapipe-ai-service';
+import { EmulatorBridgeService } from './emulator-bridge-service';
 
 /**
  * Factory to choose between OpenAI, Local AI, Gemini, True Local AI, and Android Emulator AI based on configuration
@@ -16,6 +17,7 @@ export class AIServiceFactory {
   private static useAndroidEmulator = process.env.USE_ANDROID_EMULATOR_AI === 'true';
   private static useAndroidDirect = process.env.USE_ANDROID_DIRECT_AI === 'true';
   private static useMediaPipe = process.env.USE_MEDIAPIPE_AI === 'true';
+  private static useEmulatorBridge = process.env.USE_EMULATOR_BRIDGE === 'true';
   private static localAIService = new LocalAIService();
   
   /**
@@ -23,8 +25,11 @@ export class AIServiceFactory {
    */
   static async analyzeQuery(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
     try {
-      // Check for MediaPipe first (highest priority for local AI)
-      if (process.env.USE_MEDIAPIPE_AI === 'true' || this.useMediaPipe) {
+      // Check for Emulator Bridge first (highest priority - uses your actual emulator model)
+      if (process.env.USE_EMULATOR_BRIDGE === 'true' || this.useEmulatorBridge) {
+        console.log('Using Emulator Bridge (your AI Edge Gallery Qwen model) for analysis...');
+        return await EmulatorBridgeService.analyzeQuery(request);
+      } else if (process.env.USE_MEDIAPIPE_AI === 'true' || this.useMediaPipe) {
         console.log('Using MediaPipe LLM Inference for analysis...');
         return await MediaPipeAIService.analyzeQuery(request);
       } else if (process.env.USE_ANDROID_DIRECT_AI === 'true' || this.useAndroidDirect) {
@@ -114,10 +119,29 @@ export class AIServiceFactory {
   }
   
   /**
+   * Switch to Emulator Bridge (uses your actual AI Edge Gallery model)
+   */
+  static enableEmulatorBridge(host?: string, port?: number, model?: string) {
+    this.useEmulatorBridge = true;
+    this.useMediaPipe = false;
+    this.useAndroidDirect = false;
+    this.useLocalAI = false;
+    this.useAndroidEmulator = false;
+    this.useTrueLocal = false;
+    this.useGemini = false;
+    
+    if (host && port && model) {
+      EmulatorBridgeService.configure(host, port, model);
+    }
+    console.log('Switched to Emulator Bridge (AI Edge Gallery Qwen model)');
+  }
+
+  /**
    * Switch to MediaPipe AI
    */
   static enableMediaPipeAI(host?: string, model?: string) {
     this.useMediaPipe = true;
+    this.useEmulatorBridge = false;
     this.useAndroidDirect = false;
     this.useLocalAI = false;
     this.useAndroidEmulator = false;

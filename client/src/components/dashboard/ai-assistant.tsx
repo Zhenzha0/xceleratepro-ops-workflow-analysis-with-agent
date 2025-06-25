@@ -276,6 +276,38 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
     }
   });
 
+  const switchToEmulatorBridge = async () => {
+    setIsConnecting(true);
+    try {
+      const response = await fetch("/api/ai/switch-to-emulator-bridge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ host: "http://10.0.2.2", port: 8080, model: "qwen2.5-1.5b-instruct" })
+      });
+      
+      const data = await response.json();
+      
+      if (data.status === "success") {
+        setCurrentService("emulator_bridge");
+        setConnectionStatus(data.connectionTest);
+        toast({
+          title: "Emulator Bridge Connected",
+          description: "ProcessGPT attempting to use your AI Edge Gallery Qwen model"
+        });
+      } else {
+        throw new Error(data.message);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Connection Failed", 
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
   const switchToMediaPipe = async () => {
     setIsConnecting(true);
     try {
@@ -292,7 +324,7 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
         setConnectionStatus(data.connectionTest);
         toast({
           title: "MediaPipe AI Connected",
-          description: "ProcessGPT now using MediaPipe LLM with your Qwen model"
+          description: "ProcessGPT now using MediaPipe LLM with separate Qwen model"
         });
       } else {
         throw new Error(data.message);
@@ -433,6 +465,22 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
             <h3 className="font-semibold text-lg">ProcessGPT AI Service</h3>
             <div className="flex gap-2">
               <Button 
+                onClick={switchToEmulatorBridge}
+                disabled={isConnecting}
+                variant={currentService === "emulator_bridge" ? "default" : "outline"}
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Smartphone className="h-4 w-4" />
+                {isConnecting ? "Connecting..." : "Use Emulator Model"}
+                {currentService === "emulator_bridge" && connectionStatus?.success && (
+                  <Wifi className="h-3 w-3 text-green-500" />
+                )}
+                {currentService === "emulator_bridge" && !connectionStatus?.success && (
+                  <WifiOff className="h-3 w-3 text-red-500" />
+                )}
+              </Button>
+              <Button 
                 onClick={switchToMediaPipe}
                 disabled={isConnecting}
                 variant={currentService === "mediapipe" ? "default" : "outline"}
@@ -440,7 +488,7 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
                 className="flex items-center gap-2"
               >
                 <Target className="h-4 w-4" />
-                {isConnecting ? "Connecting..." : "Use MediaPipe"}
+                {isConnecting ? "Connecting..." : "MediaPipe"}
                 {currentService === "mediapipe" && connectionStatus?.success && (
                   <Wifi className="h-3 w-3 text-green-500" />
                 )}
