@@ -276,10 +276,10 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
     }
   });
 
-  const switchToTinyLlama = async () => {
+  const switchToGemma2 = async () => {
     setIsConnecting(true);
     try {
-      const response = await fetch("/api/ai/switch-to-tinyllama", {
+      const response = await fetch("/api/ai/switch-to-gemma2", {
         method: "POST",
         headers: { "Content-Type": "application/json" }
       });
@@ -287,20 +287,20 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
       const data = await response.json();
       
       if (response.ok) {
-        setCurrentService("tinyllama");
-        setConnectionStatus({ success: true, message: "TinyLlama connected" });
+        setCurrentService("gemma2");
+        setConnectionStatus({ success: true, message: "Gemma 2B connected" });
         toast({
-          title: "TinyLlama Connected",
-          description: "ProcessGPT now using your local TinyLlama model with complete privacy"
+          title: "Gemma 2B Connected",
+          description: "ProcessGPT now using your local Gemma 2B model with complete privacy"
         });
       } else {
-        throw new Error(data.message || "Failed to connect to TinyLlama");
+        throw new Error(data.message || "Failed to connect to Gemma 2B");
       }
     } catch (error) {
-      console.error("TinyLlama connection error:", error);
+      console.error("Gemma 2B connection error:", error);
       toast({
         title: "Connection Failed",
-        description: "Make sure your TinyLlama server is running on port 8080",
+        description: "Make sure your Gemma 2B server is running on port 8080",
         variant: "destructive"
       });
     } finally {

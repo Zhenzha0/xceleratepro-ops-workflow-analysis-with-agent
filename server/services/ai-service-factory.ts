@@ -1,28 +1,12 @@
 import { AIAnalysisRequest, AIAnalysisResponse, AIAnalyst } from './ai-analyst';
-import { LocalAIService } from './local-ai-service';
-import { GeminiService } from './gemini-service';
-import { TrueLocalAIService } from './true-local-ai-service';
-import { AndroidEmulatorAIService } from './android-emulator-ai-service';
-import { AndroidDirectAIService } from './android-direct-ai-service';
-import { MediaPipeAIService } from './mediapipe-ai-service';
-import { EmulatorBridgeService } from './emulator-bridge-service';
-import { GoogleAIEdgeService } from './google-ai-edge-service';
-import { TinyLlamaService } from './tinyllama-service';
+import { Gemma2Service } from './gemma2-service';
 
 /**
  * Factory to choose between OpenAI, Local AI, Gemini, True Local AI, and Android Emulator AI based on configuration
  */
 export class AIServiceFactory {
-  private static useLocalAI = process.env.USE_LOCAL_AI === 'true';
-  private static useGemini = process.env.USE_GEMINI === 'true';
-  private static useTrueLocal = process.env.USE_TRUE_LOCAL_AI === 'true';
-  private static useAndroidEmulator = process.env.USE_ANDROID_EMULATOR_AI === 'true';
-  private static useAndroidDirect = process.env.USE_ANDROID_DIRECT_AI === 'true';
-  private static useMediaPipe = process.env.USE_MEDIAPIPE_AI === 'true';
-  private static useEmulatorBridge = process.env.USE_EMULATOR_BRIDGE === 'true';
-  private static useGoogleAIEdge = process.env.USE_GOOGLE_AI_EDGE === 'true';
-  private static useTinyLlama = process.env.USE_TINYLLAMA === 'true';
-  private static localAIService = new LocalAIService();
+  private static useGemma2 = process.env.USE_GEMMA2 === 'true';
+  private static gemma2Service = new Gemma2Service();
   
   /**
    * Analyze query using the configured AI service
