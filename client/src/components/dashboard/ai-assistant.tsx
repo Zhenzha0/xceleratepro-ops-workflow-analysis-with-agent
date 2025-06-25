@@ -528,7 +528,7 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
               {connectionStatus.success ? (
                 <div className="text-green-600 flex items-center gap-2">
                   <Wifi className="h-4 w-4" />
-                  Connected to {connectionStatus.modelInfo?.model || 'Qwen2.5-1.5B'}
+                  Connected to {connectionStatus.modelInfo?.model || 'Gemma 2B Local Model'}
                 </div>
               ) : (
                 <div className="text-amber-600 flex items-center gap-2">
@@ -536,7 +536,7 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
                   <div className="space-y-1">
                     <div>Connection Failed: {connectionStatus.error}</div>
                     <div className="text-xs">
-                      Try "Android Emulator AI" or "Use OpenAI" for reliable connection.
+                      Try "Use OpenAI" for reliable connection or check Gemma 2B server.
                     </div>
                   </div>
                 </div>
