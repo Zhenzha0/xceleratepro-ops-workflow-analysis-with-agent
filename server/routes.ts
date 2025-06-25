@@ -745,6 +745,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
   // AI Service Control Routes
   // AI service switching endpoints
+  app.post("/api/ai/switch-to-true-local", async (req, res) => {
+    try {
+      const { host, model } = req.body;
+      const localHost = host || 'http://localhost:11434';
+      const localModel = model || 'llama3.1:8b';
+      
+      const { AIServiceFactory } = await import('./services/ai-service-factory');
+      
+      // Test connection first
+      const { TrueLocalAIService } = await import('./services/true-local-ai-service');
+      TrueLocalAIService.configure(localHost, localModel);
+      const connectionTest = await TrueLocalAIService.testConnection();
+      
+      if (!connectionTest.success) {
+        return res.status(400).json({ 
+          message: "Cannot connect to local AI service", 
+          error: connectionTest.error,
+          suggestion: "Make sure Ollama is running on your computer"
+        });
+      }
+      
+      AIServiceFactory.enableTrueLocalAI(localHost, localModel);
+      
+      process.env.USE_TRUE_LOCAL_AI = 'true';
+      process.env.USE_GEMINI = 'false';
+      process.env.USE_LOCAL_AI = 'false';
+      
+      res.json({ 
+        message: "Switched to True Local AI service", 
+        useTrueLocal: "true",
+        availableModels: connectionTest.models,
+        currentModel: localModel,
+        status: "success" 
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        message: "Failed to switch to True Local AI", 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+    }
+  });
+
   app.post("/api/ai/switch-to-gemini", async (req, res) => {
     try {
       if (!process.env.GEMINI_API_KEY) {
@@ -758,6 +800,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       AIServiceFactory.enableGemini();
       
       process.env.USE_GEMINI = 'true';
+      process.env.USE_TRUE_LOCAL_AI = 'false';
       process.env.USE_LOCAL_AI = 'false';
       
       res.json({ 
@@ -784,6 +827,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       AIServiceFactory.enableLocalAI();
       
       process.env.USE_LOCAL_AI = 'true';
+      process.env.USE_TRUE_LOCAL_AI = 'false';
       process.env.USE_GEMINI = 'false';
       process.env.OLLAMA_HOST = ollamaHost;
       
@@ -815,6 +859,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       AIServiceFactory.enableOpenAI();
       
       process.env.USE_LOCAL_AI = 'false';
+      process.env.USE_TRUE_LOCAL_AI = 'false';
       process.env.USE_GEMINI = 'false';
       delete process.env.OLLAMA_HOST;
       
@@ -837,12 +882,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const useLocalAI = process.env.USE_LOCAL_AI === 'true';
       const useGemini = process.env.USE_GEMINI === 'true';
+      const useTrueLocal = process.env.USE_TRUE_LOCAL_AI === 'true';
       const ollamaHost = process.env.OLLAMA_HOST;
       
       let serviceStatus = 'openai';
       let connectionTest = null;
       
-      if (useGemini) {
+      if (useTrueLocal) {
+        // Test true local AI connection
+        try {
+          const testResult = await AIServiceFactory.testTrueLocalConnection();
+          connectionTest = testResult;
+          serviceStatus = testResult.success ? 'true_local_connected' : 'true_local_disconnected';
+        } catch (error) {
+          connectionTest = { success: false, error: error.message };
+          serviceStatus = 'true_local_error';
+        }
+      } else if (useGemini) {
         serviceStatus = process.env.GEMINI_API_KEY ? 'gemini' : 'gemini_no_key';
       } else if (useLocalAI && ollamaHost) {
         try {
@@ -868,6 +924,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         useLocalAI,
         useGemini,
+        useTrueLocal,
         ollamaHost,
         serviceStatus,
         connectionTest,
