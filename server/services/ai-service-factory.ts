@@ -1,4 +1,4 @@
-import { AIAnalysisRequest, AIAnalysisResponse, AIAnalyst } from './ai-analyst';
+import { AIAnalysisRequest, AIAnalysisResponse } from './ai-analyst';
 import { Gemma2Service } from './gemma2-service';
 
 /**
