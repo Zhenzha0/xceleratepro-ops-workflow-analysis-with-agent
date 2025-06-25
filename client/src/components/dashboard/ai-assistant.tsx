@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Bot, User, Send, Filter, TrendingUp, BarChart3, Maximize2, X, Smartphone, Cloud, Wifi, WifiOff, AlertTriangle, Target } from 'lucide-react';
+import { Bot, User, Send, Filter, TrendingUp, BarChart3, Maximize2, X, Smartphone, Cloud, Wifi, WifiOff, AlertTriangle, Target, Cpu } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 
 interface ChatMessage {
