@@ -1,0 +1,12 @@
+[
+  {"query": "which activity fails most often", "type": "activity_failure_analysis"},
+  {"query": "what causes the most failures", "type": "failure_analysis"},
+  {"query": "which hour has highest concentration of failures", "type": "temporal_pattern_analysis"},
+  {"query": "what are the main bottlenecks", "type": "bottleneck_analysis"},
+  {"query": "which cases have anomalies", "type": "anomaly_analysis"},
+  {"query": "what equipment needs maintenance", "type": "maintenance_analysis"},
+  {"query": "show me processing time trends", "type": "timing_analysis"},
+  {"query": "compare case WF_001 vs WF_002", "type": "case_analysis"},
+  {"query": "what delays happen most", "type": "delay_analysis"},
+  {"query": "which resources are overloaded", "type": "resource_analysis"}
+]

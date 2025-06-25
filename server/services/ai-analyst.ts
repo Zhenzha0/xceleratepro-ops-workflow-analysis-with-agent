@@ -1009,6 +1009,32 @@ Respond in JSON format with: patterns (array), recommendations (array), riskAsse
   }
 
   /**
+   * Fallback basic failure analysis when enhanced analyzer isn't available
+   */
+  private static analyzeBasicFailures(failures: any[]): any[] {
+    // Group failures by description or type
+    const categories = new Map();
+    
+    failures.forEach(failure => {
+      const category = failure.unsatisfied_condition_description || 
+                      failure.lifecycle_state || 
+                      'Unknown Failure';
+      
+      if (!categories.has(category)) {
+        categories.set(category, { category, count: 0, failures: [] });
+      }
+      
+      const categoryData = categories.get(category);
+      categoryData.count++;
+      categoryData.failures.push(failure);
+    });
+    
+    return Array.from(categories.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10); // Top 10 categories
+  }
+
+  /**
    * Generate structured data for automatic visualization creation
    */
   static async generateStructuredData(analysisType: string, relevantData: any, query: string): Promise<any> {
