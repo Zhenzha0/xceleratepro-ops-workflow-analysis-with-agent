@@ -85,7 +85,20 @@ Return analysis with specific insights about the manufacturing process.`;
         }
       };
     } catch (error: any) {
-      throw new Error(`Android Emulator AI error: ${error.message}`);
+      console.error('Android Emulator connection failed:', error.message);
+      
+      // Return helpful connection status instead of throwing error
+      return {
+        response: `Android Emulator Bridge Status: Connection to ${AndroidEmulatorAIService.host} failed. Please ensure the bridge is running in Termux on your Android emulator. Error: ${error.message}`,
+        analysis_type: 'connection_status',
+        visualization_data: null,
+        metadata: {
+          service: 'Android Emulator AI (Disconnected)',
+          model: this.model,
+          timestamp: new Date().toISOString(),
+          connectionError: error.message
+        }
+      };
     }
   }
 
