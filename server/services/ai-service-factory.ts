@@ -7,6 +7,7 @@ import { AndroidDirectAIService } from './android-direct-ai-service';
 import { MediaPipeAIService } from './mediapipe-ai-service';
 import { EmulatorBridgeService } from './emulator-bridge-service';
 import { GoogleAIEdgeService } from './google-ai-edge-service';
+import { TinyLlamaService } from './tinyllama-service';
 
 /**
  * Factory to choose between OpenAI, Local AI, Gemini, True Local AI, and Android Emulator AI based on configuration
@@ -20,6 +21,7 @@ export class AIServiceFactory {
   private static useMediaPipe = process.env.USE_MEDIAPIPE_AI === 'true';
   private static useEmulatorBridge = process.env.USE_EMULATOR_BRIDGE === 'true';
   private static useGoogleAIEdge = process.env.USE_GOOGLE_AI_EDGE === 'true';
+  private static useTinyLlama = process.env.USE_TINYLLAMA === 'true';
   private static localAIService = new LocalAIService();
   
   /**
@@ -27,7 +29,13 @@ export class AIServiceFactory {
    */
   static async analyzeQuery(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
     try {
-      // Check for Google AI Edge first (highest priority - your local edge model)
+      // Check for TinyLlama first (your downloaded local model)
+      if (this.useTinyLlama) {
+        const tinyLlamaService = new TinyLlamaService();
+        return await tinyLlamaService.analyzeQuery(request);
+      }
+      
+      // Check for Google AI Edge
       if (process.env.USE_GOOGLE_AI_EDGE === 'true' || this.useGoogleAIEdge) {
         console.log('Using Google AI Edge (your local edge model) for analysis...');
         return await GoogleAIEdgeService.analyzeQuery(request);

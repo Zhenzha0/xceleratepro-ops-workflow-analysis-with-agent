@@ -276,6 +276,38 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
     }
   });
 
+  const switchToTinyLlama = async () => {
+    setIsConnecting(true);
+    try {
+      const response = await fetch("/api/ai/switch-to-tinyllama", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setCurrentService("tinyllama");
+        setConnectionStatus({ success: true, message: "TinyLlama connected" });
+        toast({
+          title: "TinyLlama Connected",
+          description: "ProcessGPT now using your local TinyLlama model with complete privacy"
+        });
+      } else {
+        throw new Error(data.message || "Failed to connect to TinyLlama");
+      }
+    } catch (error) {
+      console.error("TinyLlama connection error:", error);
+      toast({
+        title: "Connection Failed",
+        description: "Make sure your TinyLlama server is running on port 8080",
+        variant: "destructive"
+      });
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
   const switchToGoogleAIEdge = async () => {
     setIsConnecting(true);
     try {
