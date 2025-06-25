@@ -791,6 +791,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
   // AI Service Control Routes
+  // Google AI Edge connection (uses your local edge model)
+  app.post("/api/ai/switch-to-google-ai-edge", async (req, res) => {
+    try {
+      const { modelPath, host, port } = req.body;
+      const edgeModelPath = modelPath || './models/gemma-2b-it';
+      const edgeHost = host || 'http://localhost';
+      const edgePort = port || 8080;
+      
+      const { AIServiceFactory } = await import('./services/ai-service-factory');
+      const { GoogleAIEdgeService } = await import('./services/google-ai-edge-service');
+      
+      // Configure and test connection to your local edge model
+      GoogleAIEdgeService.configure(edgeModelPath, edgeHost, edgePort);
+      const connectionTest = await GoogleAIEdgeService.testConnection();
+      
+      AIServiceFactory.enableGoogleAIEdge(edgeModelPath, edgeHost, edgePort);
+      
+      // Set environment variables
+      process.env.USE_GOOGLE_AI_EDGE = 'true';
+      process.env.USE_EMULATOR_BRIDGE = 'false';
+      process.env.USE_MEDIAPIPE_AI = 'false';
+      process.env.USE_ANDROID_DIRECT_AI = 'false';
+      process.env.USE_ANDROID_EMULATOR_AI = 'false';
+      process.env.USE_TRUE_LOCAL_AI = 'false';
+      process.env.USE_GEMINI = 'false';
+      process.env.USE_LOCAL_AI = 'false';
+      
+      res.json({
+        status: "success",
+        message: "Switched to Google AI Edge",
+        service: "Google AI Edge (Local Edge Model)",
+        connectionTest,
+        modelInfo: connectionTest.modelInfo,
+        currentModel: edgeModelPath.split('/').pop() || 'gemma-2b-it',
+        note: "Using your local Google AI Edge model for complete privacy"
+      });
+    } catch (error: any) {
+      console.error('Google AI Edge switch error:', error);
+      res.status(500).json({
+        status: "error",
+        message: error.message || "Failed to switch to Google AI Edge"
+      });
+    }
+  });
+
   // Emulator Bridge AI connection (uses your actual AI Edge Gallery model)
   app.post("/api/ai/switch-to-emulator-bridge", async (req, res) => {
     try {

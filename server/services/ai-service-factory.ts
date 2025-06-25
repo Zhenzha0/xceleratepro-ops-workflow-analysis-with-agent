@@ -6,6 +6,7 @@ import { AndroidEmulatorAIService } from './android-emulator-ai-service';
 import { AndroidDirectAIService } from './android-direct-ai-service';
 import { MediaPipeAIService } from './mediapipe-ai-service';
 import { EmulatorBridgeService } from './emulator-bridge-service';
+import { GoogleAIEdgeService } from './google-ai-edge-service';
 
 /**
  * Factory to choose between OpenAI, Local AI, Gemini, True Local AI, and Android Emulator AI based on configuration
@@ -18,6 +19,7 @@ export class AIServiceFactory {
   private static useAndroidDirect = process.env.USE_ANDROID_DIRECT_AI === 'true';
   private static useMediaPipe = process.env.USE_MEDIAPIPE_AI === 'true';
   private static useEmulatorBridge = process.env.USE_EMULATOR_BRIDGE === 'true';
+  private static useGoogleAIEdge = process.env.USE_GOOGLE_AI_EDGE === 'true';
   private static localAIService = new LocalAIService();
   
   /**
@@ -25,8 +27,11 @@ export class AIServiceFactory {
    */
   static async analyzeQuery(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
     try {
-      // Check for Emulator Bridge first (highest priority - uses your actual emulator model)
-      if (process.env.USE_EMULATOR_BRIDGE === 'true' || this.useEmulatorBridge) {
+      // Check for Google AI Edge first (highest priority - your local edge model)
+      if (process.env.USE_GOOGLE_AI_EDGE === 'true' || this.useGoogleAIEdge) {
+        console.log('Using Google AI Edge (your local edge model) for analysis...');
+        return await GoogleAIEdgeService.analyzeQuery(request);
+      } else if (process.env.USE_EMULATOR_BRIDGE === 'true' || this.useEmulatorBridge) {
         console.log('Using Emulator Bridge (your AI Edge Gallery Qwen model) for analysis...');
         return await EmulatorBridgeService.analyzeQuery(request);
       } else if (process.env.USE_MEDIAPIPE_AI === 'true' || this.useMediaPipe) {
@@ -118,6 +123,25 @@ export class AIServiceFactory {
     console.log('Switched to local Gemma 2 model');
   }
   
+  /**
+   * Switch to Google AI Edge (uses your local edge model)
+   */
+  static enableGoogleAIEdge(modelPath?: string, host?: string, port?: number) {
+    this.useGoogleAIEdge = true;
+    this.useEmulatorBridge = false;
+    this.useMediaPipe = false;
+    this.useAndroidDirect = false;
+    this.useLocalAI = false;
+    this.useAndroidEmulator = false;
+    this.useTrueLocal = false;
+    this.useGemini = false;
+    
+    if (modelPath && host && port) {
+      GoogleAIEdgeService.configure(modelPath, host, port);
+    }
+    console.log('Switched to Google AI Edge (local edge model)');
+  }
+
   /**
    * Switch to Emulator Bridge (uses your actual AI Edge Gallery model)
    */

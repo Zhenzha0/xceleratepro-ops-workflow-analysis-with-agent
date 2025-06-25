@@ -276,23 +276,27 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
     }
   });
 
-  const switchToEmulatorBridge = async () => {
+  const switchToGoogleAIEdge = async () => {
     setIsConnecting(true);
     try {
-      const response = await fetch("/api/ai/switch-to-emulator-bridge", {
+      const response = await fetch("/api/ai/switch-to-google-ai-edge", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ host: "http://10.0.2.2", port: 8080, model: "qwen2.5-1.5b-instruct" })
+        body: JSON.stringify({ 
+          modelPath: "./models/gemma-2b-it", 
+          host: "http://localhost", 
+          port: 8080 
+        })
       });
       
       const data = await response.json();
       
       if (data.status === "success") {
-        setCurrentService("emulator_bridge");
+        setCurrentService("google_ai_edge");
         setConnectionStatus(data.connectionTest);
         toast({
-          title: "Emulator Bridge Connected",
-          description: "ProcessGPT attempting to use your AI Edge Gallery Qwen model"
+          title: "Google AI Edge Connected",
+          description: "ProcessGPT now using your local edge model with complete privacy"
         });
       } else {
         throw new Error(data.message);
@@ -465,18 +469,18 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
             <h3 className="font-semibold text-lg">ProcessGPT AI Service</h3>
             <div className="flex gap-2">
               <Button 
-                onClick={switchToEmulatorBridge}
+                onClick={switchToGoogleAIEdge}
                 disabled={isConnecting}
-                variant={currentService === "emulator_bridge" ? "default" : "outline"}
+                variant={currentService === "google_ai_edge" ? "default" : "outline"}
                 size="sm"
                 className="flex items-center gap-2"
               >
-                <Smartphone className="h-4 w-4" />
-                {isConnecting ? "Connecting..." : "Use Emulator Model"}
-                {currentService === "emulator_bridge" && connectionStatus?.success && (
+                <Cpu className="h-4 w-4" />
+                {isConnecting ? "Connecting..." : "Use Google AI Edge"}
+                {currentService === "google_ai_edge" && connectionStatus?.success && (
                   <Wifi className="h-3 w-3 text-green-500" />
                 )}
-                {currentService === "emulator_bridge" && !connectionStatus?.success && (
+                {currentService === "google_ai_edge" && !connectionStatus?.success && (
                   <WifiOff className="h-3 w-3 text-red-500" />
                 )}
               </Button>
