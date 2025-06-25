@@ -307,6 +307,38 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
     }
   };
 
+  const switchToAndroidEmulator = async () => {
+    setIsConnecting(true);
+    try {
+      const response = await fetch("/api/ai/switch-to-android-emulator", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ host: "http://10.0.2.2:8080", model: "qwen2.5-1.5b-instruct" })
+      });
+      
+      const data = await response.json();
+      
+      if (data.status === "success") {
+        setCurrentService("android_emulator");
+        setConnectionStatus(data.connectionTest || { success: true });
+        toast({
+          title: "Android Emulator AI Connected",
+          description: "ProcessGPT now using AI Edge Gallery via emulator bridge"
+        });
+      } else {
+        throw new Error(data.message);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Connection Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
   const switchToOpenAI = async () => {
     setIsConnecting(true);
     try {
@@ -385,6 +417,16 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
                 )}
               </Button>
               <Button 
+                onClick={switchToAndroidEmulator}
+                disabled={isConnecting}
+                variant={currentService === "android_emulator" ? "default" : "outline"}
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Smartphone className="h-4 w-4" />
+                Android Emulator AI
+              </Button>
+              <Button 
                 onClick={switchToOpenAI}
                 disabled={isConnecting}
                 variant={currentService === "openai" ? "default" : "outline"}
@@ -405,9 +447,14 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
                   Connected to {connectionStatus.modelInfo?.model || 'Qwen2.5-1.5B'}
                 </div>
               ) : (
-                <div className="text-red-600 flex items-center gap-2">
+                <div className="text-amber-600 flex items-center gap-2">
                   <WifiOff className="h-4 w-4" />
-                  Connection Failed: {connectionStatus.error}
+                  <div className="space-y-1">
+                    <div>Connection Failed: {connectionStatus.error}</div>
+                    <div className="text-xs">
+                      Try "Android Emulator AI" or "Use OpenAI" for reliable connection.
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
