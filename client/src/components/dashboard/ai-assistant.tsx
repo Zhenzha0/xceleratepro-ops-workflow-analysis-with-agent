@@ -203,7 +203,35 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
 
   // Create bottleneck analysis charts
   const createBottleneckAnalysisCharts = (data: any) => {
-    // Implementation for bottleneck analysis charts
+    if (!data.bottlenecks?.processingBottlenecks) return;
+    
+    const bottleneckData = data.bottlenecks.processingBottlenecks.slice(0, 5).map((b: any) => ({
+      name: b.station.replace(/\//g, ' ').trim(),
+      time: Math.round(b.avgProcessingTime),
+      impact: b.impact
+    }));
+
+    const bottleneckChart = (
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={bottleneckData}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="name" fontSize={10} />
+          <YAxis fontSize={11} label={{ value: 'Processing Time', angle: -90, position: 'insideLeft' }} />
+          <Tooltip />
+          <Bar dataKey="time" fill="#ff6b6b" />
+        </BarChart>
+      </ResponsiveContainer>
+    );
+
+    const newInsight: Insight = {
+      id: Date.now().toString(),
+      title: 'Processing Bottlenecks',
+      chart: bottleneckChart,
+      icon: AlertTriangle,
+      description: `${bottleneckData.length} stations analyzed - ${data.bottlenecks.processingBottlenecks[0]?.station} shows highest processing time`
+    };
+
+    setInsights(prev => [...prev, newInsight]);
   };
 
   // Automatic visualization creation function (following your previous project architecture)
