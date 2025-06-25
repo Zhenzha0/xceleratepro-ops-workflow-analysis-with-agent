@@ -15,7 +15,7 @@ export function AndroidEmulatorAIControl({ onStatusChange }: AndroidEmulatorAICo
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<any>(null);
   const [emulatorHost, setEmulatorHost] = useState('http://10.0.2.2:8080');
-  const [modelName, setModelName] = useState('gemini-nano');
+  const [modelName, setModelName] = useState('gemma-3n-e2b-it-int4');
   const [error, setError] = useState<string | null>(null);
 
   // Test connection to Android emulator
@@ -97,7 +97,7 @@ export function AndroidEmulatorAIControl({ onStatusChange }: AndroidEmulatorAICo
               <div className="flex items-center justify-between">
                 <span>Connected to Android Emulator AI</span>
                 <Badge variant="secondary">
-                  {connectionStatus.modelInfo?.model || 'Gemini Nano'}
+                  {connectionStatus.modelInfo?.model || 'Gemma-3n-E2B'}
                 </Badge>
               </div>
               <div className="mt-2 text-sm text-muted-foreground">
@@ -114,7 +114,7 @@ export function AndroidEmulatorAIControl({ onStatusChange }: AndroidEmulatorAICo
               <ul className="mt-2 ml-4 list-disc text-sm space-y-1">
                 <li>Android Studio emulator is running</li>
                 <li>AI Edge Gallery app is installed</li>
-                <li>Gemini Nano model is downloaded</li>
+                <li>Gemma-3n-E2B model is downloaded</li>
                 <li>Bridge service is running on port 8080</li>
               </ul>
             </AlertDescription>
@@ -142,7 +142,7 @@ export function AndroidEmulatorAIControl({ onStatusChange }: AndroidEmulatorAICo
               id="model-name"
               value={modelName}
               onChange={(e) => setModelName(e.target.value)}
-              placeholder="gemini-nano"
+              placeholder="gemma-3n-e2b-it-int4"
             />
             <p className="text-sm text-muted-foreground mt-1">
               AI model running in Android emulator

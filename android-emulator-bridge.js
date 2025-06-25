@@ -16,7 +16,7 @@ app.use((req, res, next) => {
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'connected',
-    model: 'gemini-nano',
+    model: 'gemma-3n-e2b-it-int4',
     device: 'Android Emulator',
     type: 'Google AI Edge',
     timestamp: new Date().toISOString()
@@ -32,11 +32,11 @@ app.post('/api/generate', async (req, res) => {
     
     // Simulate AI Edge Gallery integration
     // In real implementation, this would call the AI Edge Gallery API
-    const response = await simulateGeminiNano(prompt);
+    const response = await simulateGemmaModel(prompt);
     
     res.json({ 
       response: response,
-      model: model || 'gemini-nano',
+      model: model || 'gemma-3n-e2b-it-int4',
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -48,8 +48,8 @@ app.post('/api/generate', async (req, res) => {
   }
 });
 
-// Simulate Gemini Nano responses for manufacturing analysis
-async function simulateGeminiNano(prompt) {
+// Simulate Gemma model responses for manufacturing analysis
+async function simulateGemmaModel(prompt) {
   // Add delay to simulate AI processing
   await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
   

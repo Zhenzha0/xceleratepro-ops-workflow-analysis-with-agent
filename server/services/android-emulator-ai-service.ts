@@ -2,7 +2,7 @@ import { AIAnalysisRequest, AIAnalysisResponse } from './ai-analyst';
 
 export class AndroidEmulatorAIService {
   private static host = 'http://10.0.2.2:8080';
-  private static model = 'gemini-nano';
+  private static model = 'gemma-3n-e2b-it-int4';
 
   static configure(host?: string, model?: string) {
     if (host) this.host = host;
