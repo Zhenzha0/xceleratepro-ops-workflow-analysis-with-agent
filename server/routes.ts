@@ -7,6 +7,8 @@ import { XESParser } from "./services/xes-parser";
 import { AnomalyDetector } from "./services/anomaly-detector";
 import { AIAnalyst } from "./services/ai-analyst";
 import { SemanticSearch } from "./services/semantic-search";
+import { AIServiceFactory } from "./services/ai-service-factory";
+import { AndroidEmulatorAIService } from "./services/android-emulator-ai-service";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
 import * as path from 'path';
@@ -569,6 +571,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error generating comparison report:', error);
       res.status(500).json({ message: 'Failed to generate comparison report' });
+    }
+  });
+
+  // Android Emulator AI Routes
+  app.post("/api/ai/switch-to-android-emulator", async (req, res) => {
+    try {
+      const { host, model } = req.body;
+      AIServiceFactory.enableAndroidEmulatorAI(host, model);
+      
+      const connectionTest = await AndroidEmulatorAIService.testConnection();
+      
+      res.json({
+        status: 'success',
+        message: 'Switched to Android Emulator AI',
+        service: 'Android Emulator AI (Google AI Edge)',
+        modelInfo: connectionTest?.modelInfo,
+        connectionTest
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        status: 'error',
+        error: error.message
+      });
+    }
+  });
+
+  app.get("/api/ai/status", async (req, res) => {
+    try {
+      const status = AIServiceFactory.getStatus();
+      
+      // Test Android Emulator connection if it's the active service
+      let connectionTest = null;
+      if (status.currentService?.includes('Android Emulator')) {
+        connectionTest = await AndroidEmulatorAIService.testConnection();
+      }
+      
+      res.json({
+        ...status,
+        connectionTest
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        status: 'error',
+        error: error.message
+      });
     }
   });
 
