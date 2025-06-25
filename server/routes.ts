@@ -791,6 +791,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
   // AI Service Control Routes
+  // Android Direct AI connection
+  app.post("/api/ai/switch-to-android-direct", async (req, res) => {
+    try {
+      const { AIServiceFactory } = await import('./services/ai-service-factory');
+      const { AndroidDirectAIService } = await import('./services/android-direct-ai-service');
+      
+      AIServiceFactory.setCurrentService('android_direct');
+      
+      const connectionTest = await AndroidDirectAIService.testConnection();
+      
+      res.json({
+        status: "success",
+        message: "Switched to Android Direct AI",
+        service: "Android Direct AI (AI Edge Gallery)",
+        connectionTest
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        status: "error",
+        message: error.message
+      });
+    }
+  });
+
   // AI service switching endpoints
   app.post("/api/ai/switch-to-android-emulator", async (req, res) => {
     try {

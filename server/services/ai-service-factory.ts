@@ -3,6 +3,7 @@ import { LocalAIService } from './local-ai-service';
 import { GeminiService } from './gemini-service';
 import { TrueLocalAIService } from './true-local-ai-service';
 import { AndroidEmulatorAIService } from './android-emulator-ai-service';
+import { AndroidDirectAIService } from './android-direct-ai-service';
 
 /**
  * Factory to choose between OpenAI, Local AI, Gemini, True Local AI, and Android Emulator AI based on configuration
