@@ -5,7 +5,7 @@ import { Gemma2Service } from './gemma2-service';
  * Factory to choose between Gemma 2B Local and OpenAI AI services
  */
 export class AIServiceFactory {
-  private static useGemma2 = true; // Force use Gemma 2B since user switched to it
+  private static useGemma2 = false; // Default to OpenAI since Gemma 2B requires local connection
   private static gemma2Service = new Gemma2Service();
   
   /**
@@ -30,6 +30,7 @@ export class AIServiceFactory {
       // Fallback to OpenAI if Gemma 2B fails
       if (this.useGemma2) {
         console.log('Gemma 2B failed, falling back to OpenAI...');
+        this.useGemma2 = false; // Switch to OpenAI permanently for this session
         const { IntelligentAnalyst } = await import('./intelligent-analyst');
         const openAIService = new IntelligentAnalyst();
         return await openAIService.analyzeQuery(request);
