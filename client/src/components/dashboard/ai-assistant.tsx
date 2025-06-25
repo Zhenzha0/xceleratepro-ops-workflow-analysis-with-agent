@@ -43,6 +43,10 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
   const [insights, setInsights] = useState<Insight[]>([]);
   const [expandedInsight, setExpandedInsight] = useState<Insight | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const [currentService, setCurrentService] = useState<string>("openai");
+  const [connectionStatus, setConnectionStatus] = useState<any>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const { toast } = useToast();
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -270,6 +274,66 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
     }
   });
 
+  const switchToAndroidDirect = async () => {
+    setIsConnecting(true);
+    try {
+      const response = await fetch("/api/ai/switch-to-android-direct", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+      
+      const data = await response.json();
+      
+      if (data.status === "success") {
+        setCurrentService("android_direct");
+        setConnectionStatus(data.connectionTest);
+        toast({
+          title: "Android Direct AI Connected",
+          description: "ProcessGPT now using direct AI Edge Gallery connection"
+        });
+      } else {
+        throw new Error(data.message);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Connection Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const switchToOpenAI = async () => {
+    setIsConnecting(true);
+    try {
+      const response = await fetch("/api/ai/switch-to-openai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+      
+      const data = await response.json();
+      
+      if (data.status === "success") {
+        setCurrentService("openai");
+        setConnectionStatus(null);
+        toast({
+          title: "OpenAI Connected",
+          description: "ProcessGPT now using OpenAI GPT-4o"
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Connection Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentQuery.trim() || analyzeMutation.isPending) return;
@@ -297,6 +361,56 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
     <div className="flex h-full">
       {/* Chat Section */}
       <div className="flex-1 flex flex-col min-w-0">
+        {/* AI Service Control Header */}
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-lg">ProcessGPT AI Service</h3>
+            <div className="flex gap-2">
+              <Button 
+                onClick={switchToAndroidDirect}
+                disabled={isConnecting}
+                variant={currentService === "android_direct" ? "default" : "outline"}
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Smartphone className="h-4 w-4" />
+                {isConnecting ? "Connecting..." : "Use Android Direct"}
+                {currentService === "android_direct" && connectionStatus?.success && (
+                  <Wifi className="h-3 w-3 text-green-500" />
+                )}
+                {currentService === "android_direct" && !connectionStatus?.success && (
+                  <WifiOff className="h-3 w-3 text-red-500" />
+                )}
+              </Button>
+              <Button 
+                onClick={switchToOpenAI}
+                disabled={isConnecting}
+                variant={currentService === "openai" ? "default" : "outline"}
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Cloud className="h-4 w-4" />
+                Use OpenAI
+              </Button>
+            </div>
+          </div>
+          
+          {connectionStatus && (
+            <div className="text-sm">
+              {connectionStatus.success ? (
+                <div className="text-green-600 flex items-center gap-2">
+                  <Wifi className="h-4 w-4" />
+                  Connected to {connectionStatus.modelInfo?.model || 'Qwen2.5-1.5B'}
+                </div>
+              ) : (
+                <div className="text-red-600 flex items-center gap-2">
+                  <WifiOff className="h-4 w-4" />
+                  Connection Failed: {connectionStatus.error}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         {/* Chat messages */}
         <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
           <div className="space-y-6">
