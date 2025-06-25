@@ -796,7 +796,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { host, model } = req.body;
       const emulatorHost = host || 'http://10.0.2.2:8080';
-      const emulatorModel = model || 'gemini-nano';
+      const emulatorModel = model || 'qwen2.5-1.5b-instruct';
       
       const { AIServiceFactory } = await import('./services/ai-service-factory');
       
