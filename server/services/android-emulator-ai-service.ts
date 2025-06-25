@@ -1,26 +1,19 @@
-import { AIService } from './ai-service-factory';
+import { AIAnalysisRequest, AIAnalysisResponse } from './ai-analyst';
 
-export interface AndroidEmulatorConfig {
-  host: string;
-  model: string;
-  port?: number;
-}
+export class AndroidEmulatorAIService {
+  private static host = 'http://10.0.2.2:8080';
+  private static model = 'gemini-nano';
 
-export class AndroidEmulatorAIService implements AIService {
-  private config: AndroidEmulatorConfig;
-
-  constructor(config: AndroidEmulatorConfig) {
-    this.config = {
-      port: 8080,
-      ...config
-    };
+  static configure(host?: string, model?: string) {
+    if (host) this.host = host;
+    if (model) this.model = model;
   }
 
-  async testConnection(): Promise<{ success: boolean; error?: string; modelInfo?: any }> {
+  static async testConnection(): Promise<{ success: boolean; error?: string; modelInfo?: any }> {
     try {
-      const response = await fetch(`${this.config.host}/api/health`, {
+      const response = await fetch(`${this.host}/api/health`, {
         method: 'GET',
-        timeout: 5000
+        signal: AbortSignal.timeout(5000)
       });
 
       if (!response.ok) {
@@ -34,7 +27,7 @@ export class AndroidEmulatorAIService implements AIService {
       return {
         success: true,
         modelInfo: {
-          model: data.model || this.config.model,
+          model: data.model || this.model,
           device: data.device || 'Android Emulator',
           type: 'Google AI Edge'
         }
@@ -47,19 +40,31 @@ export class AndroidEmulatorAIService implements AIService {
     }
   }
 
-  async generateResponse(prompt: string, context?: any): Promise<string> {
+  static async analyzeQuery(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
     try {
-      const response = await fetch(`${this.config.host}/api/generate`, {
+      const prompt = `Manufacturing Process Analysis Query: ${request.query}
+
+Context: ${JSON.stringify(request.context || {}, null, 2)}
+
+Analyze this manufacturing data request and provide structured response. Focus on real data analysis for:
+- Process failures and root causes
+- Activity performance and bottlenecks  
+- Anomaly detection and patterns
+- Equipment efficiency metrics
+- Manufacturing workflow optimization
+
+Return analysis with specific insights about the manufacturing process.`;
+
+      const response = await fetch(`${this.host}/api/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           prompt,
-          context,
-          model: this.config.model
+          model: this.model
         }),
-        timeout: 30000
+        signal: AbortSignal.timeout(30000)
       });
 
       if (!response.ok) {
@@ -67,58 +72,63 @@ export class AndroidEmulatorAIService implements AIService {
       }
 
       const data = await response.json();
-      return data.response || data.text || 'No response from Android Emulator AI';
+      const aiResponse = data.response || data.text || 'No response from Android Emulator AI';
+      
+      return {
+        response: aiResponse,
+        analysis_type: this.detectAnalysisType(request.query),
+        visualization_data: this.extractVisualizationData(aiResponse),
+        metadata: {
+          service: 'Android Emulator AI',
+          model: this.model,
+          timestamp: new Date().toISOString()
+        }
+      };
     } catch (error: any) {
       throw new Error(`Android Emulator AI error: ${error.message}`);
     }
   }
 
-  // ProcessGPT function calling simulation
-  async callFunction(functionName: string, parameters: any): Promise<any> {
-    const functionCallPrompt = `
-Execute function: ${functionName}
-Parameters: ${JSON.stringify(parameters, null, 2)}
-
-Analyze this manufacturing data request and provide structured response for ProcessGPT visualization.
-Return JSON format with analysis_type field for proper chart generation.
-`;
-
-    try {
-      const response = await this.generateResponse(functionCallPrompt);
-      
-      // Parse structured response for function calling
-      try {
-        return JSON.parse(response);
-      } catch {
-        // Fallback for non-JSON responses
-        return {
-          analysis_type: functionName,
-          result: response,
-          visualization_data: this.extractVisualizationData(response)
-        };
-      }
-    } catch (error: any) {
-      throw new Error(`Function call failed: ${error.message}`);
+  private static detectAnalysisType(query: string): string {
+    const queryLower = query.toLowerCase();
+    
+    if (queryLower.includes('failure') || queryLower.includes('fail')) {
+      return 'failure_analysis';
+    } else if (queryLower.includes('anomaly') || queryLower.includes('unusual')) {
+      return 'anomaly_analysis';
+    } else if (queryLower.includes('bottleneck') || queryLower.includes('slow')) {
+      return 'bottleneck_analysis';
+    } else if (queryLower.includes('time') || queryLower.includes('duration')) {
+      return 'temporal_analysis';
+    } else if (queryLower.includes('activity') || queryLower.includes('step')) {
+      return 'activity_analysis';
     }
+    
+    return 'general_analysis';
   }
 
-  private extractVisualizationData(response: string): any {
+  private static extractVisualizationData(response: string): any {
     // Extract numerical data for charts from AI response
     const numberPattern = /(\d+(?:\.\d+)?)/g;
     const numbers = response.match(numberPattern) || [];
     
     return {
       values: numbers.slice(0, 10).map(n => parseFloat(n)),
-      labels: ['Data Point 1', 'Data Point 2', 'Data Point 3'],
-      type: 'extracted_from_response'
+      labels: ['Manufacturing Data Point 1', 'Manufacturing Data Point 2', 'Manufacturing Data Point 3'],
+      type: 'android_emulator_analysis'
     };
   }
 
-  getServiceName(): string {
+  static getServiceName(): string {
     return 'Android Emulator AI (Google AI Edge)';
   }
 
-  isAvailable(): boolean {
-    return true; // Always available if configured
+  static getStatus() {
+    return {
+      service: 'Android Emulator AI',
+      model: this.model,
+      host: this.host,
+      type: 'Google AI Edge'
+    };
   }
 }
