@@ -1,11 +1,13 @@
 import { AIAnalysisRequest, AIAnalysisResponse, AIAnalyst } from './ai-analyst';
 import { LocalAIService } from './local-ai-service';
+import { GeminiService } from './gemini-service';
 
 /**
- * Factory to choose between OpenAI and Local AI based on configuration
+ * Factory to choose between OpenAI, Local AI, and Gemini based on configuration
  */
 export class AIServiceFactory {
   private static useLocalAI = process.env.USE_LOCAL_AI === 'true';
+  private static useGemini = process.env.USE_GEMINI === 'true';
   private static localAIService = new LocalAIService();
   
   /**
@@ -13,7 +15,10 @@ export class AIServiceFactory {
    */
   static async analyzeQuery(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
     try {
-      if (this.useLocalAI) {
+      if (this.useGemini) {
+        console.log('Using Google Gemini for analysis...');
+        return await GeminiService.analyzeQuery(request);
+      } else if (this.useLocalAI) {
         console.log('Using local Gemma 2 model for analysis...');
         return await this.localAIService.analyzeQuery(request);
       } else {
@@ -23,15 +28,23 @@ export class AIServiceFactory {
     } catch (error) {
       console.error('AI service error:', error);
       
-      // Fallback to the other service if one fails
-      if (this.useLocalAI) {
-        console.log('Local AI failed, falling back to OpenAI...');
+      // Fallback to OpenAI if other services fail
+      if (this.useGemini || this.useLocalAI) {
+        console.log('Primary AI service failed, falling back to OpenAI...');
         return await AIAnalyst.analyzeQuery(request);
       } else {
-        console.log('OpenAI failed, falling back to local AI...');
-        return await this.localAIService.analyzeQuery(request);
+        throw error;
       }
     }
+  }
+  
+  /**
+   * Switch to Gemini AI
+   */
+  static enableGemini() {
+    this.useGemini = true;
+    this.useLocalAI = false;
+    console.log('Switched to Google Gemini model');
   }
   
   /**
@@ -39,6 +52,7 @@ export class AIServiceFactory {
    */
   static enableLocalAI() {
     this.useLocalAI = true;
+    this.useGemini = false;
     console.log('Switched to local Gemma 2 model');
   }
   
@@ -47,6 +61,7 @@ export class AIServiceFactory {
    */
   static enableOpenAI() {
     this.useLocalAI = false;
+    this.useGemini = false;
     console.log('Switched to OpenAI model');
   }
   

@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 interface AIStatus {
   useLocalAI: boolean;
+  useGemini: boolean;
   ollamaHost?: string;
   serviceStatus: string;
   connectionTest?: {
