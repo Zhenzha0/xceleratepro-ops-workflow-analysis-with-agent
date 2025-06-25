@@ -130,8 +130,38 @@ The application has a sidebar navigation with different sections:
 - Real-time metrics calculation and anomaly scoring
 - AI-generated insights using OpenAI integration
 
+## Local AI Integration
+
+### Overview
+Added support for running ProcessGPT locally using Gemma 2 model instead of OpenAI, maintaining all function calling capabilities while ensuring complete data privacy and offline operation.
+
+### Implementation
+- **AIServiceFactory**: Smart service selector that chooses between OpenAI and local Gemma 2 based on configuration
+- **LocalAIService**: Complete reimplementation of AI analysis using local model with function calling simulation
+- **Ollama Integration**: Uses Ollama to run Gemma 2:9b locally with proper prompt engineering
+- **Fallback Support**: Automatic fallback between local and cloud AI if one fails
+
+### Features
+- Function calling simulation through structured prompts and response parsing
+- All existing analysis capabilities preserved (failure analysis, temporal patterns, anomaly detection, etc.)
+- Real-time switching between local and cloud AI via API endpoints
+- Complete data privacy - no external API calls when using local mode
+- Offline operation capability
+
+### Setup Instructions
+1. Run `bash scripts/setup-local-ai.sh` to install Ollama and download Gemma 2
+2. Start Ollama service: `ollama serve`
+3. Set environment variable: `USE_LOCAL_AI=true`
+4. Restart application - ProcessGPT now runs locally
+
+### Control Endpoints
+- `POST /api/ai/switch-to-local` - Switch to local Gemma 2
+- `POST /api/ai/switch-to-openai` - Switch to OpenAI GPT-4o
+- `GET /api/health` - Shows current AI service status
+
 ## Changelog
 
+- June 25, 2025. Added complete local AI integration with Gemma 2 support and function calling preservation
 - June 22, 2025. Initial setup
 - June 22, 2025. Fixed data import issues and implemented tab-based navigation
 - June 22, 2025. Successfully imported manufacturing data with 282 cases and 170 anomalies detected

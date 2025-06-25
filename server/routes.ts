@@ -432,7 +432,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/ai/analyze", async (req, res) => {
     try {
       const request = aiQuerySchema.parse(req.body);
-      const response = await AIAnalyst.analyzeQuery(request);
+      // Use AI service factory to choose between OpenAI and Local AI
+      const { AIServiceFactory } = await import('./services/ai-service-factory');
+      const response = await AIServiceFactory.analyzeQuery(request);
       res.json(response);
     } catch (error) {
       console.error('Error in AI analysis:', error);
