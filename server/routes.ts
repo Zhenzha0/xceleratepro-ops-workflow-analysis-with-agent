@@ -794,12 +794,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Android Direct AI connection
   app.post("/api/ai/switch-to-android-direct", async (req, res) => {
     try {
-      const { AIServiceFactory } = await import('./services/ai-service-factory');
       const { AndroidDirectAIService } = await import('./services/android-direct-ai-service');
       
-      AIServiceFactory.setCurrentService('android_direct');
-      
+      // Test connection to Android Direct AI
       const connectionTest = await AndroidDirectAIService.testConnection();
+      
+      // Set environment variable to indicate Android Direct AI usage
+      process.env.USE_ANDROID_DIRECT_AI = 'true';
+      process.env.USE_ANDROID_EMULATOR_AI = 'false';
+      process.env.USE_TRUE_LOCAL_AI = 'false';
+      process.env.USE_GEMINI = 'false';
+      process.env.USE_LOCAL_AI = 'false';
       
       res.json({
         status: "success",
@@ -808,9 +813,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         connectionTest
       });
     } catch (error: any) {
+      console.error('Android Direct AI switch error:', error);
       res.status(500).json({
         status: "error",
-        message: error.message
+        message: error.message || "Failed to switch to Android Direct AI"
+      });
+    }
+  });ge
       });
     }
   });

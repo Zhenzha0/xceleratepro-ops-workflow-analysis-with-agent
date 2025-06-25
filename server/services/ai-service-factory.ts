@@ -20,7 +20,11 @@ export class AIServiceFactory {
    */
   static async analyzeQuery(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
     try {
-      if (this.useAndroidEmulator) {
+      // Check for Android Direct first (highest priority)
+      if (process.env.USE_ANDROID_DIRECT_AI === 'true' || this.useAndroidDirect) {
+        console.log('Using Android Direct AI (AI Edge Gallery) for analysis...');
+        return await AndroidDirectAIService.analyzeQuery(request);
+      } else if (this.useAndroidEmulator) {
         console.log('Using Android Emulator AI (Google AI Edge) for analysis...');
         return await AndroidEmulatorAIService.analyzeQuery(request);
       } else if (this.useTrueLocal) {
@@ -40,7 +44,7 @@ export class AIServiceFactory {
       console.error('AI service error:', error);
       
       // Fallback to OpenAI if other services fail
-      if (this.useAndroidEmulator || this.useTrueLocal || this.useGemini || this.useLocalAI) {
+      if (this.useAndroidDirect || this.useAndroidEmulator || this.useTrueLocal || this.useGemini || this.useLocalAI) {
         console.log('Primary AI service failed, falling back to OpenAI...');
         return await AIAnalyst.analyzeQuery(request);
       } else {
@@ -104,9 +108,22 @@ export class AIServiceFactory {
   }
   
   /**
+   * Switch to Android Direct AI
+   */
+  static enableAndroidDirectAI() {
+    this.useAndroidDirect = true;
+    this.useLocalAI = false;
+    this.useAndroidEmulator = false;
+    this.useTrueLocal = false;
+    this.useGemini = false;
+    console.log('Switched to Android Direct AI model');
+  }
+  
+  /**
    * Switch to OpenAI
    */
   static enableOpenAI() {
+    this.useAndroidDirect = false;
     this.useLocalAI = false;
     this.useAndroidEmulator = false;
     this.useTrueLocal = false;
