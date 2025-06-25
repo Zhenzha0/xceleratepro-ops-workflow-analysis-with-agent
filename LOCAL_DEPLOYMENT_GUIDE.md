@@ -1,7 +1,7 @@
 # Complete Local ProcessGPT Deployment Guide
 
 ## Overview
-Run the entire ProcessGPT application locally on your computer with your Gemma 2B model for complete data privacy and offline operation.
+Run the entire ProcessGPT web application locally on your computer with your Gemma 2B model for complete data privacy and offline operation. This includes all manufacturing analysis functions, database schemas, and your actual data.
 
 ## Prerequisites
 - Node.js 20+ installed
@@ -9,25 +9,41 @@ Run the entire ProcessGPT application locally on your computer with your Gemma 2
 - Your Gemma 2B model running on localhost:8080
 - Git for cloning the repository
 
-## Step 1: Download ProcessGPT Source Code
+## Step 1: Download Complete ProcessGPT Application
 
-### Option A: Download from Replit
+### Download Everything from Replit
+You need to download the ENTIRE application including all analysis functions:
+
 1. Go to your Replit project
-2. Click "Download as zip" from the menu
+2. Click "Download as zip" from the menu (or use git clone if available)
 3. Extract to your desired folder (e.g., `C:\ProcessGPT\`)
 
-### Option B: Clone Repository Structure
-Create the following folder structure and copy files from your Replit:
+**Critical**: Make sure you get ALL these folders and files:
 ```
 ProcessGPT/
-├── client/
-├── server/
-├── shared/
-├── package.json
+├── client/                    # Frontend React app
+│   ├── src/
+│   │   ├── components/        # UI components including ProcessGPT
+│   │   ├── pages/            # Dashboard, Analysis tabs
+│   │   └── lib/              # Client utilities
+├── server/                   # Backend Express app
+│   ├── services/             # ALL ANALYSIS FUNCTIONS (critical!)
+│   │   ├── ai-analyst.ts     # ProcessGPT core
+│   │   ├── failure-analyzer-enhanced.ts
+│   │   ├── timing-analyzer.ts
+│   │   ├── trend-analyzer.ts
+│   │   ├── case-analyzer.ts
+│   │   └── gemma2-service.ts
+│   ├── storage.ts            # Database functions
+│   └── routes.ts             # API endpoints
+├── shared/                   # Database schema
+│   └── schema.ts             # Manufacturing data models
+├── sample_data.csv           # Your actual manufacturing data
+├── package.json              # All dependencies
+├── drizzle.config.ts         # Database configuration
 ├── tsconfig.json
 ├── vite.config.ts
-├── tailwind.config.ts
-└── sample_data.csv
+└── tailwind.config.ts
 ```
 
 ## Step 2: Set Up Local Database
@@ -79,15 +95,24 @@ OPENAI_API_KEY=your_openai_key_if_desired
 # Navigate to your ProcessGPT folder
 cd C:\ProcessGPT
 
-# Install all dependencies
+# Install all dependencies (includes all analysis libraries)
 npm install
 
-# Set up database schema
+# Set up database schema with manufacturing tables
 npm run db:push
 
-# Import your sample data
+# Import your actual manufacturing data (301 cases, 9,471 events)
+# Place sample_data.csv in root directory first
 npm run import-data
 ```
+
+**Critical Dependencies**: The local installation includes:
+- All 25+ ProcessGPT analysis functions
+- Manufacturing database schemas (process_events, process_activities, process_cases)
+- Failure analysis, timing analysis, trend analysis capabilities
+- Anomaly detection algorithms
+- Case clustering functionality
+- Your actual manufacturing dataset
 
 ## Step 5: Verify Gemma 2B Connection
 
@@ -138,9 +163,20 @@ Your ProcessGPT will now be running at:
 ## Step 8: Verify Local Operation
 
 1. Open http://localhost:5173 in your browser
-2. Navigate to ProcessGPT (AI Assistant tab)
-3. Ask a question like "What are the main failure patterns?"
-4. Check the console logs - you should see "Using local Gemma 2B model..."
+2. Verify data import: Dashboard should show 301 cases, 342 anomalies
+3. Navigate to ProcessGPT (AI Assistant tab)
+4. Ask "What are the main failure patterns?" or "show me bottlenecks"
+5. Check console logs - should see "Using local Gemma 2B model..."
+6. Verify authentic analysis: Should see real data like "HBW Unload 15% failure rate"
+
+**What Should Work Locally**:
+- All dashboard visualizations with your real data
+- Process Maps showing actual manufacturing stations
+- Anomaly Detection with 342 detected anomalies
+- Case Comparison between actual workflow instances
+- ProcessGPT answering all 25+ question types using Gemma 2B
+- Timeline Analysis with real timestamps
+- Semantic Search through actual failure descriptions
 
 ## Benefits of Local Deployment
 
