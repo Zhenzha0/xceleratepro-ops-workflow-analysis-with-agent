@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle, Loader2, Settings, Zap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { AndroidEmulatorAIControl } from './AndroidEmulatorAIControl';
 
 interface AIStatus {
   useLocalAI: boolean;
@@ -172,6 +173,7 @@ export function AIServiceControl() {
   }
 
   return (
+    <>
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
@@ -260,5 +262,9 @@ export function AIServiceControl() {
         </div>
       </CardContent>
     </Card>
+
+    {/* Android Emulator AI Control */}
+    <AndroidEmulatorAIControl onStatusChange={() => refetch()} />
+    </>
   );
 }
