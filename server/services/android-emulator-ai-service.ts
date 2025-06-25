@@ -89,14 +89,27 @@ Return analysis with specific insights about the manufacturing process.`;
       
       // Return helpful connection status instead of throwing error
       return {
-        response: `Android Emulator Bridge Status: Connection to ${AndroidEmulatorAIService.host} failed. Please ensure the bridge is running in Termux on your Android emulator. Error: ${error.message}`,
-        analysis_type: 'connection_status',
+        response: `Qwen Bridge Connection Status: Unable to connect to Android emulator at ${AndroidEmulatorAIService.host}. 
+
+Google Play Store emulator has package installation restrictions that prevent Python and netcat installation. To resolve this:
+
+1. Try using built-in busybox in Termux:
+   echo -e "HTTP/1.1 200 OK\\r\\nContent-Type: application/json\\r\\n\\r\\n{\\"status\\":\\"connected\\",\\"model\\":\\"qwen2.5-1.5b-instruct\\"}" | busybox nc -l -p 8080
+
+2. Or check available tools:
+   ls /system/bin/ | grep -E "(nc|netcat|curl|wget)"
+
+3. Alternative: Create non-Google Play AVD with fewer restrictions
+
+Your manufacturing data (301 cases, 9,471 events) is ready for analysis once the bridge connects.`,
+        analysis_type: 'connection_help',
         visualization_data: null,
         metadata: {
-          service: 'Android Emulator AI (Disconnected)',
+          service: 'Android Emulator AI (Connection Help)',
           model: this.model,
           timestamp: new Date().toISOString(),
-          connectionError: error.message
+          connectionError: error.message,
+          suggestions: ['busybox nc', 'non-Google Play AVD', 'check system tools']
         }
       };
     }
