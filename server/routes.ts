@@ -795,7 +795,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/ai/switch-to-android-emulator", async (req, res) => {
     try {
       const { host, model } = req.body;
-      const emulatorHost = host || 'http://localhost:8081';
+      const emulatorHost = host || 'http://10.0.2.2:8080';
       const emulatorModel = model || 'qwen2.5-1.5b-instruct';
       
       const { AIServiceFactory } = await import('./services/ai-service-factory');
