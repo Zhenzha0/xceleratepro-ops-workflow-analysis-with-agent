@@ -412,7 +412,8 @@ export class AIAnalyst {
           // Get failure causes from unsatisfied_condition_description
           console.log('Getting failure causes from unsatisfied_condition_description');
           try {
-            const failureCauses = await EnhancedFailureAnalyzer.categorizeFailureCauses();
+            const failureEvents = await storage.getProcessEvents({ status: 'failure' });
+            const failureCauses = await EnhancedFailureAnalyzer.categorizeFailureCauses(failureEvents);
             data.failureCauses = failureCauses;
             data.summary.analysisType = 'failure_causes';
             data.totalFailures = failureCauses.reduce((sum: number, cause: any) => sum + cause.count, 0);
