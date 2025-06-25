@@ -745,6 +745,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
   // AI Service Control Routes
   // AI service switching endpoints
+  app.post("/api/ai/switch-to-android-emulator", async (req, res) => {
+    try {
+      const { host, model } = req.body;
+      const emulatorHost = host || 'http://10.0.2.2:8080';
+      const emulatorModel = model || 'gemini-nano';
+      
+      const { AIServiceFactory } = await import('./services/ai-service-factory');
+      
+      // Test connection first
+      const { AndroidEmulatorAIService } = await import('./services/android-emulator-ai-service');
+      AndroidEmulatorAIService.configure(emulatorHost, emulatorModel);
+      const connectionTest = await AndroidEmulatorAIService.testConnection();
+      
+      if (!connectionTest.success) {
+        return res.status(400).json({ 
+          message: "Cannot connect to Android emulator AI service", 
+          error: connectionTest.error,
+          suggestion: "Make sure Android emulator with AI Edge Gallery is running"
+        });
+      }
+      
+      AIServiceFactory.enableAndroidEmulatorAI(emulatorHost, emulatorModel);
+      
+      process.env.USE_ANDROID_EMULATOR_AI = 'true';
+      process.env.USE_TRUE_LOCAL_AI = 'false';
+      process.env.USE_GEMINI = 'false';
+      process.env.USE_LOCAL_AI = 'false';
+      
+      res.json({ 
+        message: "Switched to Android Emulator AI (Google AI Edge)", 
+        useAndroidEmulator: "true",
+        modelInfo: connectionTest.modelInfo,
+        currentModel: emulatorModel,
+        status: "success" 
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        message: "Failed to switch to Android Emulator AI", 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+    }
+  });
+
   app.post("/api/ai/switch-to-true-local", async (req, res) => {
     try {
       const { host, model } = req.body;
@@ -769,6 +812,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       AIServiceFactory.enableTrueLocalAI(localHost, localModel);
       
       process.env.USE_TRUE_LOCAL_AI = 'true';
+      process.env.USE_ANDROID_EMULATOR_AI = 'false';
       process.env.USE_GEMINI = 'false';
       process.env.USE_LOCAL_AI = 'false';
       
@@ -800,6 +844,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       AIServiceFactory.enableGemini();
       
       process.env.USE_GEMINI = 'true';
+      process.env.USE_ANDROID_EMULATOR_AI = 'false';
       process.env.USE_TRUE_LOCAL_AI = 'false';
       process.env.USE_LOCAL_AI = 'false';
       
@@ -827,6 +872,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       AIServiceFactory.enableLocalAI();
       
       process.env.USE_LOCAL_AI = 'true';
+      process.env.USE_ANDROID_EMULATOR_AI = 'false';
       process.env.USE_TRUE_LOCAL_AI = 'false';
       process.env.USE_GEMINI = 'false';
       process.env.OLLAMA_HOST = ollamaHost;
@@ -859,6 +905,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       AIServiceFactory.enableOpenAI();
       
       process.env.USE_LOCAL_AI = 'false';
+      process.env.USE_ANDROID_EMULATOR_AI = 'false';
       process.env.USE_TRUE_LOCAL_AI = 'false';
       process.env.USE_GEMINI = 'false';
       delete process.env.OLLAMA_HOST;
@@ -883,12 +930,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const useLocalAI = process.env.USE_LOCAL_AI === 'true';
       const useGemini = process.env.USE_GEMINI === 'true';
       const useTrueLocal = process.env.USE_TRUE_LOCAL_AI === 'true';
+      const useAndroidEmulator = process.env.USE_ANDROID_EMULATOR_AI === 'true';
       const ollamaHost = process.env.OLLAMA_HOST;
       
       let serviceStatus = 'openai';
       let connectionTest = null;
       
-      if (useTrueLocal) {
+      if (useAndroidEmulator) {
+        // Test Android emulator AI connection
+        try {
+          const testResult = await AIServiceFactory.testAndroidEmulatorConnection();
+          connectionTest = testResult;
+          serviceStatus = testResult.success ? 'android_emulator_connected' : 'android_emulator_disconnected';
+        } catch (error) {
+          connectionTest = { success: false, error: error.message };
+          serviceStatus = 'android_emulator_error';
+        }
+      } else if (useTrueLocal) {
         // Test true local AI connection
         try {
           const testResult = await AIServiceFactory.testTrueLocalConnection();
@@ -925,6 +983,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         useLocalAI,
         useGemini,
         useTrueLocal,
+        useAndroidEmulator,
         ollamaHost,
         serviceStatus,
         connectionTest,
