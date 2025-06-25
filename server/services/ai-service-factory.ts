@@ -4,6 +4,7 @@ import { GeminiService } from './gemini-service';
 import { TrueLocalAIService } from './true-local-ai-service';
 import { AndroidEmulatorAIService } from './android-emulator-ai-service';
 import { AndroidDirectAIService } from './android-direct-ai-service';
+import { MediaPipeAIService } from './mediapipe-ai-service';
 
 /**
  * Factory to choose between OpenAI, Local AI, Gemini, True Local AI, and Android Emulator AI based on configuration
@@ -14,6 +15,7 @@ export class AIServiceFactory {
   private static useTrueLocal = process.env.USE_TRUE_LOCAL_AI === 'true';
   private static useAndroidEmulator = process.env.USE_ANDROID_EMULATOR_AI === 'true';
   private static useAndroidDirect = process.env.USE_ANDROID_DIRECT_AI === 'true';
+  private static useMediaPipe = process.env.USE_MEDIAPIPE_AI === 'true';
   private static localAIService = new LocalAIService();
   
   /**
@@ -21,8 +23,11 @@ export class AIServiceFactory {
    */
   static async analyzeQuery(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
     try {
-      // Check for Android Direct first (highest priority)
-      if (process.env.USE_ANDROID_DIRECT_AI === 'true' || this.useAndroidDirect) {
+      // Check for MediaPipe first (highest priority for local AI)
+      if (process.env.USE_MEDIAPIPE_AI === 'true' || this.useMediaPipe) {
+        console.log('Using MediaPipe LLM Inference for analysis...');
+        return await MediaPipeAIService.analyzeQuery(request);
+      } else if (process.env.USE_ANDROID_DIRECT_AI === 'true' || this.useAndroidDirect) {
         console.log('Using Android Direct AI (AI Edge Gallery) for analysis...');
         return await AndroidDirectAIService.analyzeQuery(request);
       } else if (this.useAndroidEmulator) {
@@ -45,7 +50,7 @@ export class AIServiceFactory {
       console.error('AI service error:', error);
       
       // Fallback to OpenAI if other services fail
-      if (this.useAndroidDirect || this.useAndroidEmulator || this.useTrueLocal || this.useGemini || this.useLocalAI) {
+      if (this.useMediaPipe || this.useAndroidDirect || this.useAndroidEmulator || this.useTrueLocal || this.useGemini || this.useLocalAI) {
         console.log('Primary AI service failed, falling back to OpenAI...');
         return await AIAnalyst.analyzeQuery(request);
       } else {
@@ -109,10 +114,28 @@ export class AIServiceFactory {
   }
   
   /**
+   * Switch to MediaPipe AI
+   */
+  static enableMediaPipeAI(host?: string, model?: string) {
+    this.useMediaPipe = true;
+    this.useAndroidDirect = false;
+    this.useLocalAI = false;
+    this.useAndroidEmulator = false;
+    this.useTrueLocal = false;
+    this.useGemini = false;
+    
+    if (host && model) {
+      MediaPipeAIService.configure(host, model);
+    }
+    console.log('Switched to MediaPipe LLM Inference');
+  }
+
+  /**
    * Switch to Android Direct AI
    */
   static enableAndroidDirectAI() {
     this.useAndroidDirect = true;
+    this.useMediaPipe = false;
     this.useLocalAI = false;
     this.useAndroidEmulator = false;
     this.useTrueLocal = false;
@@ -124,6 +147,7 @@ export class AIServiceFactory {
    * Switch to OpenAI
    */
   static enableOpenAI() {
+    this.useMediaPipe = false;
     this.useAndroidDirect = false;
     this.useLocalAI = false;
     this.useAndroidEmulator = false;

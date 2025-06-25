@@ -791,6 +791,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
   // AI Service Control Routes
+  // MediaPipe AI connection
+  app.post("/api/ai/switch-to-mediapipe", async (req, res) => {
+    try {
+      const { host, model } = req.body;
+      const mediapipeHost = host || 'http://localhost:8080';
+      const mediapipeModel = model || 'qwen2.5-1.5b-instruct';
+      
+      const { AIServiceFactory } = await import('./services/ai-service-factory');
+      const { MediaPipeAIService } = await import('./services/mediapipe-ai-service');
+      
+      // Configure and test connection
+      MediaPipeAIService.configure(mediapipeHost, mediapipeModel);
+      const connectionTest = await MediaPipeAIService.testConnection();
+      
+      if (!connectionTest.success) {
+        return res.status(400).json({ 
+          message: "Cannot connect to MediaPipe LLM Inference API", 
+          error: connectionTest.error,
+          suggestion: "Make sure MediaPipe LLM server is running on port 8080 with your Qwen model"
+        });
+      }
+      
+      AIServiceFactory.enableMediaPipeAI(mediapipeHost, mediapipeModel);
+      
+      // Set environment variables
+      process.env.USE_MEDIAPIPE_AI = 'true';
+      process.env.USE_ANDROID_DIRECT_AI = 'false';
+      process.env.USE_ANDROID_EMULATOR_AI = 'false';
+      process.env.USE_TRUE_LOCAL_AI = 'false';
+      process.env.USE_GEMINI = 'false';
+      process.env.USE_LOCAL_AI = 'false';
+      
+      res.json({
+        status: "success",
+        message: "Switched to MediaPipe LLM Inference",
+        service: "MediaPipe AI (Local Qwen)",
+        connectionTest,
+        modelInfo: connectionTest.modelInfo,
+        currentModel: mediapipeModel
+      });
+    } catch (error: any) {
+      console.error('MediaPipe AI switch error:', error);
+      res.status(500).json({
+        status: "error",
+        message: error.message || "Failed to switch to MediaPipe AI"
+      });
+    }
+  });
+
   // Android Direct AI connection
   app.post("/api/ai/switch-to-android-direct", async (req, res) => {
     try {

@@ -276,6 +276,38 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
     }
   });
 
+  const switchToMediaPipe = async () => {
+    setIsConnecting(true);
+    try {
+      const response = await fetch("/api/ai/switch-to-mediapipe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ host: "http://localhost:8080", model: "qwen2.5-1.5b-instruct" })
+      });
+      
+      const data = await response.json();
+      
+      if (data.status === "success") {
+        setCurrentService("mediapipe");
+        setConnectionStatus(data.connectionTest);
+        toast({
+          title: "MediaPipe AI Connected",
+          description: "ProcessGPT now using MediaPipe LLM with your Qwen model"
+        });
+      } else {
+        throw new Error(data.message);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Connection Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
   const switchToAndroidDirect = async () => {
     setIsConnecting(true);
     try {
@@ -401,6 +433,22 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
             <h3 className="font-semibold text-lg">ProcessGPT AI Service</h3>
             <div className="flex gap-2">
               <Button 
+                onClick={switchToMediaPipe}
+                disabled={isConnecting}
+                variant={currentService === "mediapipe" ? "default" : "outline"}
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Target className="h-4 w-4" />
+                {isConnecting ? "Connecting..." : "Use MediaPipe"}
+                {currentService === "mediapipe" && connectionStatus?.success && (
+                  <Wifi className="h-3 w-3 text-green-500" />
+                )}
+                {currentService === "mediapipe" && !connectionStatus?.success && (
+                  <WifiOff className="h-3 w-3 text-red-500" />
+                )}
+              </Button>
+              <Button 
                 onClick={switchToAndroidDirect}
                 disabled={isConnecting}
                 variant={currentService === "android_direct" ? "default" : "outline"}
@@ -408,7 +456,7 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
                 className="flex items-center gap-2"
               >
                 <Smartphone className="h-4 w-4" />
-                {isConnecting ? "Connecting..." : "Use Android Direct"}
+                {isConnecting ? "Connecting..." : "Android Direct"}
                 {currentService === "android_direct" && connectionStatus?.success && (
                   <Wifi className="h-3 w-3 text-green-500" />
                 )}
