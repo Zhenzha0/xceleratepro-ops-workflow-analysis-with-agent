@@ -3,7 +3,7 @@ import { ProcessEvent, ProcessActivity, ProcessCase, AnomalyAlert } from '@share
 import { storage } from '../storage';
 import { AnomalyDetector } from './anomaly-detector';
 import { SemanticSearch } from './semantic-search';
-import { EnhancedFailureAnalyzer } from './failure-analyzer-enhanced';
+import { FailureAnalyzer } from './failure-analyzer';
 import { TimingAnalyzer } from './timing-analyzer';
 import { TrendAnalyzer } from './trend-analyzer';
 import { CaseAnalyzer } from './case-analyzer';
@@ -413,7 +413,7 @@ export class AIAnalyst {
           console.log('Getting failure causes from unsatisfied_condition_description');
           try {
             const failureEvents = await storage.getProcessEvents({ status: 'failure' });
-            const failureCauses = await EnhancedFailureAnalyzer.categorizeFailureCauses(failureEvents);
+            const failureCauses = await FailureAnalyzer.categorizeFailureCauses(failureEvents);
             data.failureCauses = failureCauses;
             data.summary.analysisType = 'failure_causes';
             data.totalFailures = failureCauses.reduce((sum: number, cause: any) => sum + cause.count, 0);
