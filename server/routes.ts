@@ -221,12 +221,64 @@ export function setupRoutes(app: Express): Server {
     }
   });
 
+  // Sample data import endpoint - Critical for ProcessGPT functionality
+  app.post("/api/import-sample-data", async (req, res) => {
+    try {
+      console.log('Clearing existing data and importing your sample_data.csv...');
+      
+      // Clear existing data to avoid duplicates
+      await db.delete(processActivities);
+      await db.delete(processEvents);  
+      await db.delete(processCases);
+      console.log('Existing data cleared');
+      
+      const sampleDataPath = path.join(process.cwd(), 'attached_assets', 'sample_data_1750608906974.csv');
+      const { events, activities, cases } = await XESParser.parseXESFromCSV(sampleDataPath);
+      
+      console.log(`Parsed ${events.length} events, ${activities.length} activities, ${cases.length} cases from your manufacturing data`);
+
+      // Bulk insert all data in correct order
+      if (cases.length > 0) {
+        await storage.bulkInsertProcessCases(cases);
+        console.log(`✓ Inserted ${cases.length} process cases`);
+      }
+      
+      if (events.length > 0) {
+        await storage.bulkInsertProcessEvents(events);
+        console.log(`✓ Inserted ${events.length} process events`);
+      }
+      
+      if (activities.length > 0) {
+        await storage.bulkInsertProcessActivities(activities);
+        console.log(`✓ Inserted ${activities.length} process activities`);
+      }
+
+      console.log('✅ Sample data import completed successfully - ProcessGPT fully operational');
+      res.json({ 
+        success: true, 
+        message: 'Manufacturing data imported successfully',
+        stats: {
+          events: events.length,
+          activities: activities.length,
+          cases: cases.length
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ Error importing sample data:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to import manufacturing data',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Data import endpoint
   app.post("/api/data/import", async (req, res) => {
     try {
       const csvPath = path.join(process.cwd(), 'sample_data.csv');
-      const parser = new XESParser();
-      const result = await parser.importFromCSV(csvPath);
+      const result = await XESParser.importFromCSV(csvPath);
       res.json({ message: 'Data imported successfully', ...result });
     } catch (error) {
       console.error('Error importing data:', error);

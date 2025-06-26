@@ -307,6 +307,14 @@ export class XESParser {
     });
   }
 
+  static async importFromCSV(csvFilePath: string): Promise<{
+    events: InsertProcessEvent[];
+    activities: InsertProcessActivity[];
+    cases: InsertProcessCase[];
+  }> {
+    return await this.parseXESFromCSV(csvFilePath);
+  }
+
   static async importSampleData(): Promise<void> {
     const sampleDataPath = path.join(process.cwd(), 'attached_assets', 'sample_data_1750608906974.csv');
     
