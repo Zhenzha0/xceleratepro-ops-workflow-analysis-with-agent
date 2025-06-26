@@ -111,6 +111,48 @@ export function setupRoutes(app: Express): Server {
     }
   });
 
+  // Dashboard filter endpoint
+  app.post("/api/dashboard/filter", async (req, res) => {
+    try {
+      const filters = req.body;
+      
+      // Get filtered data based on filters
+      const activities = await storage.getProcessActivities();
+      const cases = await storage.getProcessCases();
+      const events = await storage.getProcessEvents();
+      
+      // Apply filters to activities
+      let filteredActivities = activities;
+      
+      if (filters.equipment && filters.equipment !== 'all') {
+        filteredActivities = filteredActivities.filter(a => 
+          a.orgResource?.toLowerCase().includes(filters.equipment.toLowerCase())
+        );
+      }
+      
+      if (filters.status && filters.status !== 'all') {
+        filteredActivities = filteredActivities.filter(a => a.status === filters.status);
+      }
+      
+      if (filters.datasetSize && filters.datasetSize !== 'full') {
+        const limit = filters.datasetSize === 'last_1000' ? 1000 : 
+                     filters.datasetSize === 'last_500' ? 500 : 
+                     filters.customLimit || 1000;
+        filteredActivities = filteredActivities.slice(0, limit);
+      }
+      
+      res.json({
+        activities: filteredActivities,
+        cases: cases,
+        events: events,
+        totalCount: filteredActivities.length
+      });
+    } catch (error) {
+      console.error('Error applying filters:', error);
+      res.status(500).json({ message: 'Failed to apply filters' });
+    }
+  });
+
   // Anomalies endpoint
   app.get("/api/dashboard/anomalies", async (req, res) => {
     try {
