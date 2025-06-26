@@ -142,7 +142,7 @@ export default function Dashboard() {
                 <div className="bg-white rounded-lg shadow p-6">
                   <h2 className="text-2xl font-bold mb-4">AI Process Analyst</h2>
                   <p className="text-gray-600 mb-4">Ask questions about your manufacturing processes in plain English.</p>
-                  <AIAssistant />
+                  <AIAssistantNew />
                 </div>
               )}
             </div>
@@ -150,7 +150,7 @@ export default function Dashboard() {
             {/* AI Assistant Panel - only show when on dashboard */}
             {activeTab === 'dashboard' && (
               <div className="w-96">
-                <AIAssistant appliedFilters={appliedFilters} />
+                <AIAssistantNew />
               </div>
             )}
           </div>
