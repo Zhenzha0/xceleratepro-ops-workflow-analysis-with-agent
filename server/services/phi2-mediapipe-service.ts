@@ -14,12 +14,19 @@ export class Phi2MediaPipeService {
 
   private async initializeMediaPipe() {
     try {
-      // Initialize MediaPipe AI Edge with Phi-2 model
-      // This will load the .tflite model bundle
+      // Initialize MediaPipe AI Edge with Phi-2 model (.task bundle)
       console.log('Initializing Phi-2 MediaPipe AI Edge...');
       
-      // MediaPipe AI Edge initialization code
-      // The actual implementation depends on the MediaPipe AI Edge SDK
+      // Import MediaPipe text generation
+      const { TextGeneration } = await import('@mediapipe/tasks-genai');
+      
+      // Initialize with Phi-2 model (.task bundle contains .tflite + metadata)
+      this.mediapipeTask = await TextGeneration.createFromOptions({
+        baseOptions: {
+          modelAssetPath: './models/phi2/phi-2-instruct-int4.task'
+        }
+      });
+      
       this.isInitialized = true;
       console.log('✓ Phi-2 MediaPipe initialized successfully');
     } catch (error) {

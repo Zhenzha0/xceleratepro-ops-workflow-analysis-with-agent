@@ -19,15 +19,15 @@
 ### MediaPipe AI Edge Setup
 - [ ] MediaPipe packages installed (`pip install mediapipe-model-maker ai-edge-torch`)
 - [ ] Models directory created (`mkdir -p models/phi2`)
-- [ ] **Phi-2 model downloaded** (1.5-2GB file): `phi-2-instruct-int4.tflite`
+- [ ] **Phi-2 model downloaded** (1.5-2GB bundle): `phi-2-instruct-int4.task`
 - [ ] Model file verified and readable
 - [ ] Model loading tested successfully
 
 ### Model Verification Commands
 ```bash
 # Verify model file
-ls -la models/phi2/phi-2-instruct-int4.tflite
-# Expected: ~1.5-2GB file
+ls -la models/phi2/phi-2-instruct-int4.task
+# Expected: ~1.5-2GB bundled file
 
 # Test model loading
 python scripts/test_model_loading.py
