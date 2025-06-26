@@ -44,7 +44,7 @@ pip3 install mediapipe-model-maker
 pip3 install ai-edge-torch
 ```
 
-## Step 2: Download Phi-2 Model in .tflite Format
+## Step 2: Download Phi-2 Model in .task Format (Bundled .tflite)
 
 ### Method 1: Direct Download from Google AI Edge Gallery
 ```bash
@@ -52,12 +52,12 @@ pip3 install ai-edge-torch
 mkdir phi2-models
 cd phi2-models
 
-# Download Phi-2 optimized for edge devices
+# Download Phi-2 bundled as .task file (contains .tflite + metadata)
 # This is the official Google AI Edge version of Phi-2
-curl -O https://storage.googleapis.com/ai-edge-models/phi-2-instruct-int4.tflite
+curl -O https://storage.googleapis.com/ai-edge-models/phi-2-instruct-int4.task
 
 # Alternative: Download full precision version (larger file)
-curl -O https://storage.googleapis.com/ai-edge-models/phi-2-instruct-fp16.tflite
+curl -O https://storage.googleapis.com/ai-edge-models/phi-2-instruct-fp16.task
 ```
 
 ### Method 2: Using AI Edge Model Hub CLI
@@ -71,8 +71,8 @@ ai-edge auth login
 # List available Phi-2 models
 ai-edge models list --filter="phi-2"
 
-# Download specific Phi-2 model
-ai-edge models download phi-2-instruct-int4 --output-dir ./phi2-models
+# Download specific Phi-2 model as .task bundle
+ai-edge models download phi-2-instruct-int4 --format=task --output-dir ./phi2-models
 ```
 
 ### Method 3: Convert from Hugging Face (Advanced Users)
@@ -90,9 +90,9 @@ tokenizer = AutoTokenizer.from_pretrained(model_name)
 # Convert to AI Edge format
 edge_model = ai_edge_torch.convert(model, sample_args=(torch.randint(0, 1000, (1, 10)),))
 
-# Save as .tflite
-edge_model.export("phi-2-instruct.tflite")
-print("✓ Phi-2 model converted and saved as phi-2-instruct.tflite")
+# Save as .task bundle (includes .tflite + metadata)
+edge_model.export("phi-2-instruct.task")
+print("✓ Phi-2 model converted and saved as phi-2-instruct.task")
 ```
 
 ```bash
@@ -108,12 +108,12 @@ python convert_phi2.py
 cd phi2-models
 
 # Check downloaded files
-ls -la *.tflite
+ls -la *.task
 
 # Expected output:
-# phi-2-instruct-int4.tflite (approximately 1.5-2GB)
+# phi-2-instruct-int4.task (approximately 1.5-2GB bundled file)
 # or
-# phi-2-instruct-fp16.tflite (approximately 2.5-3GB)
+# phi-2-instruct-fp16.task (approximately 2.5-3GB bundled file)
 ```
 
 ### Test Model Loading
@@ -125,8 +125,8 @@ from mediapipe.tasks.python import text
 
 # Test model loading
 try:
-    # Create text generator
-    base_options = python.BaseOptions(model_asset_path='phi-2-instruct-int4.tflite')
+    # Create text generator using .task bundle
+    base_options = python.BaseOptions(model_asset_path='phi-2-instruct-int4.task')
     options = text.TextGeneratorOptions(base_options=base_options)
     generator = text.TextGenerator.create_from_options(options)
     
@@ -153,7 +153,7 @@ python test_phi2.py
 mkdir -p ProcessGPT/models/phi2
 
 # Move model file to proper location
-mv phi-2-instruct-int4.tflite ProcessGPT/models/phi2/
+mv phi-2-instruct-int4.task ProcessGPT/models/phi2/
 
 # Create model info file
 cat > ProcessGPT/models/phi2/model_info.json << EOF
@@ -176,7 +176,7 @@ tree ProcessGPT/models/
 # Expected output:
 # ProcessGPT/models/
 # └── phi2/
-#     ├── phi-2-instruct-int4.tflite
+#     ├── phi-2-instruct-int4.task
 #     └── model_info.json
 
 # Check file permissions
@@ -190,7 +190,7 @@ ls -la ProcessGPT/models/phi2/
 ```javascript
 // create ProcessGPT/models/phi2/config.js
 export const phi2Config = {
-  modelPath: './models/phi2/phi-2-instruct-int4.tflite',
+  modelPath: './models/phi2/phi-2-instruct-int4.task',
   modelType: 'text_generation',
   maxTokens: 512,
   temperature: 0.7,
@@ -207,17 +207,17 @@ export const phi2Config = {
 ### Issue 1: "Model file not found"
 ```bash
 # Check file exists
-ls -la ProcessGPT/models/phi2/phi-2-instruct-int4.tflite
+ls -la ProcessGPT/models/phi2/phi-2-instruct-int4.task
 
 # Check file permissions
-chmod 644 ProcessGPT/models/phi2/phi-2-instruct-int4.tflite
+chmod 644 ProcessGPT/models/phi2/phi-2-instruct-int4.task
 ```
 
 ### Issue 2: "Out of memory during loading"
 ```bash
 # Use smaller quantized version
 # Download int8 instead of fp16
-curl -O https://storage.googleapis.com/ai-edge-models/phi-2-instruct-int8.tflite
+curl -O https://storage.googleapis.com/ai-edge-models/phi-2-instruct-int8.task
 ```
 
 ### Issue 3: "MediaPipe not found"
@@ -240,7 +240,7 @@ pip install tensorflow-cpu
 
 ## File Checklist Before Proceeding
 
-✅ **phi-2-instruct-int4.tflite** (1.5-2GB) downloaded and verified  
+✅ **phi-2-instruct-int4.task** (1.5-2GB bundled file) downloaded and verified  
 ✅ **model_info.json** created with metadata  
 ✅ **config.js** created with ProcessGPT settings  
 ✅ **File permissions** set correctly (644)  

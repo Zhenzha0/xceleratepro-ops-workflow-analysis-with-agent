@@ -96,12 +96,12 @@ psql -h localhost -U processgpt_user -d processgpt
 # Create models directory in ProcessGPT
 mkdir -p models/phi2
 
-# Copy your downloaded Phi-2 model
-cp /path/to/phi-2-instruct-int4.tflite models/phi2/
+# Copy your downloaded Phi-2 model (.task bundle)
+cp /path/to/phi-2-instruct-int4.task models/phi2/
 
 # Verify model file
 ls -la models/phi2/
-# Should show: phi-2-instruct-int4.tflite (1.5-2GB)
+# Should show: phi-2-instruct-int4.task (1.5-2GB bundled file)
 ```
 
 ### Update Phi-2 Service Configuration
@@ -118,10 +118,10 @@ private async initializeMediaPipe() {
     // Import MediaPipe text generation
     const { TextGeneration } = await import('@mediapipe/tasks-genai');
     
-    // Initialize with your Phi-2 model
+    // Initialize with your Phi-2 model (.task bundle)
     this.mediapipeTask = await TextGeneration.createFromOptions({
       baseOptions: {
-        modelAssetPath: './models/phi2/phi-2-instruct-int4.tflite'
+        modelAssetPath: './models/phi2/phi-2-instruct-int4.task'
       }
     });
     
@@ -185,7 +185,7 @@ PGDATABASE=processgpt
 
 # AI Configuration - Use Phi-2 by default
 USE_PHI2_MEDIAPIPE=true
-PHI2_MODEL_PATH=./models/phi2/phi-2-instruct-int4.tflite
+PHI2_MODEL_PATH=./models/phi2/phi-2-instruct-int4.task
 
 # Optional: OpenAI fallback (remove if not needed)
 # OPENAI_API_KEY=your_openai_key_if_desired
@@ -434,7 +434,7 @@ psql -h localhost -U processgpt_user -d processgpt
 ### Issue 3: Out of Memory Errors
 ```bash
 # Use smaller model variant
-curl -O https://storage.googleapis.com/ai-edge-models/phi-2-instruct-int8.tflite
+curl -O https://storage.googleapis.com/ai-edge-models/phi-2-instruct-int8.task
 
 # Reduce batch size
 echo "PHI2_BATCH_SIZE=1" >> .env
