@@ -1,0 +1,351 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(0, 0%, 100%);
+  --foreground: hsl(20, 14.3%, 4.1%);
+  --muted: hsl(60, 4.8%, 95.9%);
+  --muted-foreground: hsl(25, 5.3%, 44.7%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(20, 14.3%, 4.1%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(20, 14.3%, 4.1%);
+  --border: hsl(20, 5.9%, 90%);
+  --input: hsl(20, 5.9%, 90%);
+  --primary: hsl(207, 90%, 54%);
+  --primary-foreground: hsl(211, 100%, 99%);
+  --secondary: hsl(60, 4.8%, 95.9%);
+  --secondary-foreground: hsl(24, 9.8%, 10%);
+  --accent: hsl(25, 100%, 50%);
+  --accent-foreground: hsl(60, 9.1%, 97.8%);
+  --destructive: hsl(0, 84.2%, 60.2%);
+  --destructive-foreground: hsl(60, 9.1%, 97.8%);
+  --ring: hsl(20, 14.3%, 4.1%);
+  --radius: 0.5rem;
+  
+  /* Custom colors for process mining app */
+  --success: hsl(142, 76%, 36%);
+  --warning: hsl(38, 92%, 50%);
+  --error: hsl(0, 84%, 60%);
+  --chart-1: hsl(207, 90%, 54%);
+  --chart-2: hsl(142, 76%, 36%);
+  --chart-3: hsl(38, 92%, 50%);
+  --chart-4: hsl(271, 81%, 56%);
+  --chart-5: hsl(14, 86%, 63%);
+}
+
+.dark {
+  --background: hsl(240, 10%, 3.9%);
+  --foreground: hsl(0, 0%, 98%);
+  --muted: hsl(240, 3.7%, 15.9%);
+  --muted-foreground: hsl(240, 5%, 64.9%);
+  --popover: hsl(240, 10%, 3.9%);
+  --popover-foreground: hsl(0, 0%, 98%);
+  --card: hsl(240, 10%, 3.9%);
+  --card-foreground: hsl(0, 0%, 98%);
+  --border: hsl(240, 3.7%, 15.9%);
+  --input: hsl(240, 3.7%, 15.9%);
+  --primary: hsl(207, 90%, 54%);
+  --primary-foreground: hsl(211, 100%, 99%);
+  --secondary: hsl(240, 3.7%, 15.9%);
+  --secondary-foreground: hsl(0, 0%, 98%);
+  --accent: hsl(25, 100%, 50%);
+  --accent-foreground: hsl(0, 0%, 98%);
+  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --ring: hsl(240, 4.9%, 83.9%);
+  --radius: 0.5rem;
+  
+  /* Dark mode custom colors */
+  --success: hsl(142, 76%, 36%);
+  --warning: hsl(38, 92%, 50%);
+  --error: hsl(0, 84%, 60%);
+  --chart-1: hsl(207, 90%, 54%);
+  --chart-2: hsl(142, 76%, 36%);
+  --chart-3: hsl(38, 92%, 50%);
+  --chart-4: hsl(271, 81%, 56%);
+  --chart-5: hsl(14, 86%, 63%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+  
+  /* Custom utility classes for process mining */
+  .text-success {
+    color: hsl(var(--success));
+  }
+  
+  .text-warning {
+    color: hsl(var(--warning));
+  }
+  
+  .text-error {
+    color: hsl(var(--error));
+  }
+  
+  .bg-success {
+    background-color: hsl(var(--success));
+  }
+  
+  .bg-warning {
+    background-color: hsl(var(--warning));
+  }
+  
+  .bg-error {
+    background-color: hsl(var(--error));
+  }
+  
+  .border-success {
+    border-color: hsl(var(--success));
+  }
+  
+  .border-warning {
+    border-color: hsl(var(--warning));
+  }
+  
+  .border-error {
+    border-color: hsl(var(--error));
+  }
+}
+
+@layer components {
+  /* Process mining specific components */
+  .process-station {
+    @apply w-16 h-16 rounded-lg flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-105;
+  }
+  
+  .anomaly-pulse {
+    animation: anomaly-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  .chat-message {
+    @apply max-w-xs rounded-lg p-3 text-sm;
+  }
+  
+  .chat-message-user {
+    @apply bg-primary text-white ml-auto;
+  }
+  
+  .chat-message-assistant {
+    @apply bg-gray-100 text-gray-900;
+  }
+  
+  .metric-card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6 transition-all duration-200 hover:shadow-md;
+  }
+  
+  .filter-select {
+    @apply w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent;
+  }
+  
+  .status-indicator {
+    @apply w-2 h-2 rounded-full;
+  }
+  
+  .equipment-icon {
+    @apply w-6 h-6 text-white;
+  }
+}
+
+@layer utilities {
+  /* Animation utilities */
+  @keyframes anomaly-pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+  
+  .animate-anomaly-pulse {
+    animation: anomaly-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  /* Scrollbar styling */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground)) hsl(var(--muted));
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground));
+    border-radius: 3px;
+  }
+  
+  /* Manufacturing process specific utilities */
+  .process-flow-arrow {
+    @apply w-0 h-0 border-l-4 border-gray-400 border-t-2 border-b-2 border-t-transparent border-b-transparent;
+  }
+  
+  .efficiency-bar {
+    @apply w-full h-1.5 mt-1 rounded-full overflow-hidden;
+  }
+  
+  .equipment-status-success {
+    @apply bg-success;
+  }
+  
+  .equipment-status-warning {
+    @apply bg-warning;
+  }
+  
+  .equipment-status-error {
+    @apply bg-error;
+  }
+  
+  /* Chart and visualization utilities */
+  .chart-container {
+    @apply h-96 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center;
+  }
+  
+  .visualization-placeholder {
+    @apply text-center text-gray-500;
+  }
+  
+  /* Responsive utilities for dashboard layout */
+  .dashboard-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6;
+  }
+  
+  .dashboard-card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200;
+  }
+  
+  /* AI Assistant specific utilities */
+  .ai-message-container {
+    @apply flex items-start space-x-3;
+  }
+  
+  .ai-avatar {
+    @apply w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0;
+  }
+  
+  .ai-avatar-assistant {
+    @apply bg-primary;
+  }
+  
+  .ai-avatar-user {
+    @apply bg-gray-300;
+  }
+  
+  /* Semantic search result styling */
+  .search-result {
+    @apply bg-gray-50 p-3 rounded-lg border border-gray-200 transition-all duration-200 hover:bg-gray-100;
+  }
+  
+  .similarity-badge {
+    @apply text-xs font-medium px-2 py-1 rounded-full;
+  }
+  
+  .similarity-high {
+    @apply bg-green-100 text-green-800;
+  }
+  
+  .similarity-medium {
+    @apply bg-yellow-100 text-yellow-800;
+  }
+  
+  .similarity-low {
+    @apply bg-gray-100 text-gray-800;
+  }
+}
+
+/* Dark mode adjustments for manufacturing theme */
+.dark .process-station {
+  @apply shadow-lg;
+}
+
+.dark .metric-card {
+  @apply bg-card border-border;
+}
+
+.dark .dashboard-card {
+  @apply bg-card border-border;
+}
+
+.dark .chat-message-assistant {
+  @apply bg-muted text-foreground;
+}
+
+.dark .search-result {
+  @apply bg-muted border-border hover:bg-muted;
+}
+
+/* Focus states for accessibility */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2;
+}
+
+/* Custom scrollbar for chat and other scrollable areas */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground)) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground));
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--foreground));
+}
+
+/* Animation for real-time indicators */
+@keyframes pulse-live {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.live-indicator {
+  animation: pulse-live 2s ease-in-out infinite;
+}
+
+/* Manufacturing equipment color coding */
+.equipment-hbw {
+  @apply bg-blue-500;
+}
+
+.equipment-vgr {
+  @apply bg-green-500;
+}
+
+.equipment-oven {
+  @apply bg-red-500;
+}
+
+.equipment-milling {
+  @apply bg-purple-500;
+}
+
+.equipment-sorting {
+  @apply bg-indigo-500;
+}
