@@ -1,4 +1,4 @@
-import { AIAnalysisRequest, AIAnalysisResponse } from './ai-service-factory';
+import { AIAnalysisRequest, AIAnalysisResponse } from './ai-analyst';
 import { EnhancedFailureAnalyzer } from './failure-analyzer-enhanced';
 import { TimingAnalyzer } from './timing-analyzer';
 import { TrendAnalyzer } from './trend-analyzer';
@@ -91,19 +91,19 @@ Focus on these patterns:
     // Use existing ProcessGPT analysis functions (unchanged)
     switch (classification.type) {
       case 'failure_analysis':
-        return await EnhancedFailureAnalyzer.analyzeFailures(request.filters);
+        return await EnhancedFailureAnalyzer.analyzeFailureCauses(request.filters);
       
       case 'timing_analysis':
         return await TimingAnalyzer.analyzeProcessingTimes(request.filters);
       
       case 'trend_analysis':
-        return await TrendAnalyzer.analyzeTrends(request.filters);
+        return await TrendAnalyzer.analyzeTemporalPatterns(request.filters);
       
       case 'case_analysis':
-        return await CaseAnalyzer.analyzeCases(request.filters);
+        return await CaseAnalyzer.analyzeCaseDetails(request.filters);
       
       default:
-        return await EnhancedFailureAnalyzer.analyzeFailures(request.filters);
+        return await EnhancedFailureAnalyzer.analyzeFailureCauses(request.filters);
     }
   }
 
@@ -144,7 +144,7 @@ Use professional manufacturing language and include specific metrics from the da
       // This will be replaced with actual MediaPipe Task inference
       return "Phi-2 response placeholder - to be implemented with MediaPipe Task API";
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Phi-2 MediaPipe call failed:', error);
       throw error;
     }
@@ -186,7 +186,7 @@ Use professional manufacturing language and include specific metrics from the da
       return {
         status: 'error',
         model: 'phi-2',
-        version: error.message
+        version: (error as Error).message
       };
     }
   }

@@ -434,7 +434,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/ai/analyze", async (req, res) => {
     try {
       const request = aiQuerySchema.parse(req.body);
-      // Use AI service factory to choose between OpenAI and Local AI
+      // Use AI service factory to choose between all available AI services
       const { AIServiceFactory } = await import('./services/ai-service-factory');
       const response = await AIServiceFactory.analyzeQuery(request);
       res.json(response);
@@ -445,6 +445,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         response: 'I apologize, but I encountered an error while processing your request. Please try again.',
         queryType: 'error'
       });
+    }
+  });
+
+  // Switch to Phi-2 MediaPipe
+  app.post('/api/ai/switch-to-phi2-mediapipe', async (req, res) => {
+    try {
+      const { AIServiceFactory } = await import('./services/ai-service-factory');
+      AIServiceFactory.switchToPhi2MediaPipe();
+      res.json({ success: true, message: 'Switched to Phi-2 MediaPipe AI Edge', service: 'phi2-mediapipe' });
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: error.message });
     }
   });
 
