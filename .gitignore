@@ -99,6 +99,15 @@ models/
 *.onnx
 *.bin
 
+# Large deployment packages
+*.tar.gz
+processgpt-deployment/
+
+# Large Git objects and cache files
+.git/objects/
+.cache/
+node_modules/.vite/
+
 # Python
 __pycache__/
 *.py[cod]
