@@ -1,12 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-import { Bot, User, Send, Filter, TrendingUp, BarChart3, Maximize2, X, Smartphone, Cloud, Wifi, WifiOff, AlertTriangle, Target, Cpu } from 'lucide-react';
+import { Bot, User, Send, Filter, TrendingUp, BarChart3, Maximize2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 
 interface ChatMessage {
@@ -45,10 +43,6 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
   const [insights, setInsights] = useState<Insight[]>([]);
   const [expandedInsight, setExpandedInsight] = useState<Insight | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const [currentService, setCurrentService] = useState<string>("openai");
-  const [connectionStatus, setConnectionStatus] = useState<any>(null);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const { toast } = useToast();
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -203,35 +197,7 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
 
   // Create bottleneck analysis charts
   const createBottleneckAnalysisCharts = (data: any) => {
-    if (!data.bottlenecks?.processingBottlenecks) return;
-    
-    const bottleneckData = data.bottlenecks.processingBottlenecks.slice(0, 5).map((b: any) => ({
-      name: b.station.replace(/\//g, ' ').trim(),
-      time: Math.round(b.avgProcessingTime),
-      impact: b.impact
-    }));
-
-    const bottleneckChart = (
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={bottleneckData}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="name" fontSize={10} />
-          <YAxis fontSize={11} label={{ value: 'Processing Time', angle: -90, position: 'insideLeft' }} />
-          <Tooltip />
-          <Bar dataKey="time" fill="#ff6b6b" />
-        </BarChart>
-      </ResponsiveContainer>
-    );
-
-    const newInsight: Insight = {
-      id: Date.now().toString(),
-      title: 'Processing Bottlenecks',
-      chart: bottleneckChart,
-      icon: AlertTriangle,
-      description: `${bottleneckData.length} stations analyzed - ${data.bottlenecks.processingBottlenecks[0]?.station} shows highest processing time`
-    };
-
-    setInsights(prev => [...prev, newInsight]);
+    // Implementation for bottleneck analysis charts
   };
 
   // Automatic visualization creation function (following your previous project architecture)
@@ -254,12 +220,10 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
     } else if (analysisType === "bottleneck_analysis" && data.bottleneck_activities) {
       console.log('Creating bottleneck analysis charts with data:', data.bottleneck_activities);
       createBottleneckAnalysisCharts(data);
-    } else if (analysisType === "recurring_failure_analysis" || analysisType === "failure_pattern_analysis") {
-      console.log('Creating failure pattern analysis charts');
-      createFailurePatternCharts();
     } else {
       console.log('No matching visualization type found for:', analysisType);
       console.log('Available data keys:', Object.keys(data || {}));
+      console.log('Full data structure:', JSON.stringify(data, null, 2));
     }
   };
 
@@ -306,198 +270,6 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
     }
   });
 
-  const switchToGemma2 = async () => {
-    setIsConnecting(true);
-    try {
-      const response = await fetch("/api/ai/switch-to-gemma2", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" }
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        setCurrentService("gemma2");
-        setConnectionStatus({ success: true, message: "Gemma 2B connected" });
-        toast({
-          title: "Gemma 2B Connected",
-          description: "ProcessGPT now using your local Gemma 2B model with complete privacy"
-        });
-      } else {
-        throw new Error(data.message || "Failed to connect to Gemma 2B");
-      }
-    } catch (error) {
-      console.error("Gemma 2B connection error:", error);
-      toast({
-        title: "Connection Failed",
-        description: "Make sure your Gemma 2B server is running on port 8080",
-        variant: "destructive"
-      });
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  const switchToGoogleAIEdge = async () => {
-    setIsConnecting(true);
-    try {
-      const response = await fetch("/api/ai/switch-to-google-ai-edge", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          modelPath: "./models/gemma-2b-it", 
-          host: "http://localhost", 
-          port: 8080 
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (data.status === "success") {
-        setCurrentService("google_ai_edge");
-        setConnectionStatus(data.connectionTest);
-        toast({
-          title: "Google AI Edge Connected",
-          description: "ProcessGPT now using your local edge model with complete privacy"
-        });
-      } else {
-        throw new Error(data.message);
-      }
-    } catch (error: any) {
-      toast({
-        title: "Connection Failed", 
-        description: error.message,
-        variant: "destructive"
-      });
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  const switchToMediaPipe = async () => {
-    setIsConnecting(true);
-    try {
-      const response = await fetch("/api/ai/switch-to-mediapipe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ host: "http://localhost:8080", model: "qwen2.5-1.5b-instruct" })
-      });
-      
-      const data = await response.json();
-      
-      if (data.status === "success") {
-        setCurrentService("mediapipe");
-        setConnectionStatus(data.connectionTest);
-        toast({
-          title: "MediaPipe AI Connected",
-          description: "ProcessGPT now using MediaPipe LLM with separate Qwen model"
-        });
-      } else {
-        throw new Error(data.message);
-      }
-    } catch (error: any) {
-      toast({
-        title: "Connection Failed",
-        description: error.message,
-        variant: "destructive"
-      });
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  const switchToAndroidDirect = async () => {
-    setIsConnecting(true);
-    try {
-      const response = await fetch("/api/ai/switch-to-android-direct", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" }
-      });
-      
-      const data = await response.json();
-      
-      if (data.status === "success") {
-        setCurrentService("android_direct");
-        setConnectionStatus(data.connectionTest);
-        toast({
-          title: "Android Direct AI Connected",
-          description: "ProcessGPT now using direct AI Edge Gallery connection"
-        });
-      } else {
-        throw new Error(data.message);
-      }
-    } catch (error: any) {
-      toast({
-        title: "Connection Failed",
-        description: error.message,
-        variant: "destructive"
-      });
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  const switchToAndroidEmulator = async () => {
-    setIsConnecting(true);
-    try {
-      const response = await fetch("/api/ai/switch-to-android-emulator", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ host: "http://10.0.2.2:8080", model: "qwen2.5-1.5b-instruct" })
-      });
-      
-      const data = await response.json();
-      
-      if (data.status === "success") {
-        setCurrentService("android_emulator");
-        setConnectionStatus(data.connectionTest || { success: true });
-        toast({
-          title: "Android Emulator AI Connected",
-          description: "ProcessGPT now using AI Edge Gallery via emulator bridge"
-        });
-      } else {
-        throw new Error(data.message);
-      }
-    } catch (error: any) {
-      toast({
-        title: "Connection Failed",
-        description: error.message,
-        variant: "destructive"
-      });
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  const switchToOpenAI = async () => {
-    setIsConnecting(true);
-    try {
-      const response = await fetch("/api/ai/switch-to-openai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" }
-      });
-      
-      const data = await response.json();
-      
-      if (data.status === "success") {
-        setCurrentService("openai");
-        setConnectionStatus(null);
-        toast({
-          title: "OpenAI Connected",
-          description: "ProcessGPT now using OpenAI GPT-4o"
-        });
-      }
-    } catch (error: any) {
-      toast({
-        title: "Connection Failed",
-        description: error.message,
-        variant: "destructive"
-      });
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentQuery.trim() || analyzeMutation.isPending) return;
@@ -525,55 +297,6 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
     <div className="flex h-full">
       {/* Chat Section */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* AI Service Control Header */}
-        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-lg">ProcessGPT AI Service</h3>
-            <div className="flex gap-2">
-              <Button 
-                onClick={switchToGemma2}
-                disabled={isConnecting}
-                variant={currentService === "gemma2" ? "default" : "outline"}
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <Cpu className="h-4 w-4" />
-                Gemma 2B Local
-              </Button>
-              <Button 
-                onClick={switchToOpenAI}
-                disabled={isConnecting}
-                variant={currentService === "openai" ? "default" : "outline"}
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <Cloud className="h-4 w-4" />
-                Use OpenAI
-              </Button>
-            </div>
-          </div>
-          
-          {connectionStatus && (
-            <div className="text-sm">
-              {connectionStatus.success ? (
-                <div className="text-green-600 flex items-center gap-2">
-                  <Wifi className="h-4 w-4" />
-                  Connected to {connectionStatus.modelInfo?.model || 'Gemma 2B Local Model'}
-                </div>
-              ) : (
-                <div className="text-amber-600 flex items-center gap-2">
-                  <WifiOff className="h-4 w-4" />
-                  <div className="space-y-1">
-                    <div>Connection Failed: {connectionStatus.error}</div>
-                    <div className="text-xs">
-                      Try "Use OpenAI" for reliable connection or check Gemma 2B server.
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
         {/* Chat messages */}
         <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
           <div className="space-y-6">

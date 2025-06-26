@@ -211,39 +211,6 @@ Respond with JSON:
   }
 
   /**
-   * Main entry point for analyzing queries
-   */
-  async analyzeQuery(request: { query: string; sessionId: string; contextData?: any; filters?: any }): Promise<any> {
-    const { query, sessionId, contextData, filters } = request;
-    
-    try {
-      // Step 1: Select relevant capabilities
-      const capabilitySelection = await IntelligentAnalyst.selectRelevantCapabilities(query);
-      
-      // Step 2: Gather analysis data
-      const analysisData = await IntelligentAnalyst.gatherAnalysisData(capabilitySelection.capabilities, filters);
-      
-      // Step 3: Execute AI analysis
-      const result = await IntelligentAnalyst.executeAnalysis(query, capabilitySelection, analysisData);
-      
-      return {
-        response: result.response || "Analysis completed successfully.",
-        queryType: 'intelligent_analysis',
-        contextData: result,
-        suggestedActions: result.suggestedActions || [],
-        data: analysisData,
-        analysis_type: 'intelligent_analysis'
-      };
-    } catch (error) {
-      console.error('IntelligentAnalyst error:', error);
-      return {
-        response: 'I encountered an error during analysis. Please try rephrasing your question.',
-        queryType: 'error'
-      };
-    }
-  }
-
-  /**
    * Execute the final analysis with AI interpretation
    */
   private static async executeAnalysis(query: string, capabilitySelection: any, analysisData: any): Promise<any> {

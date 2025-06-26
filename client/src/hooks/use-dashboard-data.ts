@@ -49,11 +49,11 @@ export function useDashboardData(filters: DashboardFilters, appliedFilters?: Das
     refetchInterval: 30000,
   });
 
-  // Comprehensive filtered data query - always enabled with default filters
+  // Comprehensive filtered data query - only triggered when appliedFilters exist
   const filteredDataQuery = useQuery({
     queryKey: ['/api/dashboard/filter', activeFilters],
     queryFn: () => api.filterDashboardData(activeFilters),
-    enabled: true, // Always enabled to provide filtered data
+    enabled: !!appliedFilters, // Only enabled when appliedFilters exist
   });
 
   // Auto-import sample data if no data exists

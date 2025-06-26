@@ -189,7 +189,6 @@ export class XESParser {
               caseId,
               activity: eventData.activity,
               orgResource: eventData['org:resource'],
-              status: 'in_progress', // Default status
             });
           }
 
@@ -256,10 +255,9 @@ export class XESParser {
                   activity.actualDurationS = isNaN(duration) ? null : duration;
                 }
                 
-                // Sanitize all numeric fields to prevent NaN values and ensure status is set
+                // Sanitize all numeric fields to prevent NaN values
                 const sanitizedActivity = {
                   ...activity,
-                  status: activity.status || 'in_progress', // Ensure status is never null
                   plannedDurationS: activity.plannedDurationS && !isNaN(activity.plannedDurationS) ? activity.plannedDurationS : null,
                   actualDurationS: activity.actualDurationS && !isNaN(activity.actualDurationS) ? activity.actualDurationS : null,
                   anomalyScore: activity.anomalyScore && !isNaN(activity.anomalyScore) ? activity.anomalyScore : null,
@@ -307,14 +305,6 @@ export class XESParser {
         })
         .on('error', reject);
     });
-  }
-
-  static async importFromCSV(csvFilePath: string): Promise<{
-    events: InsertProcessEvent[];
-    activities: InsertProcessActivity[];
-    cases: InsertProcessCase[];
-  }> {
-    return await this.parseXESFromCSV(csvFilePath);
   }
 
   static async importSampleData(): Promise<void> {

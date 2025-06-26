@@ -3,7 +3,7 @@ import { ProcessEvent, ProcessActivity, ProcessCase, AnomalyAlert } from '@share
 import { storage } from '../storage';
 import { AnomalyDetector } from './anomaly-detector';
 import { SemanticSearch } from './semantic-search';
-import { FailureAnalyzer } from './failure-analyzer';
+import { EnhancedFailureAnalyzer } from './failure-analyzer-enhanced';
 import { TimingAnalyzer } from './timing-analyzer';
 import { TrendAnalyzer } from './trend-analyzer';
 import { CaseAnalyzer } from './case-analyzer';
@@ -412,8 +412,7 @@ export class AIAnalyst {
           // Get failure causes from unsatisfied_condition_description
           console.log('Getting failure causes from unsatisfied_condition_description');
           try {
-            const failureEvents = await storage.getProcessEvents({ status: 'failure' });
-            const failureCauses = await FailureAnalyzer.analyzeFailureCauses(filters);
+            const failureCauses = await EnhancedFailureAnalyzer.categorizeFailureCauses();
             data.failureCauses = failureCauses;
             data.summary.analysisType = 'failure_causes';
             data.totalFailures = failureCauses.reduce((sum: number, cause: any) => sum + cause.count, 0);
@@ -460,9 +459,10 @@ export class AIAnalyst {
             totalFailures: a.totalFailures
           }));
         } else if (queryType === 'activity_failure_cause_analysis') {
-          // Use standard analyzer for activity-level root cause analysis
-          const failureAnalysis = await FailureAnalyzer.analyzeFailureCauses(filters);
-          const failureSummary = await FailureAnalyzer.getFailureSummary(filters);
+          // Use enhanced analyzer for activity-level root cause analysis
+          const { EnhancedFailureAnalyzer } = await import('./failure-analyzer-enhanced.js');
+          const failureAnalysis = await EnhancedFailureAnalyzer.analyzeFailureCauses(filters);
+          const failureSummary = await EnhancedFailureAnalyzer.getFailureSummary(filters);
           
           data.actualFailures = failureAnalysis;
           data.failureSummary = failureSummary;
@@ -1006,32 +1006,6 @@ Respond in JSON format with: patterns (array), recommendations (array), riskAsse
         riskAssessment: 'Unable to assess risk due to analysis error'
       };
     }
-  }
-
-  /**
-   * Fallback basic failure analysis when enhanced analyzer isn't available
-   */
-  private static analyzeBasicFailures(failures: any[]): any[] {
-    // Group failures by description or type
-    const categories = new Map();
-    
-    failures.forEach(failure => {
-      const category = failure.unsatisfied_condition_description || 
-                      failure.lifecycle_state || 
-                      'Unknown Failure';
-      
-      if (!categories.has(category)) {
-        categories.set(category, { category, count: 0, failures: [] });
-      }
-      
-      const categoryData = categories.get(category);
-      categoryData.count++;
-      categoryData.failures.push(failure);
-    });
-    
-    return Array.from(categories.values())
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10); // Top 10 categories
   }
 
   /**
