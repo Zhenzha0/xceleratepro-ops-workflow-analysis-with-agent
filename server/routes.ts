@@ -80,26 +80,27 @@ export function setupRoutes(app: Express): Server {
       const totalCases = cases.length;
       const totalActivities = activities.length;
 
-      // Calculate average processing time
-      const completedActivities = activities.filter(a => a.lifecycleState === 'complete');
+      // Calculate average processing time from status 'complete'
+      const completedActivities = activities.filter(a => a.status === 'complete');
       const avgProcessingTime = completedActivities.length > 0 
-        ? completedActivities.reduce((sum, a) => sum + (a.duration || 0), 0) / completedActivities.length
+        ? completedActivities.reduce((sum, a) => sum + (a.completeTime && a.startTime ? 
+          (new Date(a.completeTime).getTime() - new Date(a.startTime).getTime()) : 0), 0) / completedActivities.length
         : 0;
 
-      // Calculate success rate
-      const failedActivities = activities.filter(a => a.lifecycleState === 'failure');
+      // Calculate success rate from status 'failure'
+      const failedActivities = activities.filter(a => a.status === 'failure');
       const successRate = totalActivities > 0 
         ? ((totalActivities - failedActivities.length) / totalActivities) * 100
         : 0;
 
-      // Detect anomalies
-      const anomalies = await AnomalyDetector.detectAnomalies(activities);
+      // Count anomalies
+      const anomalies = activities.filter(a => a.isAnomaly === true);
 
       res.json({
         totalEvents,
         totalCases,
         totalActivities,
-        avgProcessingTime: Math.round(avgProcessingTime),
+        avgProcessingTime: Math.round(avgProcessingTime / 1000), // Convert to seconds
         successRate: Math.round(successRate * 10) / 10,
         anomaliesDetected: anomalies.length,
         timestamp: new Date().toISOString()
@@ -158,7 +159,11 @@ export function setupRoutes(app: Express): Server {
   // AI Analysis Routes
   app.post("/api/ai/analyze", async (req, res) => {
     try {
-      const request = aiQuerySchema.parse(req.body);
+      const parsedRequest = aiQuerySchema.parse(req.body);
+      const request = {
+        ...parsedRequest,
+        sessionId: parsedRequest.sessionId || 'default-session'
+      };
       const response = await AIAnalyst.analyzeQuery(request);
       res.json(response);
     } catch (error) {

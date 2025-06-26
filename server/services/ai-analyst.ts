@@ -413,7 +413,7 @@ export class AIAnalyst {
           console.log('Getting failure causes from unsatisfied_condition_description');
           try {
             const failureEvents = await storage.getProcessEvents({ status: 'failure' });
-            const failureCauses = await FailureAnalyzer.categorizeFailureCauses(failureEvents);
+            const failureCauses = await FailureAnalyzer.analyzeFailureCauses(filters);
             data.failureCauses = failureCauses;
             data.summary.analysisType = 'failure_causes';
             data.totalFailures = failureCauses.reduce((sum: number, cause: any) => sum + cause.count, 0);
@@ -460,10 +460,9 @@ export class AIAnalyst {
             totalFailures: a.totalFailures
           }));
         } else if (queryType === 'activity_failure_cause_analysis') {
-          // Use enhanced analyzer for activity-level root cause analysis
-          const { EnhancedFailureAnalyzer } = await import('./failure-analyzer-enhanced.js');
-          const failureAnalysis = await EnhancedFailureAnalyzer.analyzeFailureCauses(filters);
-          const failureSummary = await EnhancedFailureAnalyzer.getFailureSummary(filters);
+          // Use standard analyzer for activity-level root cause analysis
+          const failureAnalysis = await FailureAnalyzer.analyzeFailureCauses(filters);
+          const failureSummary = await FailureAnalyzer.getFailureSummary(filters);
           
           data.actualFailures = failureAnalysis;
           data.failureSummary = failureSummary;
