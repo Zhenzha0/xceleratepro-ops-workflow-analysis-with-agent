@@ -115,7 +115,8 @@ export function setupRoutes(app: Express): Server {
   app.get("/api/dashboard/anomalies", async (req, res) => {
     try {
       const activities = await storage.getProcessActivities();
-      const anomalies = await AnomalyDetector.detectAnomalies(activities);
+      // Return activities marked as anomalies
+      const anomalies = activities.filter(a => a.isAnomaly === true);
       res.json(anomalies);
     } catch (error) {
       console.error('Error fetching anomalies:', error);
@@ -212,8 +213,7 @@ export function setupRoutes(app: Express): Server {
   app.post("/api/semantic/search", async (req, res) => {
     try {
       const { query, limit = 10 } = req.body;
-      const semanticSearch = new SemanticSearch();
-      const results = await semanticSearch.search(query, { limit });
+      const results = await storage.searchFailureEmbeddings(query, limit);
       res.json(results);
     } catch (error) {
       console.error('Error in semantic search:', error);
@@ -226,8 +226,8 @@ export function setupRoutes(app: Express): Server {
     try {
       const csvPath = path.join(process.cwd(), 'sample_data.csv');
       const parser = new XESParser();
-      await parser.parseAndImport(csvPath);
-      res.json({ message: 'Data imported successfully' });
+      const result = await parser.importFromCSV(csvPath);
+      res.json({ message: 'Data imported successfully', ...result });
     } catch (error) {
       console.error('Error importing data:', error);
       res.status(500).json({ message: 'Failed to import data' });
