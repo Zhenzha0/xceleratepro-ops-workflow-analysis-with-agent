@@ -1,301 +1,191 @@
-# ProcessGPT Local Deployment Checklist
+# Deployment Checklist
+## Local ProcessGPT with Phi-2 Integration
 
-## Pre-Deployment Requirements
+Use this checklist to verify successful local deployment of ProcessGPT with Phi-2 AI model.
+
+## Prerequisites Verification
 
 ### System Requirements
-- [ ] **Operating System**: Windows 10+, macOS 10.15+, or Linux Ubuntu 18+
-- [ ] **RAM**: Minimum 8GB (16GB recommended)
-- [ ] **Storage**: 15GB available disk space
-- [ ] **Internet**: Required for initial setup only
+- [ ] Node.js 18+ installed (`node --version`)
+- [ ] Python 3.8+ installed (`python --version`)
+- [ ] PostgreSQL available (Docker or local installation)
+- [ ] 8GB+ RAM available for AI model
+- [ ] 10GB+ free disk space
 
-### Software Installation
-- [ ] **Node.js 20+** installed and verified (`node --version`)
-- [ ] **Python 3.8+** installed (`python --version`)
-- [ ] **PostgreSQL 12+** installed and running
-- [ ] **Git** installed (`git --version`)
+### Files Required
+- [ ] Phi-2 model file: `phi-2-instruct-int4.task` (1.5-2GB)
+- [ ] ProcessGPT application files copied to local machine
+- [ ] Sample manufacturing data: `sample_data.csv`
 
-## Phase 1: Phi-2 Model Download
+## Installation Steps
 
-### MediaPipe AI Edge Setup
-- [ ] MediaPipe packages installed (`pip install mediapipe-model-maker ai-edge-torch`)
-- [ ] Models directory created (`mkdir -p models/phi2`)
-- [ ] **Phi-2 model downloaded** (1.5-2GB bundle): `phi-2-instruct-int4.task`
-- [ ] Model file verified and readable
-- [ ] Model loading tested successfully
+### 1. Dependencies
+- [ ] Node.js packages installed: `npm install`
+- [ ] Python packages installed: `pip install torch transformers mediapipe numpy accelerate`
+- [ ] All packages installed without errors
 
-### Model Verification Commands
-```bash
-# Verify model file
-ls -la models/phi2/phi-2-instruct-int4.task
-# Expected: ~1.5-2GB bundled file
+### 2. Database Setup
+- [ ] PostgreSQL running on port 5432
+- [ ] Database created: `processgpt`
+- [ ] User created: `processgpt` with password
+- [ ] Connection test successful
 
-# Test model loading
-python scripts/test_model_loading.py
-# Expected: "✓ Model loaded successfully!"
-```
+### 3. Environment Configuration
+- [ ] `.env` file created with correct DATABASE_URL
+- [ ] `USE_LOCAL_AI=true` set
+- [ ] `PHI2_MODEL_PATH` pointing to .task file
+- [ ] OpenAI API key as fallback (optional)
 
-## Phase 2: ProcessGPT Application Download
+### 4. Model Placement
+- [ ] Directory created: `models/phi2/`
+- [ ] Phi-2 .task file placed correctly
+- [ ] File size verification: 1.5-2GB
+- [ ] File permissions readable
 
-### Complete Application Download
-- [ ] **Full ProcessGPT project** downloaded from Replit
-- [ ] **All critical directories** present:
-  - [ ] `client/` (React frontend)
-  - [ ] `server/` (Express backend)
-  - [ ] `shared/` (Database schemas)
-  - [ ] `scripts/` (Utility scripts)
-- [ ] **Essential files** present:
-  - [ ] `sample_data.csv` (your manufacturing data)
-  - [ ] `package.json` (dependencies)
-  - [ ] `tsconfig.json` (TypeScript config)
-  - [ ] `vite.config.ts` (build config)
-
-### File Verification Commands
-```bash
-# Check directory structure
-ls -la
-# Expected: client/ server/ shared/ sample_data.csv package.json
-
-# Check analysis services
-ls server/services/
-# Expected: ai-analyst.ts failure-analyzer-enhanced.ts phi2-mediapipe-service.ts
-
-# Check sample data
-wc -l sample_data.csv
-# Expected: ~9472 lines (9471 events + header)
-```
-
-## Phase 3: Database Setup
-
-### PostgreSQL Configuration
-- [ ] PostgreSQL service running
-- [ ] ProcessGPT database created
-- [ ] Database user created with permissions
-- [ ] Connection tested successfully
-
-### Database Verification Commands
-```bash
-# Check PostgreSQL status
-sudo systemctl status postgresql    # Linux
-brew services list | grep postgresql # Mac
-
-# Test database connection
-psql -h localhost -U processgpt_user -d processgpt -c "SELECT version();"
-# Expected: PostgreSQL version information
-```
-
-## Phase 4: Environment Configuration
-
-### Environment Variables
-- [ ] `.env` file created in root directory
-- [ ] Database connection string configured
-- [ ] Phi-2 model path specified
-- [ ] AI service settings configured
-
-### Environment File Template
-```env
-# Database
-DATABASE_URL=postgresql://processgpt_user:your_password@localhost:5432/processgpt
-
-# AI Configuration
-USE_PHI2_MEDIAPIPE=true
-PHI2_MODEL_PATH=./models/phi2/phi-2-instruct-int4.tflite
-
-# Server
-NODE_ENV=development
-PORT=5000
-```
-
-## Phase 5: Dependencies Installation
-
-### Node.js Packages
-- [ ] Core dependencies installed (`npm install`)
-- [ ] MediaPipe packages added (`npm install @mediapipe/tasks-genai`)
-- [ ] TypeScript support verified
-- [ ] No critical dependency errors
-
-### Installation Verification Commands
-```bash
-# Install dependencies
-npm install
-
-# Check for MediaPipe
-npm list @mediapipe/tasks-genai
-# Expected: @mediapipe/tasks-genai@x.x.x
-
-# Check for critical dependencies
-npm list react express drizzle-orm
-# Expected: All packages listed without errors
-```
-
-## Phase 6: Database Schema & Data Import
+## Database Initialization
 
 ### Schema Setup
-- [ ] Database schema pushed to PostgreSQL (`npm run db:push`)
-- [ ] All required tables created
-- [ ] Manufacturing data imported (`npm run import-data`)
-- [ ] Data verification completed
+- [ ] Run: `npm run db:push`
+- [ ] No errors in schema creation
+- [ ] All tables created successfully
 
-### Data Verification Commands
-```bash
-# Push schema
-npm run db:push
-# Expected: "✓ Schema pushed successfully"
+### Data Import
+- [ ] Run: `npm run import-data`
+- [ ] Manufacturing data imported
+- [ ] Verify: 301 process cases
+- [ ] Verify: 9,471 process events
+- [ ] Verify: 170 anomalies detected
 
-# Import data
-npm run import-data
-# Expected: "✓ 301 cases, 9471 events imported"
+## AI Model Testing
 
-# Verify data
-psql -h localhost -U processgpt_user -d processgpt -c "
-SELECT 
-  (SELECT COUNT(*) FROM process_cases) as cases,
-  (SELECT COUNT(*) FROM process_events) as events,
-  (SELECT COUNT(*) FROM process_activities) as activities;
-"
-# Expected: cases: 301, events: 9471, activities: 3157
-```
+### MediaPipe Installation
+- [ ] Run: `python -c "import mediapipe; print(mediapipe.__version__)"`
+- [ ] MediaPipe 0.10+ available
+- [ ] No import errors
 
-## Phase 7: Phi-2 Integration
+### Phi-2 Model Test
+- [ ] Run: `python scripts/test-phi2-task.py ./models/phi2/phi-2-instruct-int4.task`
+- [ ] Model file validation passed
+- [ ] MediaPipe integration working
+- [ ] Test inference successful
+- [ ] Response generated correctly
 
-### MediaPipe Service Configuration
-- [ ] Phi2MediaPipeService updated with real MediaPipe integration
-- [ ] Model path configured correctly
-- [ ] Service initialization tested
-- [ ] AI Service Factory configured to use Phi-2 by default
+## Application Startup
 
-### Integration Verification Commands
-```bash
-# Test Phi-2 connection
-npm run test-phi2
-# Expected: "✅ ALL TESTS PASSED! Phi-2 MediaPipe is ready"
+### Server Launch
+- [ ] Run: `npm run dev`
+- [ ] Server starts without errors
+- [ ] Database connection established
+- [ ] Application available at `http://localhost:5000`
 
-# Check service configuration
-grep -n "usePhi2MediaPipe = true" server/services/ai-service-factory.ts
-# Expected: Line showing Phi-2 enabled by default
-```
+### Interface Verification
+- [ ] Dashboard loads with manufacturing data
+- [ ] All tabs accessible (Process Maps, Anomalies, etc.)
+- [ ] ProcessGPT tab available
+- [ ] No console errors in browser
 
-## Phase 8: System Launch
+## Local AI Integration
 
-### Application Startup
-- [ ] Development server starts without errors (`npm run dev`)
-- [ ] Phi-2 model initializes successfully
-- [ ] Database connections established
-- [ ] Frontend accessible at http://localhost:5173
-- [ ] Backend API responding at http://localhost:5000
+### Service Configuration
+- [ ] ProcessGPT interface shows AI service controls
+- [ ] "Use Phi-2 Local AI" button available
+- [ ] Click button to switch to local AI
+- [ ] Status shows: "Phi-2 (Microsoft) - Local Integration"
 
-### Launch Verification Commands
-```bash
-# Start application
-npm run dev
-# Expected output:
-# ✓ Phi-2 MediaPipe initialized successfully
-# [express] serving on port 5000
+### AI Functionality Test
+- [ ] Ask test question: "What is the failure rate?"
+- [ ] Response generated using local AI
+- [ ] No external API calls made
+- [ ] Analysis uses real manufacturing data
+- [ ] Visualization charts generated
 
-# Test API health
-curl http://localhost:5000/api/health
-# Expected: {"status":"healthy","dataImported":true}
+## Manufacturing Analytics Verification
 
-# Test frontend
-curl http://localhost:5173
-# Expected: HTML content returned
-```
+### Core Analysis Functions
+- [ ] Failure analysis working
+- [ ] Anomaly detection functional  
+- [ ] Temporal pattern analysis operational
+- [ ] Bottleneck analysis accurate
+- [ ] Case comparison available
 
-## Phase 9: Functionality Testing
+### Data Processing
+- [ ] All 25+ ProcessGPT question types working
+- [ ] Real database queries executed
+- [ ] Authentic manufacturing insights generated
+- [ ] No synthetic/mock data used
 
-### Core Features Testing
-- [ ] **Dashboard**: Shows 301 cases, 342 anomalies, correct metrics
-- [ ] **Process Maps**: Displays manufacturing stations and workflows
-- [ ] **Anomaly Detection**: Shows detected anomalies with details
-- [ ] **Timeline Analysis**: Renders time-based charts correctly
-- [ ] **Case Comparison**: Compares workflow instances properly
+## Performance Verification
 
-### ProcessGPT AI Testing
-- [ ] **AI Assistant tab** accessible
-- [ ] **"Use Phi-2 Edge" button** works
-- [ ] **AI responses** generated from Phi-2 model
-- [ ] **Analysis accuracy** maintained (real manufacturing insights)
-- [ ] **Automatic visualizations** generated correctly
+### System Resources
+- [ ] Memory usage: 4-8GB (acceptable)
+- [ ] CPU usage reasonable during queries
+- [ ] Disk space sufficient
+- [ ] Response times: 3-10 seconds per query
 
-### AI Testing Commands
-```bash
-# Test AI endpoint
-curl -X POST http://localhost:5000/api/ai/analyze \
-  -H "Content-Type: application/json" \
-  -d '{"query":"What are the main failure patterns?","sessionId":"test"}'
-# Expected: Detailed analysis response from Phi-2
+### Reliability
+- [ ] Multiple queries handled successfully
+- [ ] No memory leaks detected
+- [ ] AI service remains stable
+- [ ] Database connections maintained
 
-# Switch to Phi-2
-curl -X POST http://localhost:5000/api/ai/switch-to-phi2-mediapipe
-# Expected: {"success":true,"service":"phi2-mediapipe"}
-```
+## Privacy Verification
 
-## Phase 10: Performance & Privacy Verification
+### Local Operation
+- [ ] No external API calls to OpenAI/Google
+- [ ] All AI processing on local machine  
+- [ ] Manufacturing data stays local
+- [ ] Network activity only local (localhost)
+- [ ] Full offline operation capability
 
-### Performance Metrics
-- [ ] **Response time**: AI responses under 2 seconds
-- [ ] **Memory usage**: System under 6GB RAM
-- [ ] **CPU usage**: Stable during normal operation
-- [ ] **Disk usage**: Reasonable storage consumption
+### Data Security
+- [ ] Database credentials secure
+- [ ] Model files protected
+- [ ] No data transmitted externally
+- [ ] Local file permissions appropriate
 
-### Privacy Confirmation
-- [ ] **No external API calls** (network monitoring confirmed)
-- [ ] **Offline operation** tested and verified
-- [ ] **Data remains local** (no cloud uploads)
-- [ ] **Complete privacy** achieved
+## Success Criteria
 
-### Performance Testing Commands
-```bash
-# Monitor memory usage
-htop
-# Expected: ProcessGPT using 4-6GB total
+### Core Requirements Met
+- [ ] ProcessGPT fully operational locally
+- [ ] Phi-2 AI model integrated successfully
+- [ ] All manufacturing analytics preserved
+- [ ] Complete data privacy achieved
+- [ ] No dependency on external AI services
 
-# Test offline operation
-# Disconnect internet, verify ProcessGPT still works
+### User Experience
+- [ ] Interface responsive and functional
+- [ ] AI responses accurate and relevant
+- [ ] Manufacturing insights actionable
+- [ ] System performs as expected
+- [ ] Documentation complete and clear
 
-# Check for external calls
-netstat -an | grep ESTABLISHED
-# Expected: Only local connections (localhost, 127.0.0.1)
-```
+## Troubleshooting Reference
 
-## Final Success Criteria
+### Common Issues
+- [ ] Database connection problems → Check PostgreSQL status
+- [ ] Phi-2 model errors → Verify .task file integrity
+- [ ] Memory issues → Monitor RAM usage, adjust swap
+- [ ] Import errors → Check Python package versions
+- [ ] Performance issues → Verify system resources
 
-### ✅ Complete System Verification
-- [ ] **Phi-2 model** loaded and responding correctly
-- [ ] **Manufacturing data** imported and analyzed accurately
-- [ ] **All dashboard features** working with real data
-- [ ] **ProcessGPT chat** using local Phi-2 for responses
-- [ ] **Complete privacy** ensured (no external connections)
-- [ ] **Offline capability** confirmed
-- [ ] **Performance** acceptable (responses < 2 seconds)
+### Support Resources
+- [ ] Log files reviewed for errors
+- [ ] Test scripts executed successfully
+- [ ] Documentation consulted
+- [ ] System requirements verified
 
-### ✅ User Experience Confirmation
-- [ ] Dashboard loads quickly and shows correct metrics
-- [ ] All analysis tabs function properly
-- [ ] ProcessGPT provides intelligent manufacturing insights
-- [ ] Visualizations render correctly
-- [ ] System remains responsive during use
+---
 
-## Troubleshooting Quick Reference
+## Final Verification
 
-### Common Issues & Solutions
-1. **Model not loading**: Check file path and permissions
-2. **Database connection failed**: Verify PostgreSQL running and credentials
-3. **Out of memory**: Use int8 model variant or increase system RAM
-4. **Slow responses**: Check CPU usage and consider model optimization
-5. **Missing data**: Re-run import script and verify CSV file
+**System Status:** [ ] All checks passed, ProcessGPT ready for production use
 
-### Emergency Fallback
-If Phi-2 fails, ProcessGPT automatically falls back to OpenAI while maintaining all analysis capabilities with your authentic manufacturing data.
+**Date Completed:** ___________
 
-## Success Confirmation
+**Notes:** 
+- Performance characteristics documented
+- Any issues resolved and noted
+- User trained on local operation
+- Backup procedures established
 
-When all checkboxes are complete, you have successfully deployed ProcessGPT locally with Phi-2 integration, achieving:
-
-🎯 **Complete Data Privacy** - All processing happens on your machine  
-🎯 **Offline Operation** - No internet dependency after setup  
-🎯 **Full Functionality** - All 25+ analysis types working  
-🎯 **Real Data Analysis** - Authentic manufacturing insights  
-🎯 **Professional Interface** - Complete dashboard and AI assistant  
-🎯 **Local AI Intelligence** - Phi-2 providing smart responses  
-
-Your ProcessGPT system is now ready for production use with complete privacy and control!
+Your ProcessGPT installation is now complete with full local AI integration and manufacturing analytics capabilities!
