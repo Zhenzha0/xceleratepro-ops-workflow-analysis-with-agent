@@ -585,6 +585,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Gemma-2B-IT MediaPipe Local AI Routes
+  app.post("/api/ai/switch-to-gemma-mediapipe", async (req, res) => {
+    try {
+      AIServiceFactory.enableGemmaMediaPipe();
+      
+      res.json({
+        status: 'success',
+        message: 'Switched to Gemma-2B-IT Local AI',
+        service: 'Gemma-2B-IT MediaPipe (Local)',
+        modelInfo: 'Gemma-2B-IT (Google) - Local MediaPipe Integration'
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        status: 'error',
+        error: error.message
+      });
+    }
+  });
+
+  // Test Gemma-2B-IT MediaPipe connection
+  app.get("/api/ai/test-gemma-mediapipe", async (req, res) => {
+    try {
+      const isConnected = await AIServiceFactory.testGemmaMediaPipeConnection();
+      
+      res.json({
+        connected: isConnected,
+        service: 'gemma-mediapipe',
+        model: 'Gemma-2B-IT (Google) - Local MediaPipe Integration'
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        connected: false,
+        error: error.message
+      });
+    }
+  });
+
   // Android Emulator AI Routes
   app.post("/api/ai/switch-to-android-emulator", async (req, res) => {
     try {
