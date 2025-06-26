@@ -232,7 +232,7 @@ export function setupRoutes(app: Express): Server {
       await db.delete(processCases);
       console.log('Existing data cleared');
       
-      const sampleDataPath = path.join(process.cwd(), 'attached_assets', 'sample_data_1750608906974.csv');
+      const sampleDataPath = path.join(process.cwd(), 'sample_data.csv');
       const { events, activities, cases } = await XESParser.parseXESFromCSV(sampleDataPath);
       
       console.log(`Parsed ${events.length} events, ${activities.length} activities, ${cases.length} cases from your manufacturing data`);
