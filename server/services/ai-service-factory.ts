@@ -1,13 +1,13 @@
 import { AIAnalysisRequest, AIAnalysisResponse } from './ai-analyst';
 import { Gemma2Service } from './gemma2-service';
-import { phi2MediaPipeService } from './phi2-mediapipe-service';
+import { gemmaMediaPipeService } from './gemma-mediapipe-service';
 
 /**
  * Factory to choose between multiple AI services
  */
 export class AIServiceFactory {
   private static useGemma2 = false; // Default to OpenAI since Gemma 2B requires local connection
-  private static usePhi2MediaPipe = false; // Phi-2 MediaPipe integration
+  private static useGemmaMediaPipe = false; // Gemma-2B-IT MediaPipe integration
   private static gemma2Service = new Gemma2Service();
   
   /**
@@ -15,10 +15,10 @@ export class AIServiceFactory {
    */
   static async analyzeQuery(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
     try {
-      // Check for Phi-2 MediaPipe first
-      if (this.usePhi2MediaPipe) {
-        console.log('Using Phi-2 MediaPipe AI Edge for analysis...');
-        return await phi2MediaPipeService.analyzeQuery(request);
+      // Check for Gemma-2B-IT MediaPipe first
+      if (this.useGemmaMediaPipe) {
+        console.log('Using Gemma-2B-IT MediaPipe AI Edge for analysis...');
+        return await gemmaMediaPipeService.analyzeQuery(request);
       }
       // Check for Gemma 2B local model
       else if (this.useGemma2) {
@@ -33,10 +33,10 @@ export class AIServiceFactory {
     } catch (error) {
       console.error('AI service error:', error);
       
-      // Fallback chain: Phi-2 → Gemma 2B → ProcessGPT
-      if (this.usePhi2MediaPipe) {
-        console.log('Phi-2 MediaPipe failed, falling back to ProcessGPT...');
-        this.usePhi2MediaPipe = false;
+      // Fallback chain: Gemma-2B-IT MediaPipe → Gemma 2B → ProcessGPT
+      if (this.useGemmaMediaPipe) {
+        console.log('Gemma-2B-IT MediaPipe failed, falling back to ProcessGPT...');
+        this.useGemmaMediaPipe = false;
         const { AIAnalyst } = await import('./ai-analyst');
         return await AIAnalyst.analyzeQuery(request);
       } else if (this.useGemma2) {
