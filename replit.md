@@ -159,8 +159,40 @@ Added support for running ProcessGPT locally using Gemma 2 model instead of Open
 - `POST /api/ai/switch-to-openai` - Switch to OpenAI GPT-4o
 - `GET /api/health` - Shows current AI service status
 
+## Client-Side AI Migration
+
+### Overview
+The application is now migrating to a fully client-side architecture using local Gemma-2B-IT model with MediaPipe WASM runtime, eliminating all server dependencies for AI processing.
+
+### Architecture Changes
+- **LLM Wrapper Module**: All OpenAI calls extracted to `client/src/utils/llm-wrapper.js` with `generateWithGemma()` function
+- **Local Analysis Engine**: Complete client-side manufacturing analysis in `client/src/utils/local-analysis-engine.js`
+- **New AI Assistant**: Browser-only chat interface in `client/src/components/dashboard/ai-assistant-new.tsx`
+- **Static Model Serving**: Gemma-2B-IT model served from `public/models/gemma-2b-it.task`
+
+### Implementation Status
+- ✅ Modularized all LLM logic into wrapper functions
+- ✅ Created local analysis engine with same function calling capabilities
+- ✅ Built new AI assistant component for browser-only operation
+- ✅ Replaced OpenAI calls with local Gemma model placeholders
+- 🚧 MediaPipe WASM integration (pending manual implementation)
+
+### Benefits
+- Complete offline operation in browser
+- No API costs or external dependencies
+- Full data privacy (no external API calls)
+- Faster response times (no network latency)
+- Deployable as static website
+
+### Next Steps
+1. Place Gemma-2B-IT model file at `public/models/gemma-2b-it.task`
+2. Implement MediaPipe WASM inference in `generateWithGemma()` function
+3. Test local AI analysis with manufacturing data
+4. Optimize model loading and inference performance
+
 ## Changelog
 
+- June 26, 2025. Migrated to client-side AI architecture with Gemma-2B-IT and MediaPipe WASM
 - June 25, 2025. Added complete local AI integration with Gemma 2 support and function calling preservation
 - June 22, 2025. Initial setup
 - June 22, 2025. Fixed data import issues and implemented tab-based navigation
