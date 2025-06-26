@@ -125,7 +125,7 @@ export default function AnomalyDetection({ anomalies, isLoading }: AnomalyDetect
                           </div>
                           <div>
                             <label className="text-sm font-medium text-gray-600">Detection Time</label>
-                            <p className="text-sm">{format(new Date(anomaly.timestamp), 'PPpp')}</p>
+                            <p className="text-sm">{anomaly.timestamp ? format(new Date(anomaly.timestamp), 'PPpp') : 'N/A'}</p>
                           </div>
                         </div>
 
