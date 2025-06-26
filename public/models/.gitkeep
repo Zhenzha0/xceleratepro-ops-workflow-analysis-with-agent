@@ -1,5 +1,0 @@
-# Model files directory
-# Place your Gemma-2B-IT model file here:
-# - gemma-2b-it.task
-
-# This directory is served statically at /models/

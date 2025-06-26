@@ -6,7 +6,7 @@ import KeyMetrics from "@/components/dashboard/key-metrics";
 import VisualizationTabs from "@/components/dashboard/visualization-tabs";
 import AnomalyDetection from "@/components/dashboard/anomaly-detection";
 import CaseComparison from "@/components/dashboard/case-comparison";
-import AIAssistantNew from "@/components/dashboard/ai-assistant-new";
+import AIAssistant from "@/components/dashboard/ai-assistant";
 import CaseClustering from "@/components/dashboard/case-clustering";
 
 import { useDashboardData } from "@/hooks/use-dashboard-data";
@@ -142,7 +142,7 @@ export default function Dashboard() {
                 <div className="bg-white rounded-lg shadow p-6">
                   <h2 className="text-2xl font-bold mb-4">AI Process Analyst</h2>
                   <p className="text-gray-600 mb-4">Ask questions about your manufacturing processes in plain English.</p>
-                  <AIAssistantNew />
+                  <AIAssistant />
                 </div>
               )}
             </div>
@@ -150,7 +150,7 @@ export default function Dashboard() {
             {/* AI Assistant Panel - only show when on dashboard */}
             {activeTab === 'dashboard' && (
               <div className="w-96">
-                <AIAssistantNew />
+                <AIAssistant appliedFilters={appliedFilters} />
               </div>
             )}
           </div>
