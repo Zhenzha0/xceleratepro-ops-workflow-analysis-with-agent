@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    "ms-python.python",
+    "ms-vscode.vscode-typescript-next",
+    "rangav.vscode-thunder-client",
+    "eamodio.gitlens",
+    "ms-azuretools.vscode-docker",
+    "esbenp.prettier-vscode"
+  ]
+}
