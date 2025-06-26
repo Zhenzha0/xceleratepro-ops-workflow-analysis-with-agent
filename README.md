@@ -1,62 +1,138 @@
-# ProcessGPT - AI-Powered Manufacturing Analytics Platform
+# ProcessGPT - Local AI Manufacturing Analytics
 
-## Overview
+Complete process mining and workflow analytics platform with local Gemma-2B-IT integration for manufacturing data analysis.
 
-ProcessGPT is a comprehensive process mining and workflow analytics platform designed specifically for manufacturing environments. It combines real-time data processing with AI-powered insights to help optimize manufacturing workflows, detect anomalies, and improve operational efficiency.
+## Features
 
-## Key Features
+- **Manufacturing Analytics Dashboard** with 301 real cases and 9,471 events
+- **ProcessGPT AI Assistant** with 25+ analysis capabilities
+- **Local AI Integration** using Gemma-2B-IT model for complete data privacy
+- **Real-time Visualizations** with authentic manufacturing data
+- **Anomaly Detection** with 170+ detected manufacturing anomalies
+- **Case Comparison & Clustering** for workflow optimization
+- **Failure Analysis** with root cause identification
 
-- **Real-time Analytics**: Live metrics and KPI tracking
-- **AI-Powered Insights**: ProcessGPT assistant for natural language queries
-- **Anomaly Detection**: Automatic identification of process deviations
-- **Process Visualization**: Interactive Sankey diagrams and process maps
-- **Case Comparison**: Side-by-side analysis of workflow instances
-- **Complete Data Privacy**: Local AI deployment options available
+## Quick Start
 
-## Current Deployment Options
+### Prerequisites
+- Node.js 18+ or 20+ LTS
+- Python 3.9 (recommended for MediaPipe compatibility)
+- Docker Desktop
+- 8GB RAM minimum
+- 10GB free disk space
 
-### Cloud Deployment (Current)
-- Running on Replit with OpenAI integration
-- Real-time dashboard with 301 manufacturing cases
-- 25+ AI analysis capabilities for manufacturing insights
+### Installation
 
-### Local Deployment with Phi-2 AI
-For complete data privacy and offline operation, follow these guides:
+1. **Clone Repository**
+```bash
+git clone https://github.com/YOUR_USERNAME/processgpt-local.git
+cd processgpt-local
+```
 
-1. **[PHI2_DOWNLOAD_GUIDE.md](PHI2_DOWNLOAD_GUIDE.md)** - Download Phi-2 model from MediaPipe AI Edge
-2. **[COMPLETE_LOCAL_DEPLOYMENT.md](COMPLETE_LOCAL_DEPLOYMENT.md)** - Deploy entire ProcessGPT locally
-3. **[DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md)** - Verification checklist for successful setup
+2. **Install Dependencies**
+```bash
+# Node.js packages
+npm install
 
-## Architecture
+# Python AI packages
+pip install torch>=2.0.0 transformers>=4.35.0 mediapipe>=0.10.0 numpy accelerate
+```
 
-- **Frontend**: React 18 with TypeScript, Vite, shadcn/ui components
-- **Backend**: Node.js with Express, TypeScript, Drizzle ORM
-- **Database**: PostgreSQL with manufacturing process data
-- **AI Services**: OpenAI GPT-4o (cloud) or Phi-2 MediaPipe (local)
+3. **Setup Database**
+```bash
+docker run --name processgpt-db \
+  -e POSTGRES_DB=processgpt \
+  -e POSTGRES_USER=processgpt \
+  -e POSTGRES_PASSWORD=processgpt123 \
+  -p 5432:5432 \
+  -d postgres:16
+```
 
-## Manufacturing Data Analysis
+4. **Environment Configuration**
+```bash
+cp .env.example .env
+# Edit .env with your settings
+```
 
-ProcessGPT analyzes real manufacturing data including:
-- 301 complete workflow cases
-- 9,471 individual process events  
-- 342 detected anomalies
-- Equipment performance metrics
-- Failure pattern analysis
-- Root cause investigations
+5. **Download Gemma-2B-IT Model**
+- Visit [AI Edge Model Garden](https://ai.google.dev/edge/models)
+- Download "Gemma 2B IT" model (quantized 4-bit, ~3.1GB)
+- Place as `models/gemma/gemma-2b-it.task`
 
-## Getting Started
+6. **Initialize Database**
+```bash
+npm run db:push
+npm run import-data
+```
 
-### Quick Start (Cloud)
-The application is currently running and accessible through the Replit interface.
+7. **Start Application**
+```bash
+npm run dev
+```
 
-### Local Installation
-Follow the guides in order:
-1. Download Phi-2 model (1.5-2GB .task bundle)
-2. Set up local PostgreSQL database
-3. Deploy ProcessGPT application
-4. Import manufacturing data
-5. Configure Phi-2 integration
+Open http://localhost:5000 to access ProcessGPT.
+
+## Local AI Setup
+
+The application includes complete local AI integration:
+
+- **Gemma-2B-IT**: Google's lightweight model for edge deployment
+- **Complete Privacy**: No external API calls when using local mode
+- **Fallback Support**: Automatic OpenAI fallback if local AI fails
+- **Performance**: 2-5 second response times with local model
+
+## Project Structure
+
+```
+processgpt-local/
+├── client/           # React frontend
+├── server/           # Express backend
+├── shared/           # TypeScript schemas
+├── scripts/          # Setup and utility scripts
+├── models/           # AI model storage
+├── docs/             # Documentation
+├── sample_data.csv   # Manufacturing dataset
+└── README.md         # This file
+```
+
+## Manufacturing Data
+
+Includes authentic manufacturing dataset:
+- **301 Manufacturing Cases** from 2021
+- **9,471 Process Events** with timestamps
+- **170+ Anomalies** detected and classified
+- **Real Failure Descriptions** with root cause analysis
+
+## ProcessGPT Capabilities
+
+Ask natural language questions about your manufacturing data:
+
+- "What is our failure rate?"
+- "Which activity fails most often?"
+- "Show me anomaly patterns"
+- "What causes delays in our process?"
+- "Compare case WF_102_0 with WF_103_1"
+
+## Development
+
+Built with modern technologies:
+- **Frontend**: React 18, TypeScript, Tailwind CSS
+- **Backend**: Node.js, Express, Drizzle ORM
+- **Database**: PostgreSQL with authentic manufacturing data
+- **AI**: Local Gemma-2B-IT via MediaPipe Python bridge
+- **Visualization**: Recharts, D3.js, Plotly.js
+
+## Documentation
+
+- [Complete Deployment Guide](GITHUB_DEPLOYMENT_GUIDE.md)
+- [Gemma Model Download Guide](GEMMA_2B_IT_DOWNLOAD_GUIDE.md) 
+- [Technical Review](COMPREHENSIVE_TECHNICAL_REVIEW.md)
+- [Deployment Summary](DEPLOYMENT_SUMMARY.md)
+
+## License
+
+MIT License - see LICENSE file for details.
 
 ## Support
 
-All deployment guides include comprehensive troubleshooting sections and step-by-step verification commands to ensure successful setup.
+For issues or questions, please check the troubleshooting sections in the deployment guides or create an issue in this repository.

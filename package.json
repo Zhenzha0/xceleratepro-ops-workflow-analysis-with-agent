@@ -8,7 +8,12 @@
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "setup": "python scripts/create-models-directory.py",
+    "test-db": "node -e \"console.log('Testing database connection...')\"",
+    "test-gemma": "python scripts/test-gemma-connection.py",
+    "import-data": "tsx scripts/import-sample-data.ts",
+    "health-check": "curl http://localhost:5000/api/health"
   },
   "dependencies": {
     "@google/genai": "^1.6.0",
