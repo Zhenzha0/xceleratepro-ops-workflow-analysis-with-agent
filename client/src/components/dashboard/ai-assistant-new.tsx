@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts';
-import { analyzeQueryLocal } from '@/utils/local-analysis-engine';
-import { initializeGemmaModel, isModelReady, getModelStatus } from '@/utils/llm-wrapper';
+import { analyzeQueryLocal } from '@/utils/local-analysis-engine.js';
+import { initializeGemmaModel, isModelReady, getModelStatus } from '@/utils/llm-wrapper.js';
 
 interface Message {
   id: string;
@@ -109,13 +109,13 @@ export default function AIAssistantNew() {
         }, 500);
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Analysis failed:', error);
       
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
-        content: `❌ **Analysis Error**: ${error.message}\n\nPlease ensure the Gemma model is properly loaded and try again.`,
+        content: `❌ **Analysis Error**: ${error?.message || 'Unknown error'}\n\nPlease ensure the Gemma model is properly loaded and try again.`,
         timestamp: new Date()
       };
 

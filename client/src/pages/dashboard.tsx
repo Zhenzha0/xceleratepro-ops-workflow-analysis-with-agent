@@ -6,7 +6,7 @@ import KeyMetrics from "@/components/dashboard/key-metrics";
 import VisualizationTabs from "@/components/dashboard/visualization-tabs";
 import AnomalyDetection from "@/components/dashboard/anomaly-detection";
 import CaseComparison from "@/components/dashboard/case-comparison";
-import AIAssistant from "@/components/dashboard/ai-assistant";
+import AIAssistantNew from "@/components/dashboard/ai-assistant-new";
 import CaseClustering from "@/components/dashboard/case-clustering";
 
 import { useDashboardData } from "@/hooks/use-dashboard-data";
