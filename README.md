@@ -100,20 +100,19 @@ The dataset was created using the DataStream/SensorStream XES extension and repr
 
 5. **AI Model Setup (Optional - for Local AI)**
 
-   For local AI capabilities with ProcessGPT, you can download and set up local models:
+   For local AI capabilities with ProcessGPT, download the pre-converted Gemma3-1B model:
 
    ```bash
    # Create models directory
    mkdir -p public/models
 
-   # Download Gemma 3 1B model (recommended for local processing)
-   # Option 1: Download from Hugging Face
-   # Visit: https://huggingface.co/google/gemma-1.1-7b-it-gguf
-   # Download the .gguf or .task file to public/models/
+   # Download Gemma3-1B-IT model directly from Hugging Face
+   # Visit: https://huggingface.co/litert-community/Gemma3-1B-IT/tree/main
+   # Download gemma3-1b-it-int4.task (~555MB) to public/models/
 
-   # Option 2: Download compatible models
-   # - Gemma 3 1B Instruct (.task format)
-   # - Other compatible task-based models
+   # Or use command line (requires accepting license on HuggingFace first):
+   wget -O public/models/gemma3-1b-it-int4.task \
+     "https://huggingface.co/litert-community/Gemma3-1B-IT/resolve/main/gemma3-1b-it-int4.task"
    ```
 
    **Supported Model Formats:**
@@ -1191,107 +1190,50 @@ AI_RATE_LIMIT=50
 LOG_LEVEL=info
 ```
 
-### Step 3: Gemma-3-1B Model Integration Guide
+### Step 3: Gemma3-1B-IT Model Download
 
-#### Download from Hugging Face
+#### Simple Download from Hugging Face
 
-**Option 1: Using Git LFS (Recommended)**
+**Direct Download (Recommended)**
+
+The model is pre-converted and ready to use from the LiteRT Community repository:
 
 ```bash
-# Install Git LFS if not already installed
-git lfs install
-
 # Create models directory
 mkdir -p public/models
 cd public/models
 
-# Clone the model repository
-git clone https://huggingface.co/google/gemma-1.1-1b-it
+# Download the optimized int4 quantized model (~555MB)
+wget -O gemma3-1b-it-int4.task \
+  "https://huggingface.co/litert-community/Gemma3-1B-IT/resolve/main/gemma3-1b-it-int4.task"
 
-# The model files will be in gemma-1.1-1b-it/ directory
+# Alternative: download using curl
+curl -L -o gemma3-1b-it-int4.task \
+  "https://huggingface.co/litert-community/Gemma3-1B-IT/resolve/main/gemma3-1b-it-int4.task"
 ```
 
-**Option 2: Manual Download**
+**Manual Download**
 
-1. Visit: https://huggingface.co/google/gemma-1.1-1b-it/tree/main
-2. Download these files to `public/models/`:
-   - `model.safetensors` (main model weights)
-   - `tokenizer.json` (tokenizer configuration)
-   - `config.json` (model configuration)
+1. Visit: [https://huggingface.co/litert-community/Gemma3-1B-IT/tree/main](https://huggingface.co/litert-community/Gemma3-1B-IT/tree/main)
+2. Accept the Gemma license terms if prompted
+3. Download `gemma3-1b-it-int4.task` (555MB) directly to your `public/models/` directory
 
-#### Convert to MediaPipe .task Format
+**Alternative Model Sizes (from the same repository):**
 
-**Install MediaPipe Converter:**
-
-```bash
-# Install Python and pip if not available
-# Windows
-winget install Python.Python.3.11
-
-# Install MediaPipe model converter
-pip install mediapipe-model-maker
-
-# Install additional dependencies
-pip install tensorflow torch transformers
-```
-
-**Convert Model to .task Format:**
-
-```python
-# Create convert_model.py
-cat > convert_model.py << 'EOF'
-import mediapipe as mp
-from mediapipe.tasks.python import genai
-
-def convert_gemma_to_task():
-    # Configure conversion parameters
-    model_path = "./public/models/gemma-1.1-1b-it/"
-    output_path = "./public/models/gemma3-1b-it.task"
-
-    # Create converter
-    converter = genai.LlmConverter(
-        model_path=model_path,
-        output_path=output_path,
-        model_type="gemma",
-        max_tokens=2048,
-        vocab_size=256000
-    )
-
-    # Perform conversion
-    print("Converting Gemma model to .task format...")
-    converter.convert()
-    print(f"✅ Model converted successfully: {output_path}")
-
-if __name__ == "__main__":
-    convert_gemma_to_task()
-EOF
-
-# Run the conversion
-python convert_model.py
-```
-
-**Alternative: Pre-converted Models**
-
-```bash
-# Download pre-converted .task file (if available)
-cd public/models
-wget https://storage.googleapis.com/mediapipe-models/gemma-1.1-1b-it.task
-
-# Or use curl
-curl -L -o gemma3-1b-it.task https://storage.googleapis.com/mediapipe-models/gemma-1.1-1b-it.task
-```
+- `gemma3-1b-it-int4.task` - 555MB (recommended, good balance of size/quality)
+- `gemma3-1b-it-int8-web.task` - 1.01GB (higher quality, larger size)
+- `Gemma3-1B-IT_seq128_q4_block128_ekv1280.task` - 676MB (alternative optimization)
 
 #### Verify Model Installation
 
 ```bash
-# Check model file size (should be ~700MB)
-ls -lh public/models/
+# Check model file exists and size
+ls -lh public/models/gemma3-1b-it-int4.task
 
 # Expected output:
-# gemma3-1b-it.task  (~700MB)
+# -rw-r--r-- 1 user user 555M date time gemma3-1b-it-int4.task
 
-# Test model loading
-npm run test-model
+# The application will automatically detect the model on startup
 ```
 
 ### Step 4: Data Setup
