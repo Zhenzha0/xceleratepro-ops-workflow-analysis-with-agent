@@ -1,5 +1,5 @@
-import { Factory, BarChart3, AlertTriangle, Bot, Search, Clock, GitBranch, Filter, Download, Network } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AlertTriangle, BarChart3, Bot, Clock, Download, Factory, Filter, GitBranch, Network, Search } from "lucide-react";
 
 interface SidebarProps {
   activeTab: string;
@@ -32,7 +32,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
             <Factory className="text-white" size={20} />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">ProcessMiner</h1>
+            <h1 className="text-xl font-bold text-gray-900">Workflow Analyzer</h1>
             <p className="text-sm text-gray-500">Manufacturing Analytics</p>
           </div>
         </div>

@@ -1,14 +1,17 @@
-import { useState } from "react";
-import Sidebar from "@/components/dashboard/sidebar";
-import TopBar from "@/components/dashboard/top-bar";
+import AIAssistant from "@/components/dashboard/ai-assistant";
+import AnomalyDetection from "@/components/dashboard/anomaly-detection";
+import CaseClustering from "@/components/dashboard/case-clustering";
+import CaseComparison from "@/components/dashboard/case-comparison";
 import FilterSection from "@/components/dashboard/filter-section";
 import KeyMetrics from "@/components/dashboard/key-metrics";
+import SemanticSearch from "@/components/dashboard/semantic-search";
+import Sidebar from "@/components/dashboard/sidebar";
+import TimelineAnalysis from "@/components/dashboard/timeline-analysis";
+import TopBar from "@/components/dashboard/top-bar";
 import VisualizationTabs from "@/components/dashboard/visualization-tabs";
-import AnomalyDetection from "@/components/dashboard/anomaly-detection";
-import CaseComparison from "@/components/dashboard/case-comparison";
-import AIAssistant from "@/components/dashboard/ai-assistant";
-import CaseClustering from "@/components/dashboard/case-clustering";
+import { useState } from "react";
 
+import { AIServiceControls } from "@/components/ai-service-controls";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 
 export default function Dashboard() {
@@ -86,29 +89,16 @@ export default function Dashboard() {
               )}
               
               {activeTab === 'semantic-search' && (
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-2xl font-bold mb-4">Semantic Search</h2>
-                  <p className="text-gray-600 mb-4">Search through process failure descriptions and activities using natural language.</p>
-                  <div className="space-y-4">
-                    <input 
-                      type="text" 
-                      placeholder="Search for process issues, equipment failures, or activities..."
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                    <button className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
-                      Search Processes
-                    </button>
-                  </div>
-                </div>
+                <SemanticSearch />
               )}
               
               {activeTab === 'timeline-analysis' && (
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-2xl font-bold mb-4">Timeline Analysis</h2>
-                  <p className="text-gray-600 mb-4">Analyze process execution patterns over time.</p>
-                  <div className="h-64 bg-gray-100 rounded-lg flex items-center justify-center">
-                    <p className="text-gray-500">Timeline visualization will appear here</p>
+                <div className="space-y-6">
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <h2 className="text-2xl font-bold mb-4">Timeline Analysis</h2>
+                    <p className="text-gray-600 mb-4">Analyze process execution patterns over time.</p>
                   </div>
+                  <TimelineAnalysis filteredData={filteredData} />
                 </div>
               )}
               
@@ -140,8 +130,11 @@ export default function Dashboard() {
               
               {activeTab === 'ai-assistant' && (
                 <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-2xl font-bold mb-4">AI Process Analyst</h2>
+                  <h2 className="text-2xl font-bold mb-4">ProcessGPT</h2>
                   <p className="text-gray-600 mb-4">Ask questions about your manufacturing processes in plain English.</p>
+                  
+                  <AIServiceControls />
+                  
                   <AIAssistant />
                 </div>
               )}

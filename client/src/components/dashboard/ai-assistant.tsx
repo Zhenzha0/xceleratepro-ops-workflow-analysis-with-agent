@@ -1,11 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Bot, User, Send, Filter, TrendingUp, BarChart3, Maximize2 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { useMutation } from '@tanstack/react-query';
+import { BarChart3, Bot, Cloud, Cpu, Filter, Maximize2, Send, TrendingUp, User, Zap } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart as RechartsPieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 interface ChatMessage {
   id: string;
@@ -29,6 +29,12 @@ interface AIAssistantProps {
   appliedFilters?: any;
 }
 
+interface AIServiceStatus {
+  useLocalAI: boolean;
+  currentService: string;
+  localAIReady: boolean;
+}
+
 export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -43,6 +49,13 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
   const [insights, setInsights] = useState<Insight[]>([]);
   const [expandedInsight, setExpandedInsight] = useState<Insight | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  // Add state for AI service status
+  const [aiServiceStatus, setAiServiceStatus] = useState<AIServiceStatus>({
+    useLocalAI: false,
+    currentService: 'OpenAI GPT-4o',
+    localAIReady: false
+  });
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -227,8 +240,65 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
     }
   };
 
+  // Check if local AI is available
+  const getLocalAIService = () => {
+    return (window as any).localAIService;
+  };
+
+  // Local AI analysis function
+  const analyzeWithLocalAI = async (query: string, filters: any) => {
+    const localAI = getLocalAIService();
+    if (!localAI || !localAI.isReady) {
+      throw new Error('Local AI service not initialized');
+    }
+
+    const prompt = `You are ProcessGPT, an intelligent manufacturing process analyst.
+
+Query: "${query}"
+
+Applied Filters: ${JSON.stringify(filters, null, 2)}
+
+Please provide a comprehensive analysis that includes:
+1. **Executive Summary**: A brief overview of your findings
+2. **Key Metrics**: Relevant performance indicators and statistics  
+3. **Critical Issues**: Any problems or anomalies identified
+4. **Recommendations**: Specific, actionable suggestions for improvement
+
+Focus on practical insights for manufacturing optimization with specific data points when possible.`;
+
+    const response = await localAI.llmInference.generateResponse(prompt);
+    
+    return {
+      response,
+      queryType: 'general_analysis',
+      suggestedActions: ['Review findings', 'Implement recommendations', 'Monitor key metrics'],
+      data: {},
+      analysis_type: 'general_analysis'
+    };
+  };
+
   const analyzeMutation = useMutation({
     mutationFn: async ({ query, sessionId, filters }: { query: string; sessionId: string; filters: any }) => {
+      // Check AI service status first
+      try {
+        const statusResponse = await fetch('/api/ai/status');
+        const status = statusResponse.ok ? await statusResponse.json() : { useLocalAI: false };
+
+        if (status.useLocalAI) {
+          // Try local AI first
+          try {
+            console.log('Using local MediaPipe AI for analysis...');
+            return await analyzeWithLocalAI(query, filters);
+          } catch (error) {
+            console.warn('Local AI failed, falling back to server analysis:', error);
+            // Fall back to server-side analysis
+          }
+        }
+      } catch (error) {
+        console.warn('Could not check AI status, using server analysis:', error);
+      }
+
+      // Use server-side analysis (OpenAI or fallback)
       const response = await fetch('/api/ai/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -293,10 +363,80 @@ export default function AIAssistant({ appliedFilters }: AIAssistantProps) {
     setCurrentQuery('');
   };
 
+  // Fetch AI service status
+  const fetchAIServiceStatus = async () => {
+    try {
+      const response = await fetch('/api/ai/status');
+      if (response.ok) {
+        const data = await response.json();
+        setAiServiceStatus(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch AI service status:', error);
+    }
+  };
+
+  // Fetch status on component mount and periodically
+  useEffect(() => {
+    fetchAIServiceStatus();
+    const interval = setInterval(fetchAIServiceStatus, 10000); // Check every 10 seconds
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="flex h-full">
       {/* Chat Section */}
       <div className="flex-1 flex flex-col min-w-0">
+        {/* AI Service Status Indicator */}
+        <div className={`px-4 py-2 border-b border-gray-200 dark:border-gray-700 ${
+          aiServiceStatus.useLocalAI 
+            ? 'bg-green-50 dark:bg-green-900/20' 
+            : 'bg-blue-50 dark:bg-blue-900/20'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {aiServiceStatus.useLocalAI ? (
+                <>
+                  <Cpu className="h-4 w-4 text-green-600" />
+                  <span className="text-sm font-medium text-green-800 dark:text-green-300">
+                    🤖 Local AI Active
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Cloud className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-800 dark:text-blue-300">
+                    ☁️ OpenAI Active
+                  </span>
+                </>
+              )}
+              <Badge 
+                variant="secondary"
+                className={`text-xs ${
+                  aiServiceStatus.useLocalAI 
+                    ? 'bg-green-600 text-white' 
+                    : 'bg-blue-600 text-white'
+                }`}
+              >
+                {aiServiceStatus.useLocalAI ? 'OFFLINE' : 'ONLINE'}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              {aiServiceStatus.useLocalAI && (
+                <div className="flex items-center gap-1">
+                  <Zap className="h-3 w-3 text-green-600" />
+                  <span className="text-xs text-green-700 dark:text-green-400">
+                    Private & Fast
+                  </span>
+                </div>
+              )}
+              <div className={`w-2 h-2 rounded-full ${
+                aiServiceStatus.localAIReady ? 'bg-green-500' : 'bg-yellow-500'
+              }`}></div>
+            </div>
+          </div>
+        </div>
+        
         {/* Chat messages */}
         <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
           <div className="space-y-6">

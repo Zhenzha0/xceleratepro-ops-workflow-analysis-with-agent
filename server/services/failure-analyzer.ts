@@ -20,6 +20,65 @@ export interface FailureAnalysisResult {
 
 export class FailureAnalyzer {
   /**
+   * Categorize failure causes from failure event descriptions
+   */
+  static categorizeFailureCauses(failureEvents: any[]): Record<string, {
+    count: number;
+    cases: Set<string>;
+    equipment: Set<string>;
+    examples: string[];
+    avgProcessingTime: number;
+    activity: string;
+  }> {
+    const failureGroups: Record<string, {
+      count: number;
+      cases: Set<string>;
+      equipment: Set<string>;
+      examples: string[];
+      avgProcessingTime: number;
+      activity: string;
+    }> = {};
+
+    failureEvents.forEach(event => {
+      // Create a description based on activity and equipment
+      let description = `${event.activity}`;
+      if (event.orgResource) {
+        description += ` on ${event.orgResource}`;
+      }
+      
+      // Add failure reason if available
+      if (event.unsatisfiedConditionDescription) {
+        description += ` - ${event.unsatisfiedConditionDescription}`;
+      } else if (event.responseStatusCode) {
+        description += ` - HTTP ${event.responseStatusCode}`;
+      }
+      
+      if (!failureGroups[description]) {
+        failureGroups[description] = {
+          count: 0,
+          cases: new Set(),
+          equipment: new Set(),
+          examples: [],
+          avgProcessingTime: 0,
+          activity: event.activity
+        };
+      }
+      
+      failureGroups[description].count++;
+      failureGroups[description].cases.add(event.caseId);
+      if (event.orgResource) {
+        failureGroups[description].equipment.add(event.orgResource);
+      }
+      
+      if (failureGroups[description].examples.length < 3) {
+        failureGroups[description].examples.push(event.caseId);
+      }
+    });
+
+    return failureGroups;
+  }
+
+  /**
    * Analyze actual failure causes from unsatisfied_condition_description
    */
   static async analyzeFailureCauses(filters?: any): Promise<FailureAnalysisResult> {
@@ -44,53 +103,26 @@ export class FailureAnalyzer {
     console.log(`Found ${failureEvents.length} actual failure events out of ${events.length} total events`);
 
     // Analyze actual failure causes from descriptions
-    const failureCauses = FailureAnalyzer.categorizeFailureCauses(failureEvents);
-    
-    // Also get activity-based failures for context
-    const activityFailures: Record<string, {
-      count: number;
-      cases: Set<string>;
-      equipment: Set<string>;
-      examples: string[];
-      avgProcessingTime: number;
-      activity: string;
-    }> = {};
-
-    // Get all failure events for activity analysis
-    const allFailureEvents = events.filter(event => event.lifecycleState === 'failure');
-    
-    allFailureEvents.forEach(event => {
-      const key = `${event.activity} on ${event.orgResource || 'unknown equipment'}`;
-      
-      if (!activityFailures[key]) {
-        activityFailures[key] = {
-          count: 0,
-          cases: new Set(),
-          equipment: new Set(),
-          examples: [],
-          avgProcessingTime: 0,
-          activity: event.activity
-        };
-      }
-      
-      activityFailures[key].count++;
-      activityFailures[key].cases.add(event.caseId);
-      if (event.orgResource) {
-        activityFailures[key].equipment.add(event.orgResource);
-      }
-      
-      if (activityFailures[key].examples.length < 3) {
-        activityFailures[key].examples.push(event.caseId);
-      }
-    });
+    const failureGroups = FailureAnalyzer.categorizeFailureCauses(failureEvents);
 
     // Calculate average processing times for each failure group
     Object.keys(failureGroups).forEach(key => {
-      const relevantEvents = failureEvents.filter(e => 
-        `${e.activity} on ${e.orgResource || 'unknown equipment'}` === key
-      );
+      const relevantEvents = failureEvents.filter(e => {
+        let eventDescription = `${e.activity}`;
+        if (e.orgResource) {
+          eventDescription += ` on ${e.orgResource}`;
+        }
+        if (e.unsatisfiedConditionDescription) {
+          eventDescription += ` - ${e.unsatisfiedConditionDescription}`;
+        } else if (e.responseStatusCode) {
+          eventDescription += ` - HTTP ${e.responseStatusCode}`;
+        }
+        return eventDescription === key;
+      });
       const totalTime = relevantEvents.reduce((sum, e) => sum + (e.processingTimeS || 0), 0);
-      failureGroups[key].avgProcessingTime = totalTime / relevantEvents.length;
+      if (relevantEvents.length > 0) {
+        failureGroups[key].avgProcessingTime = totalTime / relevantEvents.length;
+      }
     });
 
     // Convert to FailurePattern array and sort by frequency

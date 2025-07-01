@@ -1,7 +1,7 @@
-import { Search, Bell, User } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Bell, Search, User } from "lucide-react";
 
 export default function TopBar() {
   return (
@@ -42,7 +42,7 @@ export default function TopBar() {
             <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
               <User className="text-white" size={16} />
             </div>
-            <span className="text-sm font-medium text-gray-700">Process Analyst</span>
+                          <span className="text-sm font-medium text-gray-700">ProcessGPT</span>
           </div>
         </div>
       </div>

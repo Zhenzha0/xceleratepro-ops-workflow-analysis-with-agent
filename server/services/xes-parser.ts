@@ -1,7 +1,7 @@
+import { InsertProcessActivity, InsertProcessCase, InsertProcessEvent } from '@shared/schema';
+import csv from 'csv-parser';
 import * as fs from 'fs';
 import * as path from 'path';
-import csv from 'csv-parser';
-import { InsertProcessEvent, InsertProcessActivity, InsertProcessCase } from '@shared/schema';
 
 export interface XESEvent {
   case_id: string;
@@ -108,7 +108,7 @@ export class XESParser {
           
           return {
             ...activity,
-            isAnomaly,
+            isAnomaly: isAnomaly ? 1 : 0,
             anomalyScore: Math.min(anomalyScore, 5.0) // Cap at 5.0 for extreme outliers
           };
         }
@@ -117,7 +117,7 @@ export class XESParser {
       // Return activity without anomaly flags if no threshold available
       return {
         ...activity,
-        isAnomaly: false,
+        isAnomaly: 0,
         anomalyScore: null
       };
     });
@@ -137,9 +137,9 @@ export class XESParser {
       fs.createReadStream(csvPath)
         .pipe(csv())
         .on('data', (eventData: any) => {
-          // Parse timestamps
-          const timestamp = new Date(eventData.timestamp);
-          const operationEndTime = eventData.operation_end_time ? new Date(eventData.operation_end_time) : null;
+          // Parse timestamps and convert to ISO strings for SQLite
+          const timestamp = new Date(eventData.timestamp).toISOString();
+          const operationEndTime = eventData.operation_end_time ? new Date(eventData.operation_end_time).toISOString() : null;
           
           // Calculate processing time if available
           let processingTimeS = 0;
@@ -147,7 +147,7 @@ export class XESParser {
             processingTimeS = this.parseTimeToSeconds(eventData.complete_service_time);
           }
 
-          // Create process event
+          // Create process event with string timestamps for SQLite
           const processEvent: InsertProcessEvent = {
             caseId: eventData.case_id,
             timestamp,
@@ -155,24 +155,22 @@ export class XESParser {
             lifecycleTransition: eventData['lifecycle:transition'],
             lifecycleState: eventData['lifecycle:state'],
             eventId: eventData.event_id && !isNaN(parseInt(eventData.event_id)) ? parseInt(eventData.event_id) : 0,
-            identifierId: eventData['identifier:id'],
-            processModelId: eventData.process_model_id,
+            identifierId: eventData['identifier:id'] || null,
+            processModelId: eventData.process_model_id || null,
             activity: eventData.activity,
-            requestedServiceUrl: eventData.requested_service_url,
-            orgResource: eventData['org:resource'],
-            plannedOperationTime: eventData.planned_operation_time,
-            parameters: eventData.parameters,
-            caseConceptName: eventData['case:concept:name'],
-            subProcessId: eventData.SubProcessID,
-            currentTask: eventData.current_task,
+            requestedServiceUrl: eventData.requested_service_url || null,
+            orgResource: eventData['org:resource'] || null,
+            plannedOperationTime: eventData.planned_operation_time || null,
+            parameters: eventData.parameters || null,
+            caseConceptName: eventData['case:concept:name'] || null,
+            subProcessId: eventData.SubProcessID || null,
+            currentTask: eventData.current_task || null,
             responseStatusCode: eventData.response_status_code && !isNaN(parseInt(eventData.response_status_code)) ? parseInt(eventData.response_status_code) : null,
-            completeServiceTime: eventData.complete_service_time,
-            humanWorkstationGreenButtonPressed: eventData.human_workstation_green_button_pressed === '1',
-            unsatisfiedConditionDescription: eventData.unsatisfied_condition_description,
+            completeServiceTime: eventData.complete_service_time || null,
+            humanWorkstationGreenButtonPressed: eventData.human_workstation_green_button_pressed === '1' ? 1 : 0,
+            unsatisfiedConditionDescription: eventData.unsatisfied_condition_description || null,
             processingTimeS: processingTimeS > 0 ? processingTimeS : null,
           };
-
-
 
           events.push(processEvent);
 
@@ -188,13 +186,13 @@ export class XESParser {
             activityMap.get(caseId)!.set(activityKey, {
               caseId,
               activity: eventData.activity,
-              orgResource: eventData['org:resource'],
+              orgResource: eventData['org:resource'] || null,
             });
           }
 
           const activity = activityMap.get(caseId)!.get(activityKey)!;
           
-          // Map lifecycle events to activity timestamps
+          // Map lifecycle events to activity timestamps (use ISO strings)
           switch (eventData['lifecycle:transition']) {
             case 'scheduled':
               activity.scheduledTime = timestamp;
@@ -224,7 +222,7 @@ export class XESParser {
           if (!caseMap.has(caseId)) {
             caseMap.set(caseId, {
               caseId,
-              processModelId: eventData.process_model_id,
+              processModelId: eventData.process_model_id || null,
               startTime: timestamp,
               status: 'inProgress',
               activityCount: 0,
@@ -251,16 +249,27 @@ export class XESParser {
             activityMap.forEach(caseActivities => {
               caseActivities.forEach(activity => {
                 if (activity.startTime && activity.completeTime && !activity.actualDurationS) {
-                  const duration = (activity.completeTime.getTime() - activity.startTime.getTime()) / 1000;
+                  const startMs = new Date(activity.startTime).getTime();
+                  const completeMs = new Date(activity.completeTime).getTime();
+                  const duration = (completeMs - startMs) / 1000;
                   activity.actualDurationS = isNaN(duration) ? null : duration;
                 }
                 
-                // Sanitize all numeric fields to prevent NaN values
+                // Sanitize all fields for SQLite
                 const sanitizedActivity = {
-                  ...activity,
+                  caseId: activity.caseId || '',
+                  activity: activity.activity || '',
+                  orgResource: activity.orgResource || null,
+                  scheduledTime: activity.scheduledTime || null,
+                  startTime: activity.startTime || null,
+                  completeTime: activity.completeTime || null,
                   plannedDurationS: activity.plannedDurationS && !isNaN(activity.plannedDurationS) ? activity.plannedDurationS : null,
                   actualDurationS: activity.actualDurationS && !isNaN(activity.actualDurationS) ? activity.actualDurationS : null,
+                  status: activity.status || 'unknown',
+                  isAnomaly: activity.isAnomaly ? 1 : 0,
                   anomalyScore: activity.anomalyScore && !isNaN(activity.anomalyScore) ? activity.anomalyScore : null,
+                  failureDescription: activity.failureDescription || null,
+                  currentTask: activity.currentTask || null,
                 };
                 
                 activities.push(sanitizedActivity as InsertProcessActivity);
@@ -278,14 +287,20 @@ export class XESParser {
               caseInfo.anomalyCount = caseActivities.filter(a => a.isAnomaly).length;
               
               if (caseInfo.startTime && caseInfo.endTime) {
-                const totalDuration = (caseInfo.endTime.getTime() - caseInfo.startTime.getTime()) / 1000;
+                const startMs = new Date(caseInfo.startTime).getTime();
+                const endMs = new Date(caseInfo.endTime).getTime();
+                const totalDuration = (endMs - startMs) / 1000;
                 caseInfo.totalDurationS = isNaN(totalDuration) ? null : totalDuration;
               }
               
-              // Sanitize all numeric fields for case data
+              // Sanitize all fields for SQLite
               const sanitizedCase = {
-                ...caseInfo,
+                caseId: caseInfo.caseId || '',
+                processModelId: caseInfo.processModelId || null,
+                startTime: caseInfo.startTime || null,
+                endTime: caseInfo.endTime || null,
                 totalDurationS: caseInfo.totalDurationS && !isNaN(caseInfo.totalDurationS) ? caseInfo.totalDurationS : null,
+                status: caseInfo.status || 'unknown',
                 activityCount: caseInfo.activityCount && !isNaN(caseInfo.activityCount) ? caseInfo.activityCount : 0,
                 failureCount: caseInfo.failureCount && !isNaN(caseInfo.failureCount) ? caseInfo.failureCount : 0,
                 anomalyCount: caseInfo.anomalyCount && !isNaN(caseInfo.anomalyCount) ? caseInfo.anomalyCount : 0,

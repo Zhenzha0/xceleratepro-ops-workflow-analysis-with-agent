@@ -1,6 +1,7 @@
-import express, { type Request, Response, NextFunction } from "express";
+import express, { NextFunction, Response, type Request } from "express";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import { AIServiceFactory } from "./services/ai-service-factory";
+import { log, serveStatic, setupVite } from "./vite";
 
 const app = express();
 app.use(express.json());
@@ -37,6 +38,15 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Initialize AI services (including RAG system for local AI)
+  try {
+    console.log('🤖 Initializing AI Service Factory...');
+    await AIServiceFactory.initialize();
+    console.log('✅ AI Service Factory initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize AI Service Factory:', error);
+  }
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -56,15 +66,11 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
+  // Use a more reliable port configuration for local development
+  const port = Number(process.env.PORT) || 5000;
+  const host = process.env.NODE_ENV === "development" ? "127.0.0.1" : "0.0.0.0";
+  
+  server.listen(port, host, () => {
+    log(`serving on http://${host}:${port}`);
   });
 })();

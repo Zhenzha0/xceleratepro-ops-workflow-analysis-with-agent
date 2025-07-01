@@ -1,90 +1,90 @@
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, real, varchar } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = sqliteTable("users", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
 });
 
-export const processEvents = sqliteTable("process_events", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  caseId: text("case_id").notNull(),
-  timestamp: text("timestamp").notNull(),
-  operationEndTime: text("operation_end_time"),
-  lifecycleTransition: text("lifecycle_transition").notNull(),
-  lifecycleState: text("lifecycle_state").notNull(),
+export const processEvents = pgTable("process_events", {
+  id: serial("id").primaryKey(),
+  caseId: varchar("case_id", { length: 50 }).notNull(),
+  timestamp: timestamp("timestamp").notNull(),
+  operationEndTime: timestamp("operation_end_time"),
+  lifecycleTransition: varchar("lifecycle_transition", { length: 20 }).notNull(),
+  lifecycleState: varchar("lifecycle_state", { length: 20 }).notNull(),
   eventId: integer("event_id").notNull(),
-  identifierId: text("identifier_id"),
-  processModelId: text("process_model_id"),
+  identifierId: varchar("identifier_id", { length: 50 }),
+  processModelId: varchar("process_model_id", { length: 50 }),
   activity: text("activity").notNull(),
   requestedServiceUrl: text("requested_service_url"),
-  orgResource: text("org_resource"),
-  plannedOperationTime: text("planned_operation_time"),
+  orgResource: varchar("org_resource", { length: 50 }),
+  plannedOperationTime: varchar("planned_operation_time", { length: 50 }),
   parameters: text("parameters"),
-  caseConceptName: text("case_concept_name"),
-  subProcessId: text("sub_process_id"),
+  caseConceptName: varchar("case_concept_name", { length: 50 }),
+  subProcessId: varchar("sub_process_id", { length: 100 }),
   currentTask: text("current_task"),
   responseStatusCode: integer("response_status_code"),
-  completeServiceTime: text("complete_service_time"),
-  humanWorkstationGreenButtonPressed: integer("human_workstation_green_button_pressed"),
+  completeServiceTime: varchar("complete_service_time", { length: 100 }),
+  humanWorkstationGreenButtonPressed: boolean("human_workstation_green_button_pressed"),
   unsatisfiedConditionDescription: text("unsatisfied_condition_description"),
   processingTimeS: real("processing_time_s"),
-  isAnomaly: integer("is_anomaly").default(0),
-  createdAt: text("created_at").default("CURRENT_TIMESTAMP"),
+  isAnomaly: boolean("is_anomaly").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const processActivities = sqliteTable("process_activities", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  caseId: text("case_id").notNull(),
+export const processActivities = pgTable("process_activities", {
+  id: serial("id").primaryKey(),
+  caseId: varchar("case_id", { length: 50 }).notNull(),
   activity: text("activity").notNull(),
-  orgResource: text("org_resource"),
-  scheduledTime: text("scheduled_time"),
-  startTime: text("start_time"),
-  completeTime: text("complete_time"),
+  orgResource: varchar("org_resource", { length: 50 }),
+  scheduledTime: timestamp("scheduled_time"),
+  startTime: timestamp("start_time"),
+  completeTime: timestamp("complete_time"),
   plannedDurationS: real("planned_duration_s"),
   actualDurationS: real("actual_duration_s"),
-  status: text("status").notNull(),
-  isAnomaly: integer("is_anomaly").default(0),
+  status: varchar("status", { length: 20 }).notNull(),
+  isAnomaly: boolean("is_anomaly").default(false),
   anomalyScore: real("anomaly_score"),
   failureDescription: text("failure_description"),
   currentTask: text("current_task"),
-  createdAt: text("created_at").default("CURRENT_TIMESTAMP"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const processCases = sqliteTable("process_cases", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  caseId: text("case_id").notNull().unique(),
-  processModelId: text("process_model_id"),
-  startTime: text("start_time"),
-  endTime: text("end_time"),
+export const processCases = pgTable("process_cases", {
+  id: serial("id").primaryKey(),
+  caseId: varchar("case_id", { length: 50 }).notNull().unique(),
+  processModelId: varchar("process_model_id", { length: 50 }),
+  startTime: timestamp("start_time"),
+  endTime: timestamp("end_time"),
   totalDurationS: real("total_duration_s"),
-  status: text("status").notNull(),
+  status: varchar("status", { length: 20 }).notNull(),
   activityCount: integer("activity_count").default(0),
   failureCount: integer("failure_count").default(0),
   anomalyCount: integer("anomaly_count").default(0),
-  createdAt: text("created_at").default("CURRENT_TIMESTAMP"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const aiConversations = sqliteTable("ai_conversations", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  sessionId: text("session_id").notNull(),
+export const aiConversations = pgTable("ai_conversations", {
+  id: serial("id").primaryKey(),
+  sessionId: varchar("session_id", { length: 100 }).notNull(),
   query: text("query").notNull(),
   response: text("response").notNull(),
-  queryType: text("query_type"),
-  contextData: text("context_data"), // JSON as text for SQLite
-  createdAt: text("created_at").default("CURRENT_TIMESTAMP"),
+  queryType: varchar("query_type", { length: 50 }),
+  contextData: jsonb("context_data"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const failureEmbeddings = sqliteTable("failure_embeddings", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const failureEmbeddings = pgTable("failure_embeddings", {
+  id: serial("id").primaryKey(),
   failureDescription: text("failure_description").notNull(),
-  embedding: text("embedding").notNull(), // JSON as text for SQLite
-  caseId: text("case_id"),
+  embedding: jsonb("embedding").notNull(),
+  caseId: varchar("case_id", { length: 50 }),
   activity: text("activity"),
-  createdAt: text("created_at").default("CURRENT_TIMESTAMP"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Relations
@@ -233,4 +233,4 @@ export interface TimelineActivity {
   duration: number;
   isAnomaly: boolean;
   clusterId: number;
-} 
+}

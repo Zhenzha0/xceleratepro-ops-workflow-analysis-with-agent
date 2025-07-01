@@ -1,15 +1,17 @@
+import { processActivities, processCases, processEvents } from "@shared/schema";
+import { sql } from "drizzle-orm";
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
-import { db } from "./db";
-import { processActivities, processEvents, processCases } from "@shared/schema";
-import { XESParser } from "./services/xes-parser";
-import { AnomalyDetector } from "./services/anomaly-detector";
-import { AIAnalyst } from "./services/ai-analyst";
-import { SemanticSearch } from "./services/semantic-search";
-import { z } from "zod";
-import { sql } from "drizzle-orm";
 import * as path from 'path';
+import { z } from "zod";
+import { db } from "./db";
+import { AIAnalyst } from "./services/ai-analyst";
+import { AIServiceFactory } from "./services/ai-service-factory";
+import { AnomalyDetector } from "./services/anomaly-detector";
+import { RAGService } from "./services/rag-service";
+import { SemanticSearch } from "./services/semantic-search";
+import { XESParser } from "./services/xes-parser";
+import { storage } from "./storage";
 
 // Validation schemas
 const dashboardFiltersSchema = z.object({
@@ -25,7 +27,7 @@ const dashboardFiltersSchema = z.object({
 
 const aiQuerySchema = z.object({
   query: z.string().min(1).max(1000),
-  sessionId: z.string().min(1),
+  sessionId: z.string().min(1).optional(),
   contextData: z.any().optional(),
   filters: z.any().optional()
 });
@@ -431,7 +433,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI Analysis Routes
   app.post("/api/ai/analyze", async (req, res) => {
     try {
-      const request = aiQuerySchema.parse(req.body);
+      const parsedRequest = aiQuerySchema.parse(req.body);
+      const request = {
+        ...parsedRequest,
+        sessionId: parsedRequest.sessionId || 'default'
+      };
       // Use AI service factory to choose between OpenAI and Local AI
       const { AIServiceFactory } = await import('./services/ai-service-factory');
       const response = await AIServiceFactory.analyzeQuery(request);
@@ -598,6 +604,160 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Text Search Route
+  app.post("/api/search/text", async (req, res) => {
+    try {
+      const { query, limit = 20 } = req.body;
+
+      if (!query || query.trim() === '') {
+        return res.json({ results: [], totalResults: 0 });
+      }
+
+      const searchTerm = `%${query.trim()}%`;
+      const results: any[] = [];
+
+      // Search in process events
+      const eventResults = await db.select({
+        id: processEvents.id,
+        caseId: processEvents.caseId,
+        activity: processEvents.activity,
+        description: processEvents.unsatisfiedConditionDescription,
+        currentTask: processEvents.currentTask,
+        timestamp: processEvents.timestamp,
+        operationEndTime: processEvents.operationEndTime,
+        orgResource: processEvents.orgResource,
+        lifecycleState: processEvents.lifecycleState,
+        lifecycleTransition: processEvents.lifecycleTransition,
+        processModelId: processEvents.processModelId,
+        requestedServiceUrl: processEvents.requestedServiceUrl,
+        plannedOperationTime: processEvents.plannedOperationTime,
+        responseStatusCode: processEvents.responseStatusCode,
+        completeServiceTime: processEvents.completeServiceTime,
+        humanWorkstationGreenButtonPressed: processEvents.humanWorkstationGreenButtonPressed,
+        processingTimeS: processEvents.processingTimeS,
+        isAnomaly: processEvents.isAnomaly,
+        parameters: processEvents.parameters,
+        eventId: processEvents.eventId,
+        identifierId: processEvents.identifierId,
+        subProcessId: processEvents.subProcessId,
+        caseConceptName: processEvents.caseConceptName
+      }).from(processEvents)
+        .where(
+          sql`${processEvents.unsatisfiedConditionDescription} LIKE ${searchTerm} 
+              OR ${processEvents.currentTask} LIKE ${searchTerm}`
+        )
+        .limit(Math.floor(limit / 2));
+
+      eventResults.forEach(event => {
+        let matchedField = 'unsatisfied_condition';
+        let matchedContent = event.description;
+        
+        if (event.currentTask && event.currentTask.toLowerCase().includes(query.toLowerCase())) {
+          matchedField = 'current_task';
+          matchedContent = event.currentTask;
+        }
+
+        results.push({
+          id: `event_${event.id}`,
+          type: 'event',
+          caseId: event.caseId,
+          activity: event.activity,
+          description: event.description || '',
+          currentTask: event.currentTask || '',
+          timestamp: event.timestamp,
+          operationEndTime: event.operationEndTime,
+          orgResource: event.orgResource || '',
+          lifecycleState: event.lifecycleState,
+          lifecycleTransition: event.lifecycleTransition,
+          processModelId: event.processModelId,
+          requestedServiceUrl: event.requestedServiceUrl,
+          plannedOperationTime: event.plannedOperationTime,
+          responseStatusCode: event.responseStatusCode,
+          completeServiceTime: event.completeServiceTime,
+          humanWorkstationGreenButtonPressed: event.humanWorkstationGreenButtonPressed,
+          processingTimeS: event.processingTimeS,
+          isAnomaly: event.isAnomaly,
+          parameters: event.parameters,
+          eventId: event.eventId,
+          identifierId: event.identifierId,
+          subProcessId: event.subProcessId,
+          caseConceptName: event.caseConceptName,
+          matchedField,
+          matchedContent
+        });
+      });
+
+      // Search in process activities
+      const activityResults = await db.select({
+        id: processActivities.id,
+        caseId: processActivities.caseId,
+        activity: processActivities.activity,
+        failureDescription: processActivities.failureDescription,
+        currentTask: processActivities.currentTask,
+        orgResource: processActivities.orgResource,
+        scheduledTime: processActivities.scheduledTime,
+        startTime: processActivities.startTime,
+        completeTime: processActivities.completeTime,
+        plannedDurationS: processActivities.plannedDurationS,
+        actualDurationS: processActivities.actualDurationS,
+        status: processActivities.status,
+        isAnomaly: processActivities.isAnomaly,
+        anomalyScore: processActivities.anomalyScore
+      }).from(processActivities)
+        .where(
+          sql`${processActivities.failureDescription} LIKE ${searchTerm} 
+              OR ${processActivities.currentTask} LIKE ${searchTerm}`
+        )
+        .limit(Math.floor(limit / 2));
+
+      activityResults.forEach(activity => {
+        let matchedField = 'failure_description';
+        let matchedContent = activity.failureDescription;
+        
+        if (activity.currentTask && activity.currentTask.toLowerCase().includes(query.toLowerCase())) {
+          matchedField = 'current_task';
+          matchedContent = activity.currentTask;
+        }
+
+        results.push({
+          id: `activity_${activity.id}`,
+          type: 'activity',
+          caseId: activity.caseId,
+          activity: activity.activity,
+          description: activity.failureDescription || '',
+          currentTask: activity.currentTask || '',
+          timestamp: activity.startTime || activity.scheduledTime,
+          orgResource: activity.orgResource || '',
+          scheduledTime: activity.scheduledTime,
+          startTime: activity.startTime,
+          completeTime: activity.completeTime,
+          plannedDurationS: activity.plannedDurationS,
+          actualDurationS: activity.actualDurationS,
+          status: activity.status,
+          isAnomaly: activity.isAnomaly,
+          anomalyScore: activity.anomalyScore,
+          matchedField,
+          matchedContent
+        });
+      });
+
+      // Sort by most recent first
+      results.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
+
+      res.json({
+        results: results.slice(0, limit),
+        totalResults: results.length
+      });
+
+    } catch (error) {
+      console.error('Error in text search:', error);
+      res.status(500).json({ 
+        error: 'Failed to perform search',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Anomaly Detection Routes
   app.get("/api/anomalies/detect", async (req, res) => {
     try {
@@ -741,6 +901,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   }, 2000);
+
+  // AI Service Control endpoints
+  app.post('/api/ai/switch-to-local', async (req, res) => {
+    try {
+      await AIServiceFactory.enableLocalAI();
+      const status = AIServiceFactory.getStatus();
+      res.json({ 
+        success: true, 
+        message: 'Switched to local MediaPipe AI',
+        status 
+      });
+    } catch (error) {
+      console.error('Error switching to local AI:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to switch to local AI',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  app.post('/api/ai/switch-to-openai', async (req, res) => {
+    try {
+      AIServiceFactory.enableOpenAI();
+      const status = AIServiceFactory.getStatus();
+      res.json({ 
+        success: true, 
+        message: 'Switched to OpenAI',
+        status 
+      });
+    } catch (error) {
+      console.error('Error switching to OpenAI:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to switch to OpenAI',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  app.get('/api/ai/status', (req, res) => {
+    try {
+      const status = AIServiceFactory.getStatus();
+      res.json(status);
+    } catch (error) {
+      console.error('Error getting AI status:', error);
+      res.status(500).json({ 
+        error: 'Failed to get AI status',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // RAG System Endpoints
+  app.post('/api/rag/build-knowledge-base', async (req, res) => {
+    try {
+      const { forceRebuild = false } = req.body;
+      
+      console.log('🚀 Starting RAG knowledge base building...');
+      await AIServiceFactory.buildKnowledgeBase(forceRebuild);
+      
+      const stats = RAGService.getKnowledgeBaseStats();
+      res.json({
+        success: true,
+        message: 'RAG knowledge base built successfully',
+        stats
+      });
+    } catch (error) {
+      console.error('Error building RAG knowledge base:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to build RAG knowledge base',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  app.get('/api/rag/status', async (req, res) => {
+    try {
+      await RAGService.initialize();
+      const stats = RAGService.getKnowledgeBaseStats();
+      
+      res.json({
+        isInitialized: true,
+        knowledgeBaseSize: RAGService.getKnowledgeBaseSize(),
+        stats
+      });
+    } catch (error) {
+      console.error('Error getting RAG status:', error);
+      res.status(500).json({
+        error: 'Failed to get RAG status',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  app.post('/api/rag/clear', async (req, res) => {
+    try {
+      await RAGService.clearKnowledgeBase();
+      res.json({
+        success: true,
+        message: 'RAG knowledge base cleared'
+      });
+    } catch (error) {
+      console.error('Error clearing RAG knowledge base:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to clear RAG knowledge base',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

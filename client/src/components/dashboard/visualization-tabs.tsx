@@ -1,12 +1,12 @@
-import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { useQuery } from "@tanstack/react-query";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/api";
-import ProcessMap from "./process-map";
-import DetailedAnomalyView from "./detailed-anomaly-view";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import BottleneckAnalysisDetailed from "./bottleneck-analysis-detailed";
 import CaseSpecificSankey from "./case-specific-sankey";
+import DetailedAnomalyView from "./detailed-anomaly-view";
+import ProcessMap from "./process-map";
 import TimelineAnalysis from "./timeline-analysis";
 
 export default function VisualizationTabs({ filteredData }: { filteredData?: any }) {

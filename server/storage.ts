@@ -1,32 +1,32 @@
-import { 
-  processEvents, 
-  processActivities, 
-  processCases, 
-  aiConversations, 
-  failureEmbeddings,
-  users,
-  type User, 
-  type InsertUser,
-  type ProcessEvent,
-  type InsertProcessEvent,
-  type ProcessActivity,
-  type InsertProcessActivity,
-  type ProcessCase,
-  type InsertProcessCase,
-  type AiConversation,
-  type InsertAiConversation,
-  type FailureEmbedding,
-  type InsertFailureEmbedding,
-  type DashboardMetrics,
-  type AnomalyAlert,
-  type CaseComparison,
-  type SemanticSearchResult,
-  type CaseClusterAnalysis,
-  type CaseCluster,
-  type TimelineActivity
+import {
+    aiConversations,
+    failureEmbeddings,
+    processActivities,
+    processCases,
+    processEvents,
+    users,
+    type AiConversation,
+    type AnomalyAlert,
+    type CaseCluster,
+    type CaseClusterAnalysis,
+    type CaseComparison,
+    type DashboardMetrics,
+    type FailureEmbedding,
+    type InsertAiConversation,
+    type InsertFailureEmbedding,
+    type InsertProcessActivity,
+    type InsertProcessCase,
+    type InsertProcessEvent,
+    type InsertUser,
+    type ProcessActivity,
+    type ProcessCase,
+    type ProcessEvent,
+    type SemanticSearchResult,
+    type TimelineActivity,
+    type User
 } from "@shared/schema";
+import { and, desc, eq, gte, like, lte, or, sql } from "drizzle-orm";
 import { db } from "./db";
-import { eq, desc, and, gte, lte, sql, like, or, isNotNull } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -265,7 +265,7 @@ export class DatabaseStorage implements IStorage {
 
     const [anomalies] = await db.select({ count: sql<number>`cast(count(*) as integer)` })
       .from(processActivities)
-      .where(eq(processActivities.isAnomaly, true));
+      .where(eq(processActivities.isAnomaly, 1));
 
     // Calculate bottlenecks - processing time and wait time
     const processingBottlenecks = await db.select({
@@ -281,12 +281,12 @@ export class DatabaseStorage implements IStorage {
     // Calculate wait time bottlenecks (start_time - scheduled_time)
     const waitTimeBottlenecks = await db.select({
       station: processActivities.orgResource,
-      avgWaitTime: sql<number>`avg(extract(epoch from start_time) - extract(epoch from scheduled_time))`
+      avgWaitTime: sql<number>`avg((julianday(start_time) - julianday(scheduled_time)) * 86400)`
     })
       .from(processActivities)
       .where(sql`start_time IS NOT NULL AND scheduled_time IS NOT NULL AND org_resource IS NOT NULL`)
       .groupBy(processActivities.orgResource)
-      .orderBy(sql`avg(extract(epoch from start_time) - extract(epoch from scheduled_time)) desc`)
+      .orderBy(sql`avg((julianday(start_time) - julianday(scheduled_time)) * 86400) desc`)
       .limit(5);
 
     // Count actual bottlenecks (stations with significant delays)
@@ -322,7 +322,7 @@ export class DatabaseStorage implements IStorage {
   async getAnomalyAlerts(limit = 10): Promise<AnomalyAlert[]> {
     const anomalies = await db.select()
       .from(processActivities)
-      .where(eq(processActivities.isAnomaly, true))
+      .where(eq(processActivities.isAnomaly, 1))
       .orderBy(desc(processActivities.startTime))
       .limit(limit);
 
@@ -417,12 +417,12 @@ export class DatabaseStorage implements IStorage {
     // Get wait time bottlenecks with full activity names (start_time - scheduled_time)
     const waitTimeBottlenecks = await db.select({
       station: sql<string>`COALESCE(activity, org_resource, 'Unknown Station')`,
-      avgWaitTime: sql<number>`avg(extract(epoch from start_time) - extract(epoch from scheduled_time))`
+      avgWaitTime: sql<number>`avg((julianday(start_time) - julianday(scheduled_time)) * 86400)`
     })
       .from(processActivities)
       .where(sql`start_time IS NOT NULL AND scheduled_time IS NOT NULL AND (activity IS NOT NULL OR org_resource IS NOT NULL)`)
       .groupBy(sql`COALESCE(activity, org_resource, 'Unknown Station')`)
-      .orderBy(sql`avg(extract(epoch from start_time) - extract(epoch from scheduled_time)) desc`)
+      .orderBy(sql`avg((julianday(start_time) - julianday(scheduled_time)) * 86400) desc`)
       .limit(5);
 
     return {

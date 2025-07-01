@@ -1,15 +1,11 @@
+import { ProcessActivity } from '@shared/schema';
 import OpenAI from "openai";
-import { ProcessEvent, ProcessActivity, ProcessCase, AnomalyAlert } from '@shared/schema';
 import { storage } from '../storage';
-import { AnomalyDetector } from './anomaly-detector';
-import { SemanticSearch } from './semantic-search';
 import { EnhancedFailureAnalyzer } from './failure-analyzer-enhanced';
-import { TimingAnalyzer } from './timing-analyzer';
-import { TrendAnalyzer } from './trend-analyzer';
-import { CaseAnalyzer } from './case-analyzer';
+import { SemanticSearch } from './semantic-search';
 
 const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || "default_key"
+  apiKey: process.env.OPENAI_API_KEY || "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"
 });
 
 export interface AIAnalysisRequest {
@@ -80,11 +76,11 @@ export class AIAnalyst {
         query,
         response: aiResponse.response || 'Unable to process query',
         queryType,
-        contextData: { 
+        contextData: JSON.stringify({ 
           ...contextData, 
           dataUsed: relevantData?.summary,
           suggestedActions: aiResponse.suggestedActions 
-        }
+        })
       });
 
       // Generate structured data for automatic visualizations
@@ -124,7 +120,7 @@ export class AIAnalyst {
           query,
           response: errorMessage,
           queryType: 'error',
-          contextData: { error: error instanceof Error ? error.message : 'Unknown error' }
+          contextData: JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' })
         });
       } catch (dbError) {
         console.error('Error storing failed conversation:', dbError);
@@ -928,7 +924,7 @@ Provide a comprehensive manufacturing process analysis report.`;
         messages: [
           { 
             role: "system", 
-            content: "You are a manufacturing process analyst. Generate detailed, technical case comparison reports." 
+            content: "You are ProcessGPT, a manufacturing process analyst. Generate detailed, technical case comparison reports." 
           },
           { role: "user", content: prompt }
         ],
@@ -1105,74 +1101,90 @@ Respond in JSON format with: patterns (array), recommendations (array), riskAsse
       }
       
       if (analysisType === 'temporal_pattern_analysis' || (query.includes('hour') && query.includes('failure'))) {
-        // Use direct database query for temporal failure analysis
-        const { db } = await import('../db');
-        const { sql } = await import('drizzle-orm');
+        // Use Drizzle ORM for temporal failure analysis
+        const { storage } = await import('../storage');
         
         try {
-          console.log('Starting direct SQL temporal analysis...');
+          console.log('Starting temporal analysis using Drizzle ORM...');
           
-          // Direct SQL query to get hourly failure distribution
-          const hourlyResults = await db.execute(sql`
-            SELECT 
-              EXTRACT(HOUR FROM timestamp) as hour,
-              COUNT(*) as count
-            FROM process_events 
-            WHERE lifecycle_state = 'failure' 
-            GROUP BY EXTRACT(HOUR FROM timestamp) 
-            ORDER BY hour
-          `);
+          // Get all events and filter for failures more comprehensively
+          const allEvents = await storage.getProcessEvents({ limit: 10000 });
           
-          console.log('SQL hourly results rows:', hourlyResults.rows);
+          console.log(`Total events loaded: ${allEvents.length}`);
+          console.log('Sample event structure:', allEvents[0] || 'No events found');
           
-          // Create complete 24-hour array
-          const hourlyFailures = Array.from({length: 24}, (_, hour) => ({ hour, count: 0 }));
+          const failureEvents = allEvents.filter(event => {
+            // Check multiple failure indicators
+            const hasFailureState = event.lifecycleState === 'failure' || event.lifecycleState === 'error';
+            const hasFailureTransition = event.lifecycleTransition === 'failure' || event.lifecycleTransition === 'error';
+            const hasFailureDescription = event.unsatisfiedConditionDescription && 
+                                           event.unsatisfiedConditionDescription.trim().length > 0;
+            
+            return hasFailureState || hasFailureTransition || hasFailureDescription;
+          });
           
-          // Process the SQL result rows
-          if (hourlyResults.rows && Array.isArray(hourlyResults.rows)) {
-            hourlyResults.rows.forEach((row: any) => {
-              const hour = parseInt(row.hour);
-              if (hour >= 0 && hour < 24) {
-                hourlyFailures[hour].count = parseInt(row.count);
-              }
+          console.log(`Found failure events: ${failureEvents.length} out of ${allEvents.length} total events`);
+          
+          // If no failure events found using strict criteria, try broader criteria
+          if (failureEvents.length === 0) {
+            console.log('No failure events found with strict criteria, trying broader search...');
+            
+            // Look for any events with error indicators in activity names or descriptions
+            const broadFailureEvents = allEvents.filter(event => {
+              const activityName = (event.activity || '').toLowerCase();
+              const description = (event.unsatisfiedConditionDescription || '').toLowerCase();
+              const state = (event.lifecycleState || '').toLowerCase();
+              
+              return activityName.includes('error') || 
+                     activityName.includes('fail') ||
+                     description.includes('error') ||
+                     description.includes('fail') ||
+                     state.includes('error') ||
+                     event.responseStatusCode && event.responseStatusCode >= 400;
             });
+            
+            console.log(`Broader search found: ${broadFailureEvents.length} potential failure events`);
+            
+            if (broadFailureEvents.length > 0) {
+              // Use the broader criteria results
+              failureEvents.push(...broadFailureEvents);
+            }
           }
           
+          console.log(`Found ${failureEvents.length} failure events for temporal analysis`);
+          
+          // Create hourly distribution manually from events
+          const hourlyFailures = Array.from({length: 24}, (_, hour) => ({ hour, count: 0 }));
+          const dailyMap = new Map<string, number>();
+          
+          let startDate: Date | null = null;
+          let endDate: Date | null = null;
+          
+          failureEvents.forEach(event => {
+            // Extract hour from timestamp
+            const eventDate = new Date(event.timestamp);
+            const hour = eventDate.getHours();
+            
+            if (hour >= 0 && hour < 24) {
+              hourlyFailures[hour].count++;
+            }
+            
+            // Track daily distribution
+            const dateStr = eventDate.toISOString().split('T')[0]; // YYYY-MM-DD
+            dailyMap.set(dateStr, (dailyMap.get(dateStr) || 0) + 1);
+            
+            // Track date range
+            if (!startDate || eventDate < startDate) startDate = eventDate;
+            if (!endDate || eventDate > endDate) endDate = eventDate;
+          });
+          
+          const dailyData = Array.from(dailyMap.entries()).map(([date, count]) => ({
+            date,
+            count
+          })).sort((a, b) => a.date.localeCompare(b.date));
+          
           console.log('Processed hourly failures:', hourlyFailures.filter(h => h.count > 0));
-          
-          // Get daily distribution
-          const dailyResults = await db.execute(sql`
-            SELECT 
-              DATE(timestamp) as date,
-              COUNT(*) as count
-            FROM process_events 
-            WHERE lifecycle_state = 'failure' 
-            GROUP BY DATE(timestamp) 
-            ORDER BY date
-          `);
-          
-          const dailyData = (dailyResults.rows || []).map((row: any) => ({
-            date: row.date,
-            count: parseInt(row.count)
-          }));
-          
-          // Get date range
-          const dateRangeResult = await db.execute(sql`
-            SELECT 
-              MIN(timestamp) as start_date,
-              MAX(timestamp) as end_date,
-              COUNT(*) as total_failures
-            FROM process_events 
-            WHERE lifecycle_state = 'failure'
-          `);
-          
-          const dateRow = dateRangeResult.rows?.[0] || {};
-          const totalFailures = dateRow.total_failures ? parseInt(dateRow.total_failures) : 0;
-          const startDate = dateRow.start_date;
-          const endDate = dateRow.end_date;
-          
-          console.log(`Temporal analysis found ${totalFailures} failure events using direct SQL query`);
-          console.log(`Hourly distribution:`, hourlyFailures.filter(h => h.count > 0));
+          console.log(`Date range: ${startDate?.toLocaleDateString()} to ${endDate?.toLocaleDateString()}`);
           
           return {
             analysis_type: "temporal_analysis",
@@ -1180,17 +1192,17 @@ Respond in JSON format with: patterns (array), recommendations (array), riskAsse
               hour_failure_distribution: hourlyFailures,
               daily_failure_distribution: dailyData,
               date_range: startDate && endDate ? {
-                start: new Date(startDate).getTime(),
-                end: new Date(endDate).getTime()
+                start: startDate.getTime(),
+                end: endDate.getTime()
               } : null,
-              total_failures: totalFailures,
+              total_failures: failureEvents.length,
               analysis_period: startDate && endDate ? 
-                `${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}` : 
+                `${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}` : 
                 'Unknown period'
             }
           };
         } catch (error) {
-          console.error('SQL temporal analysis error:', error);
+          console.error('Temporal analysis error:', error);
           // Fallback to empty data
           return {
             analysis_type: "temporal_analysis",
