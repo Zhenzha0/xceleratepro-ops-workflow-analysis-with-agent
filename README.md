@@ -177,6 +177,123 @@ The application automatically detects available models and allows switching:
 2. **Manual Override**: Set `USE_LOCAL_AI=true` in `.env` to force local AI
 3. **Fallback**: Automatically falls back to OpenAI if local models unavailable
 
+### Model Selection & Architecture
+
+#### Motivation for Local AI Deployment
+
+To select an appropriate model architecture for local deployment and edge execution, it was essential to first clarify the motivation behind running the language model offline rather than through a cloud API like OpenAI's GPT.
+
+The primary driver for local inference was **data security** — when using OpenAI's cloud-based endpoints, all input prompts and conversation data must be transmitted to external servers, which can pose privacy and compliance concerns for sensitive manufacturing or process data. Running the entire inference pipeline locally ensures that no data leaves the device.
+
+To meet this requirement, the chosen language model had to be lightweight enough to run on edge devices (e.g., tablets, low-end desktops) without significant latency or memory constraints. Practically, this means targeting model sizes around 1 GB or less, which is feasible for small LLMs that have been quantized and optimized for edge inference.
+
+#### 📦 Role of MediaPipe and Model Formats
+
+Google AI Edge's MediaPipe GenAI tools play a critical role here:
+
+**First**, MediaPipe's converter supports transforming the raw model checkpoint (e.g., a `.safetensors` file from Hugging Face) into a TensorFlow Lite (`.tflite`) format.
+
+- `.tflite` is an efficient, compressed neural network format designed for mobile and embedded inference.
+
+**Then**, MediaPipe's bundler wraps the `.tflite` model and its tokenizer into a `.task` file.
+
+- A `.task` file is a self-contained package used by MediaPipe's LLM Inference API. It includes the model weights, tokenizer, special tokens, and inference metadata. This makes it easy to deploy an LLM like an "offline version of OpenAI"— without re-training or building custom preprocessing pipelines from scratch.
+
+#### 🧩 WASM (WebAssembly) Execution
+
+To run the `.task` model in a web browser, we use WebAssembly (WASM). WASM is a low-level, portable binary instruction format that allows high-performance code to run inside the browser sandbox at near-native speed. MediaPipe's LLM Inference WASM runtime loads the `.task` file in the browser and executes the model directly on the user's device — with no server calls required. This is key for delivering secure, offline, cross-platform inference.
+
+#### ✅ Model Selection Journey
+
+**1️⃣ Initial Candidate — Gemma-2B**
+I first tested the `gemma-2b` model checkpoint. After converting it to `.tflite` and bundling it into `.task` format with MediaPipe's tools, I verified its inference performance and text generation quality. However, I realized that `gemma-2b` is a base model, not instruction-tuned — meaning it's not fine-tuned for conversational or question-answering tasks, making it poorly suited for a chatbot context.
+
+**2️⃣ Next Attempt — Gemma-2B-IT**
+Next, I switched to `gemma-2b-it`, the instruction-tuned variant designed for chat-like tasks. However, after compressing the model to `.tflite` and bundling it into `.task`, I found that this specific version could not be run locally in the browser using the WASM backend — MediaPipe's converter and runtime did not yet fully support this model for client-side WebAssembly inference.
+
+**3️⃣ Final Working Solution — Gemma-3-1B-IT**
+This limitation led me to identify a better candidate: `gemma-3-1b-it` — a smaller (1B parameter) instruction-tuned Gemma 3 model, released with a prebuilt `.task` file compatible with MediaPipe's WASM runtime. Unlike the previous versions, `gemma-3-1b-it` has been optimized and quantized (e.g., int4) specifically for edge deployment. The `.task` bundle is directly available from Hugging Face under LiteRT Community, so no manual conversion is needed.
+
+By deploying this `.task` file through MediaPipe's LLM Inference WASM module, the chatbot now runs fully offline in the browser, achieving fast, private, instruction-tuned text generation without sending data to the cloud.
+
+#### ✅ Key Takeaway
+
+This process demonstrates how model size, format, tuning, and WASM compatibility must align when building secure, edge-friendly language applications. Using the `.tflite` + `.task` pipeline with MediaPipe's tooling ensures the final LLM is easy to deploy and requires minimal device resources, while WebAssembly delivers cross-platform, in-browser execution with near-native performance.
+
+### Local AI Limitations & Capabilities
+
+#### Parameter Scale Comparison
+
+The local AI model (`gemma-3-1b-it`) operates with **1 billion parameters**, which is significantly smaller compared to OpenAI's GPT-4 with approximately **170+ billion parameters**. This substantial difference in model scale directly impacts the complexity of queries that can be effectively handled.
+
+#### Model Capability Constraints
+
+**✅ What Local AI Handles Well:**
+
+- Single-step queries with direct data lookups
+- Simple statistical analysis and aggregation
+- Basic pattern recognition in manufacturing data
+- Straightforward failure analysis and equipment metrics
+- Standard reporting and data summarization
+
+**❌ Complex Queries That Require OpenAI:**
+
+- Multi-step reasoning requiring intermediate conclusions
+- Complex root cause analysis involving multiple variables
+- Advanced temporal pattern recognition across extended periods
+- Sophisticated natural language understanding with nuanced context
+- Deep analytical insights requiring domain expertise synthesis
+
+#### Example Query Comparisons
+
+**✅ Simple Query (Local AI Capable):**
+
+```
+"What is the average processing time for the oven station?"
+```
+
+- **Why it works**: Direct aggregation query requiring single database lookup and basic calculation
+
+**❌ Complex Query (Requires OpenAI):**
+
+```
+"Analyze the correlation between morning shift failures and the subsequent impact on afternoon production efficiency, considering seasonal variations and equipment maintenance schedules over the past 6 months."
+```
+
+- **Why it fails locally**: Requires multi-step reasoning, complex correlation analysis, temporal pattern recognition, and integration of multiple data sources
+
+**✅ Simple Query (Local AI Capable):**
+
+```
+"Which equipment has the highest failure rate?"
+```
+
+- **Why it works**: Simple counting and ranking operation
+
+**❌ Complex Query (Requires OpenAI):**
+
+```
+"Given the current failure patterns, predict which equipment is most likely to fail next week and recommend preventive maintenance priorities based on production schedule impact and spare parts availability."
+```
+
+- **Why it fails locally**: Requires predictive modeling, multi-variable analysis, and strategic decision-making
+
+#### Performance Recommendations
+
+**Use Local AI When:**
+
+- Data privacy is critical
+- Internet connectivity is limited
+- Simple reporting and metrics are sufficient
+- Basic failure analysis meets requirements
+
+**Use OpenAI When:**
+
+- Complex analytical insights are needed
+- Multi-step reasoning is required
+- Advanced pattern recognition is essential
+- Strategic recommendations and predictions are desired
+
 ### Model Management
 
 **Recommended Models:**
@@ -865,6 +982,523 @@ For questions about the manufacturing dataset or domain-specific inquiries, cont
 
 - Lukas Malburg: malburg@uni-trier.de
 - Joscha Grüger: grueger@uni-trier.de
+
+---
+
+---
+
+## 🧠 Understanding Local AI Limitations
+
+### Parameter Memory & Context Constraints
+
+The fundamental limitation of local AI models stems from their **parameter count**, which directly affects their "memory" and reasoning capabilities:
+
+#### **Parameter Scale Comparison**
+
+- **Gemma-3-1B (Local)**: ~1 billion parameters
+- **OpenAI GPT-4 (Cloud)**: ~170 billion parameters
+
+#### **Why Local AI "Forgets" Information**
+
+**1. Limited Working Memory**
+
+```
+Local AI (1B parameters):
+┌─────────────────────────────────────┐
+│ Context Window: ~2,048 tokens       │
+│ Working Memory: Limited             │
+│ Multi-step Reasoning: Basic         │
+└─────────────────────────────────────┘
+
+OpenAI GPT-4 (170B parameters):
+┌─────────────────────────────────────┐
+│ Context Window: ~32,000 tokens      │
+│ Working Memory: Extensive           │
+│ Multi-step Reasoning: Advanced      │
+└─────────────────────────────────────┘
+```
+
+**2. Information Retention Issues**
+
+- **Token Limit**: Local AI can only "remember" ~2,000 words at once
+- **Context Loss**: Longer conversations cause early information to be "forgotten"
+- **No Persistent Memory**: Each query starts fresh without learning from previous interactions
+
+**3. Reasoning Limitations**
+
+- **Single-Step Processing**: Can handle direct questions but struggles with complex logic chains
+- **Pattern Recognition**: Limited ability to connect distant data points
+- **Inference Depth**: Cannot perform deep analytical reasoning across multiple data dimensions
+
+#### **Query Capability Comparison**
+
+| Query Type                    | Local AI (Gemma-3-1B) | OpenAI GPT-4 |
+| ----------------------------- | --------------------- | ------------ |
+| **Simple Data Retrieval**     | ✅ Excellent          | ✅ Excellent |
+| **Basic Pattern Recognition** | ✅ Good               | ✅ Excellent |
+| **Multi-step Analysis**       | ❌ Limited            | ✅ Excellent |
+| **Complex Correlations**      | ❌ Poor               | ✅ Excellent |
+| **Contextual Reasoning**      | ❌ Basic              | ✅ Advanced  |
+
+#### **Examples of Query Limitations**
+
+**✅ Local AI Can Handle:**
+
+```
+- "What is the most common failure type?"
+- "Show me events from case WF_101_0"
+- "Which activity takes the longest time?"
+- "How many failures occurred today?"
+```
+
+**❌ Local AI Struggles With:**
+
+```
+- "Analyze the correlation between temperature fluctuations,
+   timing delays, and subsequent failure patterns across
+   multiple manufacturing lines, considering seasonal variations
+   and equipment age factors"
+
+- "Compare failure patterns from Q1 vs Q2, identify trending
+   issues, predict potential future problems, and recommend
+   specific maintenance schedules based on historical data"
+
+- "Cross-reference equipment utilization rates with failure
+   frequencies, factor in shift worker experience levels,
+   and suggest optimal production scheduling to minimize risks"
+```
+
+#### **When to Use Each AI Service**
+
+**🏠 Choose Local AI When:**
+
+- Privacy is critical (no data leaves your network)
+- Simple, direct questions
+- Quick exploratory data analysis
+- Offline/air-gapped environments
+- Cost considerations (no API fees)
+
+**☁️ Choose OpenAI When:**
+
+- Complex multi-dimensional analysis needed
+- Advanced pattern recognition required
+- Strategic decision-making support
+- Comprehensive reporting with deep insights
+- Research and detailed investigations
+
+---
+
+## 📥 Complete Installation & Setup Guide
+
+### System Requirements
+
+**Minimum Hardware:**
+
+- **CPU**: 4 cores, 2.0 GHz
+- **RAM**: 8 GB (16 GB recommended for local AI)
+- **Storage**: 5 GB free space
+- **GPU**: Optional (improves local AI performance)
+
+**Software Prerequisites:**
+
+- **Operating System**: Windows 10+, macOS 10.15+, or Linux
+- **Node.js**: Version 18.0 or higher
+- **npm**: Version 8.0 or higher
+- **Git**: For cloning the repository
+
+### Step 1: Environment Setup
+
+#### Install Node.js
+
+```bash
+# Windows (using winget)
+winget install OpenJS.NodeJS
+
+# macOS (using Homebrew)
+brew install node
+
+# Linux (Ubuntu/Debian)
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Verify installation
+node --version  # Should show v18.0.0 or higher
+npm --version   # Should show v8.0.0 or higher
+```
+
+#### Install Git
+
+```bash
+# Windows
+winget install Git.Git
+
+# macOS
+brew install git
+
+# Linux
+sudo apt-get install git
+```
+
+### Step 2: Project Installation
+
+#### Clone and Setup Project
+
+```bash
+# Clone the repository
+git clone https://github.com/your-username/xceleratepro-ops-workflow-analysis-with-agent.git
+cd xceleratepro-ops-workflow-analysis-with-agent
+
+# Install dependencies
+npm install
+
+# Install additional dependencies for AI features
+npm install --save @tensorflow/tfjs @mediapipe/tasks-genai
+```
+
+#### Environment Configuration
+
+```bash
+# Create environment file
+cp .env.example .env
+
+# Edit .env file with your settings
+# Windows
+notepad .env
+
+# macOS/Linux
+nano .env
+```
+
+**Required Environment Variables:**
+
+```bash
+# Basic Configuration
+NODE_ENV=development
+PORT=5000
+
+# OpenAI Configuration (for cloud AI)
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Local AI Configuration (optional)
+USE_LOCAL_AI=false
+LOCAL_AI_MODEL_PATH=./public/models/
+
+# Database Configuration
+DATABASE_URL=./local-database.sqlite
+
+# Optional Performance Settings
+AI_RATE_LIMIT=50
+LOG_LEVEL=info
+```
+
+### Step 3: Gemma-3-1B Model Integration Guide
+
+#### Download from Hugging Face
+
+**Option 1: Using Git LFS (Recommended)**
+
+```bash
+# Install Git LFS if not already installed
+git lfs install
+
+# Create models directory
+mkdir -p public/models
+cd public/models
+
+# Clone the model repository
+git clone https://huggingface.co/google/gemma-1.1-1b-it
+
+# The model files will be in gemma-1.1-1b-it/ directory
+```
+
+**Option 2: Manual Download**
+
+1. Visit: https://huggingface.co/google/gemma-1.1-1b-it/tree/main
+2. Download these files to `public/models/`:
+   - `model.safetensors` (main model weights)
+   - `tokenizer.json` (tokenizer configuration)
+   - `config.json` (model configuration)
+
+#### Convert to MediaPipe .task Format
+
+**Install MediaPipe Converter:**
+
+```bash
+# Install Python and pip if not available
+# Windows
+winget install Python.Python.3.11
+
+# Install MediaPipe model converter
+pip install mediapipe-model-maker
+
+# Install additional dependencies
+pip install tensorflow torch transformers
+```
+
+**Convert Model to .task Format:**
+
+```python
+# Create convert_model.py
+cat > convert_model.py << 'EOF'
+import mediapipe as mp
+from mediapipe.tasks.python import genai
+
+def convert_gemma_to_task():
+    # Configure conversion parameters
+    model_path = "./public/models/gemma-1.1-1b-it/"
+    output_path = "./public/models/gemma3-1b-it.task"
+
+    # Create converter
+    converter = genai.LlmConverter(
+        model_path=model_path,
+        output_path=output_path,
+        model_type="gemma",
+        max_tokens=2048,
+        vocab_size=256000
+    )
+
+    # Perform conversion
+    print("Converting Gemma model to .task format...")
+    converter.convert()
+    print(f"✅ Model converted successfully: {output_path}")
+
+if __name__ == "__main__":
+    convert_gemma_to_task()
+EOF
+
+# Run the conversion
+python convert_model.py
+```
+
+**Alternative: Pre-converted Models**
+
+```bash
+# Download pre-converted .task file (if available)
+cd public/models
+wget https://storage.googleapis.com/mediapipe-models/gemma-1.1-1b-it.task
+
+# Or use curl
+curl -L -o gemma3-1b-it.task https://storage.googleapis.com/mediapipe-models/gemma-1.1-1b-it.task
+```
+
+#### Verify Model Installation
+
+```bash
+# Check model file size (should be ~700MB)
+ls -lh public/models/
+
+# Expected output:
+# gemma3-1b-it.task  (~700MB)
+
+# Test model loading
+npm run test-model
+```
+
+### Step 4: Data Setup
+
+#### Import Sample Dataset
+
+```bash
+# The sample dataset is included in attached_assets/
+# Verify it exists
+ls attached_assets/sample_data_*.csv
+
+# Start the application
+npm run dev
+
+# Navigate to http://localhost:3000
+# The dataset will be imported automatically on first load
+```
+
+#### Custom Dataset Setup
+
+```bash
+# Place your XES or CSV file in attached_assets/
+cp your-dataset.csv attached_assets/
+
+# Supported formats:
+# - XES (XML Event Stream)
+# - CSV with columns: case_id, activity, timestamp, resource, etc.
+# - Manufacturing event logs with IoT sensor data
+```
+
+### Step 5: Verification & Testing
+
+#### System Health Check
+
+```bash
+# Start the application
+npm run dev
+
+# Check all services are running
+curl http://localhost:5000/api/health
+
+# Expected response:
+{
+  "status": "healthy",
+  "dataImported": true,
+  "metrics": {
+    "totalEvents": 9471,
+    "totalCases": 123,
+    "avgProcessingTime": 235.28
+  }
+}
+```
+
+#### AI Service Testing
+
+```bash
+# Test OpenAI connection
+curl -X POST http://localhost:5000/api/ai/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Test query", "useLocalAI": false}'
+
+# Test Local AI (if configured)
+curl -X POST http://localhost:5000/api/ai/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Test query", "useLocalAI": true}'
+```
+
+### Step 6: Performance Optimization
+
+#### Memory Optimization
+
+```bash
+# For large datasets, increase Node.js memory limit
+export NODE_OPTIONS="--max-old-space-size=8192"
+npm run dev
+
+# Or permanently in package.json
+"scripts": {
+  "dev": "cross-env NODE_OPTIONS='--max-old-space-size=8192' tsx server/index.ts"
+}
+```
+
+#### Database Optimization
+
+```sql
+-- Create indexes for better query performance
+CREATE INDEX idx_events_case_id ON events(caseId);
+CREATE INDEX idx_events_timestamp ON events(timestamp);
+CREATE INDEX idx_events_activity ON events(activity);
+CREATE INDEX idx_events_anomaly ON events(isAnomaly);
+```
+
+### Troubleshooting Common Issues
+
+#### Installation Problems
+
+```bash
+# Clear npm cache
+npm cache clean --force
+rm -rf node_modules package-lock.json
+npm install
+
+# Permission issues (Linux/macOS)
+sudo chown -R $(whoami) ~/.npm
+sudo chown -R $(whoami) ./node_modules
+```
+
+#### Model Loading Issues
+
+```bash
+# Check model file integrity
+file public/models/gemma3-1b-it.task
+# Should show: "data"
+
+# Verify file permissions
+chmod 644 public/models/gemma3-1b-it.task
+
+# Check disk space
+df -h
+```
+
+#### Memory Issues with Local AI
+
+```bash
+# Monitor memory usage
+# Windows
+taskmgr
+
+# macOS
+Activity Monitor
+
+# Linux
+htop
+
+# If out of memory, reduce model size or use cloud AI
+```
+
+#### Port Conflicts
+
+```bash
+# Check if port 5000 is in use
+# Windows
+netstat -ano | findstr :5000
+
+# macOS/Linux
+lsof -i :5000
+
+# Kill conflicting process
+# Windows
+taskkill /PID <process_id> /F
+
+# macOS/Linux
+kill -9 <process_id>
+```
+
+### Advanced Configuration
+
+#### Custom Model Integration
+
+```javascript
+// server/services/custom-ai-service.ts
+export class CustomAIService {
+  constructor(modelPath: string) {
+    this.modelPath = modelPath;
+  }
+
+  async loadModel() {
+    // Custom model loading logic
+  }
+
+  async generateResponse(query: string) {
+    // Custom inference logic
+  }
+}
+```
+
+#### Production Deployment
+
+```bash
+# Build for production
+npm run build
+
+# Set production environment
+export NODE_ENV=production
+export PORT=80
+
+# Start with PM2 process manager
+npm install -g pm2
+pm2 start ecosystem.config.js
+pm2 save
+pm2 startup
+```
+
+#### SSL/HTTPS Configuration
+
+```javascript
+// server/index.ts
+import https from "https";
+import fs from "fs";
+
+const options = {
+  key: fs.readFileSync("path/to/private-key.pem"),
+  cert: fs.readFileSync("path/to/certificate.pem"),
+};
+
+https.createServer(options, app).listen(443);
+```
 
 ---
 
