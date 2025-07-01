@@ -440,7 +440,7 @@ export default function SemanticSearch() {
           </p>
         </div>
 
-        {/* Search Input */}
+          {/* Search Input */}
         <div className="flex gap-3">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -452,8 +452,8 @@ export default function SemanticSearch() {
               className="pl-10"
             />
           </div>
-          <Button 
-            onClick={handleSearch} 
+            <Button 
+              onClick={handleSearch}
             disabled={isLoading || !query.trim()}
             className="min-w-[100px]"
           >
@@ -464,9 +464,9 @@ export default function SemanticSearch() {
               </div>
             ) : (
               'Search'
-            )}
-          </Button>
-        </div>
+              )}
+            </Button>
+          </div>
 
         {/* Results Summary */}
         {totalResults > 0 && (
@@ -478,7 +478,7 @@ export default function SemanticSearch() {
             <span>{results.filter(r => r.type === 'activity').length} activities</span>
           </div>
         )}
-      </div>
+              </div>
 
       {/* Error State */}
       {error && (
@@ -490,12 +490,12 @@ export default function SemanticSearch() {
             </div>
           </CardContent>
         </Card>
-      )}
-
-      {/* Loading State */}
+          )}
+          
+          {/* Loading State */}
       {isLoading && (
         <div className="space-y-4">
-          {[...Array(3)].map((_, i) => (
+              {[...Array(3)].map((_, i) => (
             <Card key={i}>
               <CardContent className="p-4">
                 <div className="flex items-start gap-3">
@@ -508,14 +508,14 @@ export default function SemanticSearch() {
                 </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
-      )}
-
+              ))}
+            </div>
+          )}
+          
       {/* Results */}
-      {results.length > 0 && (
+          {results.length > 0 && (
         <div className="space-y-4">
-          {results.map((result) => (
+              {results.map((result) => (
             <Card key={result.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-4">
@@ -559,8 +559,8 @@ export default function SemanticSearch() {
                     <DialogTrigger asChild>
                       <Button variant="outline" size="sm" className="flex items-center gap-2">
                         <Eye className="h-4 w-4" />
-                        View Details
-                      </Button>
+                      View Details
+                    </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
@@ -579,10 +579,10 @@ export default function SemanticSearch() {
                 </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
-      )}
-
+              ))}
+            </div>
+          )}
+          
       {/* No Results State */}
       {!isLoading && !error && query && results.length === 0 && (
         <Card>

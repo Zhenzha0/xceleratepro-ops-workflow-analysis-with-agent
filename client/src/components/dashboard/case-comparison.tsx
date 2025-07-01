@@ -81,7 +81,7 @@ export default function CaseComparison({ cases }: CaseComparisonProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-4">
-          <div className="space-y-3">
+      <div className="space-y-3">
             <div>
               <strong>Total Activities:</strong> {metrics.totalActivities}
             </div>
@@ -450,8 +450,8 @@ export default function CaseComparison({ cases }: CaseComparisonProps) {
             No Sankey data available for {caseId}
           </div>
         )}
-      </div>
-    );
+    </div>
+  );
   };
 
   return (

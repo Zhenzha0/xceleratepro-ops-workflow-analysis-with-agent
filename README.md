@@ -98,14 +98,107 @@ The dataset was created using the DataStream/SensorStream XES extension and repr
    - Place your manufacturing dataset CSV in the `attached_assets/` folder
    - The application will automatically detect and import the data on first run
 
-5. **Start the Application**
+5. **AI Model Setup (Optional - for Local AI)**
+
+   For local AI capabilities with ProcessGPT, you can download and set up local models:
+
+   ```bash
+   # Create models directory
+   mkdir -p public/models
+
+   # Download Gemma 3 1B model (recommended for local processing)
+   # Option 1: Download from Hugging Face
+   # Visit: https://huggingface.co/google/gemma-1.1-7b-it-gguf
+   # Download the .gguf or .task file to public/models/
+
+   # Option 2: Download compatible models
+   # - Gemma 3 1B Instruct (.task format)
+   # - Other compatible task-based models
+   ```
+
+   **Supported Model Formats:**
+
+   - `.task` files (recommended)
+   - `.gguf` files
+   - `.bin` files (legacy)
+
+   **Model Requirements:**
+
+   - Minimum 4GB RAM for 1B parameter models
+   - 8GB+ RAM recommended for optimal performance
+   - Models should be placed in `public/models/` directory
+
+   **Note**: The application works fully without local models using OpenAI API. Local models provide offline capabilities and reduced API costs.
+
+6. **Start the Application**
 
    ```bash
    npm run dev
    ```
 
-6. **Access the Dashboard**
+7. **Access the Dashboard**
    Open your browser to `http://localhost:3000`
+
+---
+
+## 🤖 AI-Powered Analytics (ProcessGPT)
+
+The application includes an advanced AI assistant called **ProcessGPT** for intelligent manufacturing process analysis.
+
+### AI Service Options
+
+#### 1. OpenAI Integration (Default)
+
+- **Setup**: Add your OpenAI API key to `.env`
+- **Features**: Full GPT-4 capabilities for complex analysis
+- **Usage**: Requires internet connection and API costs
+- **Best for**: Production environments, complex queries
+
+#### 2. Local AI (Optional)
+
+- **Setup**: Download compatible models to `public/models/`
+- **Features**: Offline analysis with local language models
+- **Usage**: No internet required, no API costs
+- **Best for**: Privacy-sensitive environments, development
+
+### AI Features
+
+- **Failure Analysis**: Intelligent root cause analysis of manufacturing failures
+- **Pattern Recognition**: Automated detection of process patterns and anomalies
+- **Temporal Analysis**: Time-based trend analysis and prediction
+- **Natural Language Queries**: Ask questions in plain English
+- **RAG-Enhanced Responses**: Context-aware analysis using your process data
+
+### Switching Between AI Services
+
+The application automatically detects available models and allows switching:
+
+1. **In the Dashboard**: Use the AI service toggle in the top navigation
+2. **Manual Override**: Set `USE_LOCAL_AI=true` in `.env` to force local AI
+3. **Fallback**: Automatically falls back to OpenAI if local models unavailable
+
+### Model Management
+
+**Recommended Models:**
+
+- **Gemma 3 1B Instruct**: Best balance of performance and resource usage
+- **Gemma 2B IT**: Higher capability, more resource intensive
+- **Custom Models**: Any compatible .task, .gguf, or .bin format models
+
+**Storage Location:**
+
+```
+public/models/
+├── gemma3-1b-it.task      (recommended)
+├── your-custom-model.gguf  (optional)
+└── backup-model.bin        (optional)
+```
+
+**Troubleshooting:**
+
+- **Model not detected**: Ensure files are in `public/models/` with correct extensions
+- **Memory issues**: Use smaller models (1B parameters) or increase system RAM
+- **Performance slow**: Check CPU usage; consider GPU acceleration for larger models
 
 ---
 
